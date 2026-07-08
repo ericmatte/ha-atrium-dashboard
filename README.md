@@ -4,11 +4,12 @@
 [![Tests][tests-shield]][tests-url]
 [![License: Apache 2.0][license-shield]][license-url]
 
-Atrium is a fully dynamic Lovelace dashboard for Home Assistant, distributed as a **custom [Lovelace strategy](https://www.home-assistant.io/dashboards/strategies/)**. Floors, rooms, and entities are read from Home Assistant at load time — adding an area or a light in HA is enough to update the UI. No YAML editing, no per-room configuration.
+Atrium is a fully dynamic Lovelace dashboard for Home Assistant.
+No YAML editing, no per-room configuration.
 
 - **Home** — every floor and area, auto-grouped by domain (lights, switches, covers, sensors, …), with a per-floor dimmer.
-- **Climate** — every thermostat, with an optional live temperature graph.
-- **Routines** — scenes, automations, and scripts.
+- **Climate** — every thermostat and heat pump, with a live temperature graph.
+- **Routines** — scenes, automations, and scripts, with an optional validation-checklist widget.
 - Any number of **custom tabs** — fully config-driven, for things the strategy can't auto-discover (energy monitoring, system health, etc.).
 
 The whole thing is plain ES modules — no build step, no bundler, no framework, no runtime dependencies.
@@ -24,7 +25,6 @@ The whole thing is plain ES modules — no build step, no bundler, no framework,
 
 1. [HACS](https://hacs.xyz/) installed on your Home Assistant instance.
 2. Through HACS → Frontend, install [mini-graph-card](https://github.com/kalkih/mini-graph-card) — used to render the background temperature graph on each climate tile. Optional: without it, the tile still works, just without the graph.
-3. A reasonably recent Home Assistant version with the Areas/Floors registry (2024.10 or newer).
 
 ## Installation
 
