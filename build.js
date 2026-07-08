@@ -1,6 +1,8 @@
 import { build } from "esbuild";
 import { readFile } from "node:fs/promises";
 
+const pkg = JSON.parse(await readFile("package.json", "utf8"));
+
 const result = await build({
   entryPoints: ["src/strategy.js"],
   outfile: "dist/strategy.js",
@@ -10,6 +12,7 @@ const result = await build({
   loader: { ".css": "text" },
   logLevel: "info",
   metafile: true,
+  define: { __ATRIUM_VERSION__: JSON.stringify(pkg.version) },
 });
 
 // The whole point of this build is a single, self-contained file with

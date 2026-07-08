@@ -98,7 +98,7 @@ class AtriumHeader extends HTMLElement {
     top.innerHTML = `
       <div class="atrium-shell-header-greeting">
         <div class="atrium-shell-date"></div>
-        <div class="atrium-shell-welcome">${this._title || `Welcome ${this._welcomeName}`}</div>
+        <div class="atrium-shell-welcome" title="${this._welcomeTitle()}">${this._title || `Welcome ${this._welcomeName}`}</div>
       </div>
       <div class="atrium-shell-header-people"></div>
     `;
@@ -142,6 +142,14 @@ class AtriumHeader extends HTMLElement {
   _update() {
     this._updateDate();
     this._updateStats();
+  }
+
+  // __ATRIUM_VERSION__ is inlined by esbuild's `define` (see build.js) and
+  // is only replaced in the bundled dist output — it's absent when this
+  // module runs unbundled (tests, dev), hence the "dev" fallback.
+  _welcomeTitle() {
+    const version = typeof __ATRIUM_VERSION__ !== "undefined" ? __ATRIUM_VERSION__ : "dev";
+    return `Atrium v${version}`;
   }
 
   _updateDate() {
