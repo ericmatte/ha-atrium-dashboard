@@ -16,3 +16,7 @@ jobs:
       - uses: hacs/action@main
         with:
           category: plugin
+          # Screenshots are only required for default-store submission, not
+          # for custom-repository installs (which is all this repo targets
+          # today). Revisit if/when submitting to the default HACS store.
+          ignore: images
