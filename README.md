@@ -14,12 +14,9 @@ No YAML editing, no per-room configuration.
 
 The whole thing is plain ES modules — no build step, no bundler, no framework, no runtime dependencies.
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="images/preview-dark.png">
-    <img src="images/preview-light.png" alt="Atrium dashboard Home view, showing floors, areas, and per-room lights, climate, and sensors" width="100%">
-  </picture>
-</p>
+![Atrium dashboard Home view (dark), showing floors, areas, and per-room lights, climate, and sensors](images/preview-dark.png)
+
+![Atrium dashboard Home view (light), showing floors, areas, and per-room lights, climate, and sensors](images/preview-light.png)
 
 ## Prerequisites
 
