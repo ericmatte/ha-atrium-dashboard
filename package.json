@@ -1,5 +1,8 @@
 {
   "name": "ha-atrium-dashboard",
+  "author": {
+    "name": "Eric Matte"
+  },
   "private": true,
   "version": "1.1.0",
   "type": "module",
