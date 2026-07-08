@@ -8,7 +8,7 @@ Atrium is a fully dynamic Lovelace dashboard for Home Assistant, distributed as 
 
 - **Home** — every floor and area, auto-grouped by domain (lights, switches, covers, sensors, …), with a per-floor dimmer.
 - **Climate** — every thermostat, with an optional live temperature graph.
-- **Routines** — scenes, automations, and scripts, with an optional validation-checklist widget.
+- **Routines** — scenes, automations, and scripts.
 - Any number of **custom tabs** — fully config-driven, for things the strategy can't auto-discover (energy monitoring, system health, etc.).
 
 The whole thing is plain ES modules — no build step, no bundler, no framework, no runtime dependencies.
@@ -99,36 +99,6 @@ Per tab:
 - `entities_title` (optional) — title for that `entities` card; defaults to the tab's `title`.
 
 There's no limit on how many tabs you add.
-
-## Validation checklists (optional)
-
-The Routines tab can show a two-level checklist widget (`change` / `ongoing` items) per automation, backed by two native **Local To-do** lists so items are checkable from any HA client. It's entirely optional — with an empty manifest (the default, shipped as `validation-checklists.json`), the widget renders nothing.
-
-To use it:
-
-1. Go to **Settings → Devices & services → Add integration → Local To-do**, and create two lists. By default the widget expects them to resolve to `todo.validation_changement` and `todo.validation_suivi_long_terme` — check the actual entity IDs Home Assistant assigns, and adjust the `LEVELS` constant in [`components/validation-card.js`](components/validation-card.js) if they differ (this also lets you rename/relabel the two levels).
-2. Populate `validation-checklists.json` with your own content, keyed by an automation slug of your choice:
-
-   ```json
-   {
-     "my_automation": {
-       "label": "🌡️ My Automation",
-       "entity": "automation.my_automation",
-       "change": [
-         { "id": "some-stable-id", "text": "Describe what to verify" }
-       ],
-       "ongoing": [
-         { "id": "another-stable-id", "text": "Describe a recurring scenario to re-check" }
-       ]
-     }
-   }
-   ```
-
-   - `label` — shown as the section title.
-   - `entity` (optional) — when set, the title links to that entity's more-info dialog.
-   - `change` — one-off items to validate after a specific change; remove the entry once confirmed.
-   - `ongoing` — recurring scenarios to keep re-validating over time; leave these in place indefinitely.
-   - Each item's `id` must stay stable across edits — it's used to correlate the manifest entry with its to-do item.
 
 ## Development
 

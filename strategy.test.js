@@ -2,11 +2,11 @@
 //
 // strategy.js registers a custom element with no direct exports; it also
 // cascade-imports every other custom element in the dashboard (area-card,
-// header, floor-label, validation-card) purely to register them, none of
-// which are exercised by generate() itself. Stub the browser globals they
-// all touch at import time (fetch for CSS/JSON, HTMLElement, customElements)
-// so the whole module graph loads under plain Node, then grab the
-// registered strategy class out of the customElements.define() call.
+// header, floor-label) purely to register them, none of which are
+// exercised by generate() itself. Stub the browser globals they all touch
+// at import time (fetch for CSS/JSON, HTMLElement, customElements) so the
+// whole module graph loads under plain Node, then grab the registered
+// strategy class out of the customElements.define() call.
 import test from "node:test";
 import assert from "node:assert/strict";
 
