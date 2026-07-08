@@ -4,7 +4,7 @@
     "name": "Eric Matte"
   },
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "description": "Atrium — a fully dynamic Lovelace dashboard strategy for Home Assistant",
   "license": "Apache-2.0",
