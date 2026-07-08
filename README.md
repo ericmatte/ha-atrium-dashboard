@@ -34,7 +34,7 @@ This repository isn't in the default HACS store yet, so add it as a custom repos
 
 1. In Home Assistant, go to **HACS**.
 2. Click the **⋮** menu (top-right) → **Custom repositories**.
-3. Add `https://github.com/ericmatte/ha-atrium-dashboard`, category **Plugin** (called "Dashboard" or "Lovelace" in some HACS versions).
+3. Add `https://github.com/ericmatte/ha-atrium-dashboard`, category **Dashboard**.
 4. Find **Atrium Dashboard** in HACS → Frontend, and install it.
 5. HACS downloads the files to `/config/www/community/ha-atrium-dashboard/`.
 6. Go to **Settings → Dashboards → Resources** (⋮ menu → Resources, if not shown). HACS usually registers the resource automatically; if `Atrium Dashboard` isn't listed there, add it manually:
