@@ -1,18 +1,8 @@
-const _v = new URL(import.meta.url).search;
-const [popoverMod, hassUtilsMod, domUtilsMod, haActionsMod, shellMod, sharedMod] = await Promise.all([
-  import(`../lib/popover.js${_v}`),
-  import(`../lib/hass-utils.js${_v}`),
-  import(`../lib/dom-utils.js${_v}`),
-  import(`../lib/ha-actions.js${_v}`),
-  import(`../lib/shell.js${_v}`),
-  import(`./area-card-shared.js${_v}`),
-]);
-const { closePopoverFor, openListPopover } = popoverMod;
-const { sameRegistries, areaIdForEntity, areaForEntity, friendlyName } = hassUtilsMod;
-const { haIcon, injectStyleOnce, fireMoreInfo, tint } = domUtilsMod;
-const { callService } = haActionsMod;
-const { canDimLight, fmtBrightnessPct, lightRgbTriple } = sharedMod;
-const {
+import { closePopoverFor, openListPopover } from "../lib/popover.js";
+import { sameRegistries, areaIdForEntity, areaForEntity, friendlyName } from "../lib/hass-utils.js";
+import { haIcon, injectStyleOnce, fireMoreInfo, tint } from "../lib/dom-utils.js";
+import { callService } from "../lib/ha-actions.js";
+import {
   SHELL_TONE,
   SHELL_STYLE,
   shellCleanBatteryName,
@@ -24,11 +14,12 @@ const {
   formatTempRange,
   PROBLEM_UNAVAILABLE_DOMAINS,
   ALL_FLOOR_KEY,
-} = shellMod;
+} from "../lib/shell.js";
+import { canDimLight, fmtBrightnessPct, lightRgbTriple } from "./area-card-shared.js";
+import POPOVER_ITEM_STYLE from "./header.css";
 
 // Popover content is body-attached so the rules need to live at
 // document.head, outside the shadow root that hosts this card.
-const POPOVER_ITEM_STYLE = await fetch(new URL(`./header.css${_v}`, import.meta.url)).then((r) => r.text());
 
 function ensurePopoverItemStyle() {
   injectStyleOnce("atrium-popover-item-style", POPOVER_ITEM_STYLE);

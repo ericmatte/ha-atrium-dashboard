@@ -1,5 +1,5 @@
-const _v = new URL(import.meta.url).search;
-const { TONE } = await import(`./tone.js${_v}`);
+import { TONE } from "./tone.js";
+import SHELL_STYLE from "./shell.css";
 
 // The shell only needs a subset of the canonical palette; derive it so both
 // stay in lockstep.
@@ -13,7 +13,7 @@ export const SHELL_TONE = {
   good: TONE.good,
 };
 
-export const SHELL_STYLE = await fetch(new URL(`./shell.css${_v}`, import.meta.url)).then((r) => r.text());
+export { SHELL_STYLE };
 
 // Strip the redundant "Battery"/"Level" tokens and normalize to sentence
 // case so battery rows stay scannable in the popover.

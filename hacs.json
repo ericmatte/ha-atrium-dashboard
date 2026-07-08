@@ -1,6 +1,6 @@
 {
   "name": "Atrium Dashboard",
-  "content_in_root": true,
+  "content_in_root": false,
   "filename": "strategy.js",
   "render_readme": true
 }

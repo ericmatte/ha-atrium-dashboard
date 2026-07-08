@@ -12,7 +12,7 @@ No YAML editing, no per-room configuration.
 - **Routines** — scenes, automations, and scripts, with an optional validation-checklist widget.
 - Any number of **custom tabs** — fully config-driven, for things the strategy can't auto-discover (energy monitoring, system health, etc.).
 
-The whole thing is plain ES modules — no build step, no bundler, no framework, no runtime dependencies.
+Plain ES modules under the hood, bundled with esbuild into a single self-contained `strategy.js` — no framework, no runtime dependencies.
 
 ![Atrium dashboard Home view, dark theme, showing floors, areas, and per-room lights, climate, and sensors](images/preview-dark.png)
 
@@ -33,7 +33,7 @@ This repository isn't in the default HACS store yet, so add it as a custom repos
 2. Click the **⋮** menu (top-right) → **Custom repositories**.
 3. Add `https://github.com/ericmatte/ha-atrium-dashboard`, category **Dashboard**.
 4. Find **Atrium Dashboard** in HACS → Frontend, and install it.
-5. HACS downloads the files to `/config/www/community/ha-atrium-dashboard/`.
+5. HACS downloads `strategy.js` (a self-contained bundle) to `/config/www/community/ha-atrium-dashboard/`.
 6. Go to **Settings → Dashboards → Resources** (⋮ menu → Resources, if not shown). HACS usually registers the resource automatically; if `Atrium Dashboard` isn't listed there, add it manually:
    - URL: `/hacsfiles/ha-atrium-dashboard/strategy.js`
    - Resource type: **JavaScript module**
@@ -41,7 +41,7 @@ This repository isn't in the default HACS store yet, so add it as a custom repos
 
 ### Manual installation
 
-1. Copy this repository's files into your Home Assistant `/config/www/atrium/` directory (File editor add-on, Samba, or `scp`).
+1. Build the project (`npm install && npm run build`) or download `dist/strategy.js` from a [release](https://github.com/ericmatte/ha-atrium-dashboard/releases), then copy just that one file into your Home Assistant `/config/www/atrium/` directory (File editor add-on, Samba, or `scp`).
 2. Go to **Settings → Dashboards → Resources**, add:
    - URL: `/local/atrium/strategy.js`
    - Resource type: **JavaScript module**
@@ -98,11 +98,13 @@ There's no limit on how many tabs you add.
 
 ## Development
 
-No build step or dependencies — plain ES modules, tested with Node's built-in test runner:
-
 ```sh
-node --test
+npm install
+npm test          # runs the unit tests under src/
+npm run build     # bundles src/strategy.js into dist/strategy.js
 ```
+
+`dist/strategy.js` is rebuilt and committed automatically on every push to `main` — you don't need to build or commit it yourself when opening a PR.
 
 ## License
 

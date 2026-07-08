@@ -1,18 +1,12 @@
-const _v = new URL(import.meta.url).search;
-const [popoverMod, domUtilsMod, sharedMod] = await Promise.all([
-  import(`../lib/popover.js${_v}`),
-  import(`../lib/dom-utils.js${_v}`),
-  import(`./area-card-shared.js${_v}`),
-]);
-const { openPopover, closePopoverFor, openListPopover } = popoverMod;
-const { haIcon, tint, bindLongPress } = domUtilsMod;
-const {
+import { openPopover, closePopoverFor, openListPopover } from "../lib/popover.js";
+import { haIcon, tint, bindLongPress } from "../lib/dom-utils.js";
+import {
   TONE, ICONS,
   iconForArea, iconForScene, iconForSensor,
   nameWithoutAreaPrefix, nameWithoutStairs,
   ensurePopoverItemStyle,
   fmtSensorValue,
-} = sharedMod;
+} from "./area-card-shared.js";
 
 export function _buildRoomCard(area, data) {
   // No body content → render header-only so the row reads as static info.

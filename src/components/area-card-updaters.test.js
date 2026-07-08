@@ -1,11 +1,5 @@
-// Run: node --test www/atrium/components/area-card-updaters.test.js
-//
-// area-card-shared.js fetches CSS at module scope; stub `fetch` before
-// importing so the module graph can load under plain Node (no bundler/DOM).
 import test from "node:test";
 import assert from "node:assert/strict";
-
-globalThis.fetch = async () => ({ text: async () => "" });
 
 const { _bindSwipeTile, _updateToggleRef, _updateLightRef, _updateSwitchRef } = await import("./area-card-updaters.js");
 

@@ -1,0 +1,49 @@
+name: Build dist
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-dist-main
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run build
+      - name: Commit dist/strategy.js if it changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f dist/strategy.js
+          if git diff --cached --quiet; then
+            echo "dist/strategy.js unchanged, nothing to commit"
+          else
+            git commit -m "chore: rebuild dist/strategy.js [skip ci]"
+            git push origin HEAD:main
+          fi
+      - name: Create a release if package.json's version isn't released yet
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "$TAG already released, nothing to do"
+          else
+            gh release create "$TAG" dist/strategy.js \
+              --title "$TAG" \
+              --generate-notes \
+              --target main
+          fi

@@ -1,12 +1,6 @@
-const _v = new URL(import.meta.url).search;
-const [hassUtilsMod, domUtilsMod, sharedMod] = await Promise.all([
-  import(`../lib/hass-utils.js${_v}`),
-  import(`../lib/dom-utils.js${_v}`),
-  import(`./area-card-shared.js${_v}`),
-]);
-const { unchangedState, unchangedStates } = hassUtilsMod;
-const { haIcon, tint, vibrate, pctFromPointerX, DRAG_THRESHOLD_PX, LONG_PRESS_MS } = domUtilsMod;
-const {
+import { unchangedState, unchangedStates } from "../lib/hass-utils.js";
+import { haIcon, tint, vibrate, pctFromPointerX, DRAG_THRESHOLD_PX, LONG_PRESS_MS } from "../lib/dom-utils.js";
+import {
   TONE, ICONS,
   CLIMATE_ACCENT, CLIMATE_LABELS, CLIMATE_ICONS,
   capitalize,
@@ -14,7 +8,7 @@ const {
   iconForFanMode, iconForSwingMode,
   levelColor, lightRgbTriple,
   labelDescriptor,
-} = sharedMod;
+} from "./area-card-shared.js";
 
 export function _updateChips(ar) {
   const hass = this._hass;

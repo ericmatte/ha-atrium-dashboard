@@ -1,14 +1,11 @@
-// Run: node --test www/atrium/components/area-card.test.js
-//
 // area-card.js is a custom element with no direct exports (it only calls
 // customElements.define at the bottom). Stub the browser globals it touches
-// at import time (fetch for CSS, HTMLElement, customElements) so the module
-// graph can load under plain Node, then grab the registered class out of the
+// at import time (HTMLElement, customElements) so the module graph can load
+// under plain Node, then grab the registered class out of the
 // customElements.define() call.
 import test from "node:test";
 import assert from "node:assert/strict";
 
-globalThis.fetch = async () => ({ text: async () => "" });
 globalThis.HTMLElement = class {};
 globalThis.window = globalThis;
 let registered;

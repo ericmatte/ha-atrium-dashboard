@@ -2,25 +2,15 @@
 // `_build()` when the per-floor entity set actually shifts; otherwise the
 // per-ref identity-gated updaters in `area-card-updaters.js` handle it.
 
-const _v = new URL(import.meta.url).search;
-const [popoverMod, hassUtilsMod, domUtilsMod, haActionsMod, sharedMod, buildersMod, updatersMod, accordionMod, deviceSensorsMod] = await Promise.all([
-  import(`../lib/popover.js${_v}`),
-  import(`../lib/hass-utils.js${_v}`),
-  import(`../lib/dom-utils.js${_v}`),
-  import(`../lib/ha-actions.js${_v}`),
-  import(`./area-card-shared.js${_v}`),
-  import(`./area-card-builders.js${_v}`),
-  import(`./area-card-updaters.js${_v}`),
-  import(`../lib/floor-accordion.js${_v}`),
-  import(`../lib/device-sensors.js${_v}`),
-]);
-const { closePopoverFor } = popoverMod;
-const { sameRegistries, areaIdForEntity, entityDisplayName } = hassUtilsMod;
-const { fireMoreInfo } = domUtilsMod;
-const { callService, toggleLights } = haActionsMod;
-const { TONE, STYLE, matchesAny, fmtCoverPct } = sharedMod;
-const { floorAccordion } = accordionMod;
-const { groupDeviceSensors } = deviceSensorsMod;
+import { closePopoverFor } from "../lib/popover.js";
+import { sameRegistries, areaIdForEntity, entityDisplayName } from "../lib/hass-utils.js";
+import { fireMoreInfo } from "../lib/dom-utils.js";
+import { callService, toggleLights } from "../lib/ha-actions.js";
+import { TONE, STYLE, matchesAny, fmtCoverPct } from "./area-card-shared.js";
+import * as buildersMod from "./area-card-builders.js";
+import * as updatersMod from "./area-card-updaters.js";
+import { floorAccordion } from "../lib/floor-accordion.js";
+import { groupDeviceSensors } from "../lib/device-sensors.js";
 
 // Body-height collapse/expand transition, in ms. Kept in sync with the
 // `.atrium-floor-body` transition duration in area-card.css.

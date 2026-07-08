@@ -1,15 +1,7 @@
-// Propagate this module's URL query string (HA's cache key, or a manual
-// ?v=N appended to bust the cache) down to sibling imports. Without it,
-// the browser keeps serving stale modules after the strategy resource URL
-// is bumped — un-versioned sibling paths stay in cache.
-const _v = new URL(import.meta.url).search;
-const [, , , shellMod] = await Promise.all([
-  import(`./components/area-card.js${_v}`),
-  import(`./components/header.js${_v}`),
-  import(`./components/floor-label.js${_v}`),
-  import(`./lib/shell.js${_v}`),
-]);
-const { ALL_FLOOR_KEY } = shellMod;
+import "./components/area-card.js";
+import "./components/header.js";
+import "./components/floor-label.js";
+import { ALL_FLOOR_KEY } from "./lib/shell.js";
 
 class AtriumStrategy {
   static async generate(_config, hass) {

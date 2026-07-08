@@ -1,0 +1,15 @@
+{
+  "name": "ha-atrium-dashboard",
+  "private": true,
+  "version": "1.1.0",
+  "type": "module",
+  "description": "Atrium — a fully dynamic Lovelace dashboard strategy for Home Assistant",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node --import ./tools/register.mjs --test"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1"
+  }
+}
