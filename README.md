@@ -12,8 +12,6 @@ No YAML editing, no per-room configuration.
 - **Routines** — scenes, automations, and scripts, with an optional validation-checklist widget.
 - Any number of **custom tabs** — fully config-driven, for things the strategy can't auto-discover (energy monitoring, system health, etc.).
 
-Plain ES modules under the hood, bundled with esbuild into a single self-contained `strategy.js` — no framework, no runtime dependencies.
-
 ![Atrium dashboard Home view, dark theme, showing floors, areas, and per-room lights, climate, and sensors](images/preview-dark.png)
 
 ![Atrium dashboard Home view, light theme, showing floors, areas, and per-room lights, climate, and sensors](images/preview-light.png)
