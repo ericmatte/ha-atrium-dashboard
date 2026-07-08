@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import "../../tools/register.mjs";
 
 const { _bindSwipeTile, _updateToggleRef, _updateLightRef, _updateSwitchRef } = await import("./area-card-updaters.js");
 

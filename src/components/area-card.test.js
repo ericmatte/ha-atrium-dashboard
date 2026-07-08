@@ -5,6 +5,7 @@
 // customElements.define() call.
 import test from "node:test";
 import assert from "node:assert/strict";
+import "../../tools/register.mjs";
 
 globalThis.HTMLElement = class {};
 globalThis.window = globalThis;

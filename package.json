@@ -7,7 +7,7 @@
   "license": "Apache-2.0",
   "scripts": {
     "build": "node build.js",
-    "test": "node --import ./tools/register.mjs --test"
+    "test": "node --test"
   },
   "devDependencies": {
     "esbuild": "^0.28.1"

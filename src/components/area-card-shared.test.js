@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import "../../tools/register.mjs";
 
 const { lightRgbTriple, iconForSensor, fmtTimeAgoLong } = await import("./area-card-shared.js");
 
