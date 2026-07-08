@@ -24,8 +24,7 @@ The whole thing is plain ES modules — no build step, no bundler, no framework,
 
 1. [HACS](https://hacs.xyz/) installed on your Home Assistant instance.
 2. Through HACS → Frontend, install [mini-graph-card](https://github.com/kalkih/mini-graph-card) — used to render the background temperature graph on each climate tile. Optional: without it, the tile still works, just without the graph.
-3. Optional: [card-mod](https://github.com/thomasloven/lovelace-card-mod) — used for padding on custom tabs. If not installed, that key is simply ignored.
-4. A reasonably recent Home Assistant version with the Areas/Floors registry (2024.10 or newer).
+3. A reasonably recent Home Assistant version with the Areas/Floors registry (2024.10 or newer).
 
 ## Installation
 

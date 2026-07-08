@@ -85,16 +85,6 @@ class AtriumStrategy {
       cards: cards.filter(Boolean),
     });
 
-    // Aggregate tabs render native cards that don't pad themselves (unlike the
-    // area-card / header). Wrap their content so it gets the same 16px side
-    // padding as the area views. card-mod is in the user's resources; if it
-    // weren't, the key is simply ignored (no padding, no error).
-    const paddedStack = (cards) => ({
-      type: "vertical-stack",
-      cards: cards.filter(Boolean),
-      card_mod: { style: ":host { display: block; padding: 0 16px 32px; }" },
-    });
-
     const baseView = (extra) => ({
       panel: true,
       ...extra,
@@ -181,7 +171,7 @@ class AtriumStrategy {
         cards: [
           stack([
             headerCard(ALL_FLOOR_KEY, title),
-            paddedStack([
+            stack([
               entitiesCard(tab.entities_title || title, cfgList(tab.entities)),
               ...cfgList(tab.cards),
             ]),
