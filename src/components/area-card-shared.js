@@ -1,8 +1,8 @@
-const _v = new URL(import.meta.url).search;
-export const { TONE } = await import(`../lib/tone.js${_v}`);
+import { TONE } from "../lib/tone.js";
+import STYLE from "./area-card.css";
+import AREA_POPOVER_ITEM_STYLE from "./area-card-popover.css";
 
-export const STYLE = await fetch(new URL(`./area-card.css${_v}`, import.meta.url)).then((r) => r.text());
-export const AREA_POPOVER_ITEM_STYLE = await fetch(new URL(`./area-card-popover.css${_v}`, import.meta.url)).then((r) => r.text());
+export { TONE, STYLE, AREA_POPOVER_ITEM_STYLE };
 
 export function ensurePopoverItemStyle() {
   if (document.getElementById("atrium-area-popover-item-style")) return;

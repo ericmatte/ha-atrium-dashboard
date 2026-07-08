@@ -1,10 +1,6 @@
-// Run: node --test www/atrium/components/area-card-shared.test.js
-//
-// area-card-shared.js fetches CSS at module scope; stub `fetch` before import.
 import test from "node:test";
 import assert from "node:assert/strict";
-
-globalThis.fetch = async () => ({ text: async () => "" });
+import "../../tools/register.mjs";
 
 const { lightRgbTriple, iconForSensor, fmtTimeAgoLong } = await import("./area-card-shared.js");
 

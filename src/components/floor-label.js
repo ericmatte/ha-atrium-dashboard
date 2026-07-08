@@ -1,16 +1,8 @@
-const _v = new URL(import.meta.url).search;
-const [hassUtilsMod, domUtilsMod, haActionsMod, shellMod, accordionMod] = await Promise.all([
-  import(`../lib/hass-utils.js${_v}`),
-  import(`../lib/dom-utils.js${_v}`),
-  import(`../lib/ha-actions.js${_v}`),
-  import(`../lib/shell.js${_v}`),
-  import(`../lib/floor-accordion.js${_v}`),
-]);
-const { sameRegistries, areaIdForEntity } = hassUtilsMod;
-const { tint, pctFromPointerX, DRAG_THRESHOLD_PX } = domUtilsMod;
-const { toggleLights, setLightsBrightness } = haActionsMod;
-const { SHELL_TONE, SHELL_STYLE } = shellMod;
-const { floorAccordion } = accordionMod;
+import { sameRegistries, areaIdForEntity } from "../lib/hass-utils.js";
+import { tint, pctFromPointerX, DRAG_THRESHOLD_PX } from "../lib/dom-utils.js";
+import { toggleLights, setLightsBrightness } from "../lib/ha-actions.js";
+import { SHELL_TONE, SHELL_STYLE } from "../lib/shell.js";
+import { floorAccordion } from "../lib/floor-accordion.js";
 
 // After a drag, hold the slider at the requested value for a moment so it
 // doesn't snap back to the (lagging) hass average while the bulbs ramp; release

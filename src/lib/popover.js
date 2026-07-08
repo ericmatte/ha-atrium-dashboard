@@ -1,11 +1,9 @@
 // Body-attached popover so it escapes parent overflow/transform clipping
 // (rooms have `overflow: hidden`). Only one popover open at a time across
 // the app.
+import STYLE from "./popover.css";
 
 const STYLE_ID = "atrium-popover-style";
-
-const _v = new URL(import.meta.url).search;
-const STYLE = await fetch(new URL(`./popover.css${_v}`, import.meta.url)).then((r) => r.text());
 
 function ensureStyle() {
   if (document.getElementById(STYLE_ID)) return;
