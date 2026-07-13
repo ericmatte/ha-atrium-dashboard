@@ -157,6 +157,7 @@ class AtriumAreaCard extends HTMLElement {
       climates: [],
       vacuums: [],
       scenes: [],
+      buttons: [],
       inputSelects: [],
       sensors: { motion: [], leak: [], soil: [], propane: [], temp: null, humid: null, extras: [], other: [] },
       automations: [],
@@ -194,6 +195,7 @@ class AtriumAreaCard extends HTMLElement {
     }
     if (want.has("motion")) out.sensors.motion = data.sensors.motion;
     if (want.has("scenes")) out.scenes = data.scenes;
+    if (want.has("buttons")) out.buttons = data.buttons;
     if (want.has("routines")) {
       out.automations = data.automations;
       out.scripts = data.scripts;
@@ -212,6 +214,7 @@ class AtriumAreaCard extends HTMLElement {
       else if (key === "automations") out.automations = [];
       else if (key === "scripts") out.scripts = [];
       else if (key === "scenes") out.scenes = [];
+      else if (key === "buttons") out.buttons = [];
       else if (key === "lights") { out.lights = []; out.switches = []; }
       else if (key === "covers") out.covers = [];
       else if (key === "vacuums") out.vacuums = [];
@@ -236,6 +239,9 @@ class AtriumAreaCard extends HTMLElement {
       else if (domain === "climate") out.climates.push(e);
       else if (domain === "vacuum") out.vacuums.push(e);
       else if (domain === "scene") out.scenes.push(e);
+      // Devices expose config/diagnostic buttons ("Restart", "Identify") that
+      // would drown the room body — only surface primary ones, like switches.
+      else if (domain === "button") { if (!e.entity_category) out.buttons.push(e); }
       else if (domain === "input_select") out.inputSelects.push(e);
       else if (domain === "automation") out.automations.push(e);
       else if (domain === "script") out.scripts.push(e);
@@ -434,6 +440,7 @@ class AtriumAreaCard extends HTMLElement {
       d.climates.length === 0 &&
       d.vacuums.length === 0 &&
       d.scenes.length === 0 &&
+      d.buttons.length === 0 &&
       d.inputSelects.length === 0 &&
       d.automations.length === 0 &&
       d.scripts.length === 0 &&

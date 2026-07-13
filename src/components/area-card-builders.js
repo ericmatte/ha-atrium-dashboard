@@ -17,6 +17,7 @@ export function _buildRoomCard(area, data) {
     data.sensors.extras.length > 0 ||
     data.sensors.other.length > 0 ||
     data.inputSelects.length > 0 ||
+    data.buttons.length > 0 ||
     data.scenes.length > 0 ||
     data.automations.length > 0 ||
     data.scripts.length > 0;
@@ -126,6 +127,7 @@ export function _buildRoomBody(area, data) {
   const genericSensors = [...data.sensors.extras, ...data.sensors.other];
   if (genericSensors.length) sections.push(this._buildSensorsSection(area, genericSensors));
   if (data.inputSelects.length) sections.push(this._buildInputSelectsSection(area, data.inputSelects));
+  if (data.buttons.length) sections.push(this._buildButtonsSection(area, data.buttons));
   if (data.scenes.length) sections.push(this._buildScenesSection(area, data.scenes));
   const routines = this._buildAutomationsSection(area, data.automations, data.scripts);
   if (routines) sections.push(routines);
@@ -532,6 +534,27 @@ export function _buildInputSelectTile(area, entity) {
 }
 
 export function _buildScenesSection(area, scenes) {
+  return this._buildBadgeRow(area, scenes, {
+    icon: (s, name) => iconForScene(s, name),
+    onPress: (s) => this._call("scene", "turn_on", { entity_id: s.entity_id }),
+  });
+}
+
+export function _buildButtonsSection(area, buttons) {
+  const hass = this._hass;
+  return this._buildBadgeRow(area, buttons, {
+    icon: (b) =>
+      hass.entities?.[b.entity_id]?.icon ??
+      hass.states?.[b.entity_id]?.attributes?.icon ??
+      "mdi:gesture-tap-button",
+    onPress: (b) => this._call("button", "press", { entity_id: b.entity_id }),
+  });
+}
+
+// Horizontally scrollable strip of badge buttons (scenes, `button` entities).
+// The strip is drag-to-scroll; a drag that moved is swallowed so releasing the
+// pointer over a badge doesn't fire its action.
+export function _buildBadgeRow(area, entities, { icon, onPress }) {
   const wrap = document.createElement("div");
   wrap.className = "atrium-scenes";
 
@@ -564,16 +587,17 @@ export function _buildScenesSection(area, scenes) {
     wrap.classList.remove("dragging");
   });
 
-  for (const s of scenes) {
+  for (const entity of entities) {
     const btn = document.createElement("button");
     btn.className = "atrium-scene-btn";
-    const sceneName = this._entityName(s);
-    btn.title = sceneName;
-    btn.innerHTML = `${haIcon(iconForScene(s, sceneName))}<span class="atrium-scene-btn-name"></span>`;
-    btn.querySelector(".atrium-scene-btn-name").textContent = nameWithoutAreaPrefix(sceneName, area);
+    btn.dataset.entity = entity.entity_id;
+    const name = this._entityName(entity);
+    btn.title = name;
+    btn.innerHTML = `${haIcon(icon(entity, name))}<span class="atrium-scene-btn-name"></span>`;
+    btn.querySelector(".atrium-scene-btn-name").textContent = nameWithoutAreaPrefix(name, area);
     btn.addEventListener("click", (e) => {
       if (dragMoved) { e.preventDefault(); return; }
-      this._call("scene", "turn_on", { entity_id: s.entity_id });
+      onPress(entity);
     });
     wrap.appendChild(btn);
   }

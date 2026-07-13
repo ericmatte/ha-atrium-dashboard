@@ -148,3 +148,39 @@ test("_adjustClimate: an off-grid setpoint snaps onto the device's step grid", (
   card._adjustClimate("climate.x", -1);
   assert.deepEqual(calls.map((c) => c.data.temperature), [20]);
 });
+
+test("_classify: a primary button entity lands in buttons, a config/diagnostic one is dropped", () => {
+  const card = makeCard();
+  card._hass = { states: {} };
+  const area = { area_id: "living_room" };
+  const data = card._classify(area, [
+    { entity_id: "button.fan_power" },
+    { entity_id: "button.speaker_restart", entity_category: "config" },
+  ]);
+  assert.deepEqual(data.buttons.map((b) => b.entity_id), ["button.fan_power"]);
+});
+
+test("_areaIsEmpty: a room whose only entity is a button is not empty", () => {
+  const card = makeCard();
+  const data = card._emptyData();
+  data.buttons = [{ entity_id: "button.fan_power" }];
+  assert.equal(card._areaIsEmpty(data), false);
+});
+
+test("_filterData: the Home profile (exclude climates/routines) keeps buttons", () => {
+  const card = makeCard();
+  card._sections = null;
+  card._exclude = new Set(["climates", "automations", "scripts"]);
+  const data = card._emptyData();
+  data.buttons = [{ entity_id: "button.fan_power" }];
+  assert.equal(card._filterData(data).buttons.length, 1);
+});
+
+test("_filterData: a section profile without 'buttons' drops them", () => {
+  const card = makeCard();
+  card._sections = new Set(["scenes", "routines"]);
+  card._exclude = null;
+  const data = card._emptyData();
+  data.buttons = [{ entity_id: "button.fan_power" }];
+  assert.equal(card._filterData(data).buttons.length, 0);
+});
