@@ -125,6 +125,64 @@ export function shellFormatTemp(value) {
   return (Math.round(value * 10) / 10).toFixed(1);
 }
 
+const WEATHER_ICONS = {
+  "clear-night": "mdi:weather-night",
+  cloudy: "mdi:weather-cloudy",
+  exceptional: "mdi:alert-circle-outline",
+  fog: "mdi:weather-fog",
+  hail: "mdi:weather-hail",
+  lightning: "mdi:weather-lightning",
+  "lightning-rainy": "mdi:weather-lightning-rainy",
+  partlycloudy: "mdi:weather-partly-cloudy",
+  pouring: "mdi:weather-pouring",
+  rainy: "mdi:weather-rainy",
+  snowy: "mdi:weather-snowy",
+  "snowy-rainy": "mdi:weather-snowy-rainy",
+  sunny: "mdi:weather-sunny",
+  windy: "mdi:weather-windy",
+  "windy-variant": "mdi:weather-windy-variant",
+};
+
+export function shellWeatherIcon(condition) {
+  return WEATHER_ICONS[condition] || "mdi:weather-cloudy";
+}
+
+// Zero-config pick: `weather.home` wins, then `weather.forecast_home`, then
+// alphabetical so multi-provider setups stay stable across reloads.
+export function shellPickWeatherEntity(hass) {
+  const states = hass?.states || {};
+  const entReg = hass?.entities || {};
+  const candidates = Object.keys(states)
+    .filter((id) => id.startsWith("weather."))
+    .filter((id) => {
+      const st = states[id];
+      if (!st || st.state === "unavailable" || st.state === "unknown") return false;
+      const ent = entReg[id];
+      return !ent || (!ent.hidden && !ent.hidden_by && !ent.disabled_by);
+    })
+    .sort();
+  if (!candidates.length) return null;
+  return (
+    candidates.find((id) => id === "weather.home") ??
+    candidates.find((id) => id === "weather.forecast_home") ??
+    candidates[0]
+  );
+}
+
+export function shellWeatherSummary(hass) {
+  const entityId = shellPickWeatherEntity(hass);
+  if (!entityId) return null;
+  const st = hass.states[entityId];
+  const temp = Number(st.attributes?.temperature);
+  if (!Number.isFinite(temp)) return null;
+  return {
+    entityId,
+    condition: st.state,
+    icon: shellWeatherIcon(st.state),
+    label: `${shellFormatTemp(temp)}°`,
+  };
+}
+
 export function formatTempRange(temps) {
   if (!temps.length) return "";
   const min = shellFormatTemp(Math.min(...temps));

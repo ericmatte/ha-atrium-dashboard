@@ -12,7 +12,20 @@
 }
 .atrium-shell-header-greeting { min-width: 0; }
 .atrium-shell-header-people { display: flex; gap: 6px; flex-shrink: 0; }
-.atrium-shell-date { font-size: 12px; color: color-mix(in srgb, var(--secondary-text-color, #9aa0aa) 70%, transparent); letter-spacing: .5px; text-transform: uppercase; }
+.atrium-shell-date {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: color-mix(in srgb, var(--secondary-text-color, #9aa0aa) 70%, transparent);
+  letter-spacing: .5px; text-transform: uppercase;
+}
+.atrium-shell-weather {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 0; border: none; background: transparent; cursor: pointer;
+  font: inherit; letter-spacing: inherit; color: inherit; line-height: 1;
+}
+.atrium-shell-weather[hidden] { display: none; }
+.atrium-shell-weather::before { content: "·"; margin-right: 3px; }
+.atrium-shell-weather ha-icon { --mdc-icon-size: 15px; }
+.atrium-shell-weather:hover { color: var(--primary-text-color, #e8e9ec); }
 .atrium-shell-welcome { font-size: 24px; font-weight: 600; letter-spacing: -.4px; color: var(--primary-text-color, #e8e9ec); }
 
 .atrium-shell-pills { display: flex; gap: 6px; padding: 4px 12px; overflow-x: auto; scrollbar-width: none; }
