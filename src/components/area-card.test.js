@@ -184,3 +184,24 @@ test("_filterData: a section profile without 'buttons' drops them", () => {
   data.buttons = [{ entity_id: "button.fan_power" }];
   assert.equal(card._filterData(data).buttons.length, 0);
 });
+
+test("_buildButtonsSection: tap presses the button, long-press opens its more-info", () => {
+  const card = makeCard();
+  card._hass = { entities: {}, states: {} };
+  const calls = [];
+  const moreInfos = [];
+  card._call = (domain, service, data) => calls.push({ domain, service, data });
+  card._moreInfo = (entityId) => moreInfos.push(entityId);
+  let opts;
+  card._buildBadgeRow = (_area, _entities, o) => { opts = o; };
+
+  const button = { entity_id: "button.fan_power" };
+  card._buildButtonsSection({ area_id: "living_room" }, [button]);
+  opts.onPress(button);
+  opts.onHold(button);
+
+  assert.deepEqual(calls, [
+    { domain: "button", service: "press", data: { entity_id: "button.fan_power" } },
+  ]);
+  assert.deepEqual(moreInfos, ["button.fan_power"]);
+});

@@ -548,13 +548,15 @@ export function _buildButtonsSection(area, buttons) {
       hass.states?.[b.entity_id]?.attributes?.icon ??
       "mdi:gesture-tap-button",
     onPress: (b) => this._call("button", "press", { entity_id: b.entity_id }),
+    onHold: (b) => this._moreInfo(b.entity_id),
   });
 }
 
 // Horizontally scrollable strip of badge buttons (scenes, `button` entities).
 // The strip is drag-to-scroll; a drag that moved is swallowed so releasing the
-// pointer over a badge doesn't fire its action.
-export function _buildBadgeRow(area, entities, { icon, onPress }) {
+// pointer over a badge doesn't fire its action. `onHold` is optional — badges
+// that pass it get the long-press-to-more-info of the light/cover tiles.
+export function _buildBadgeRow(area, entities, { icon, onPress, onHold }) {
   const wrap = document.createElement("div");
   wrap.className = "atrium-scenes";
 
@@ -595,10 +597,19 @@ export function _buildBadgeRow(area, entities, { icon, onPress }) {
     btn.title = name;
     btn.innerHTML = `${haIcon(icon(entity, name))}<span class="atrium-scene-btn-name"></span>`;
     btn.querySelector(".atrium-scene-btn-name").textContent = nameWithoutAreaPrefix(name, area);
-    btn.addEventListener("click", (e) => {
-      if (dragMoved) { e.preventDefault(); return; }
-      onPress(entity);
-    });
+    if (onHold) {
+      // bindLongPress swallows the badge's pointerdown, so a press here never
+      // starts the strip's drag and `dragMoved` can't be set by it.
+      bindLongPress(btn, {
+        onTap: () => onPress(entity),
+        onLongPress: () => onHold(entity),
+      });
+    } else {
+      btn.addEventListener("click", (e) => {
+        if (dragMoved) { e.preventDefault(); return; }
+        onPress(entity);
+      });
+    }
     wrap.appendChild(btn);
   }
   const section = document.createElement("div");
