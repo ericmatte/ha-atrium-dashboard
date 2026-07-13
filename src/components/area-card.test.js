@@ -110,3 +110,41 @@ test("_layoutMasonry: reads every card's natural height before writing any stack
     globalThis.getComputedStyle = prevGetComputedStyle;
   }
 });
+
+function makeClimateCard(attributes) {
+  const card = makeCard();
+  const calls = [];
+  card._hass = { states: { "climate.x": { state: "cool", attributes } } };
+  card._call = (domain, service, data) => calls.push({ domain, service, data });
+  return { card, calls };
+}
+
+test("_adjustClimate: an entity with target_temp_step 1 moves by a full degree", () => {
+  const { card, calls } = makeClimateCard({ temperature: 20, target_temp_step: 1, min_temp: 16, max_temp: 29 });
+  card._adjustClimate("climate.x", 1);
+  card._adjustClimate("climate.x", -1);
+  assert.deepEqual(calls.map((c) => c.data.temperature), [21, 19]);
+});
+
+test("_adjustClimate: an entity with no target_temp_step falls back to half-degree steps", () => {
+  const { card, calls } = makeClimateCard({ temperature: 16, min_temp: 0, max_temp: 50 });
+  card._adjustClimate("climate.x", 1);
+  card._adjustClimate("climate.x", -1);
+  assert.deepEqual(calls.map((c) => c.data.temperature), [16.5, 15.5]);
+});
+
+test("_adjustClimate: the setpoint stays within min_temp/max_temp", () => {
+  const { card: atMax, calls: maxCalls } = makeClimateCard({ temperature: 29, target_temp_step: 1, min_temp: 16, max_temp: 29 });
+  atMax._adjustClimate("climate.x", 1);
+  assert.deepEqual(maxCalls, []);
+
+  const { card: atMin, calls: minCalls } = makeClimateCard({ temperature: 16, target_temp_step: 1, min_temp: 16, max_temp: 29 });
+  atMin._adjustClimate("climate.x", -1);
+  assert.deepEqual(minCalls, []);
+});
+
+test("_adjustClimate: an off-grid setpoint snaps onto the device's step grid", () => {
+  const { card, calls } = makeClimateCard({ temperature: 20.5, target_temp_step: 1, min_temp: 16, max_temp: 29 });
+  card._adjustClimate("climate.x", -1);
+  assert.deepEqual(calls.map((c) => c.data.temperature), [20]);
+});

@@ -490,15 +490,20 @@ class AtriumAreaCard extends HTMLElement {
     }
   }
 
-  _adjustClimate(entityId, delta) {
+  // direction is -1 or +1: the size of the move belongs to the device, not to
+  // us. A 1°C heat pump silently ignores the 0.5° setpoints a thermostat takes.
+  _adjustClimate(entityId, direction) {
     const st = this._hass.states?.[entityId];
     if (!st) return;
     const cur = st.attributes?.temperature;
     if (cur == null) return;
-    this._call("climate", "set_temperature", {
-      entity_id: entityId,
-      temperature: Math.round((cur + delta) * 2) / 2,
-    });
+    const step = Number(st.attributes?.target_temp_step) || 0.5;
+    const min = Number(st.attributes?.min_temp ?? -Infinity);
+    const max = Number(st.attributes?.max_temp ?? Infinity);
+    const snapped = Math.round((cur + direction * step) / step) * step;
+    const next = Math.min(max, Math.max(min, Number(snapped.toFixed(2))));
+    if (next === cur) return;
+    this._call("climate", "set_temperature", { entity_id: entityId, temperature: next });
   }
 
   // A tap on the collapsed deck opens the floor instead of actuating the

@@ -266,7 +266,8 @@ export function _updateClimateRef(ref, entityId, isExpanded) {
       : "");
 
   if (tgt != null && mode !== "off" && mode !== "fan_only") {
-    ref.temp.textContent = `${(+tgt).toFixed(1)}°`;
+    const decimals = Number.isInteger(Number(attrs.target_temp_step) || 0.5) ? 0 : 1;
+    ref.temp.textContent = `${(+tgt).toFixed(decimals)}°`;
   } else {
     ref.temp.textContent = mode === "off" ? "Off" : "—";
   }

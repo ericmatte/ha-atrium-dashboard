@@ -334,13 +334,13 @@ export function _buildClimateTile(area, climate, sensors) {
   const minus = document.createElement("button");
   minus.className = "atrium-tiny-btn";
   minus.innerHTML = haIcon(ICONS.minus, 20);
-  minus.addEventListener("click", (e) => { e.stopPropagation(); this._adjustClimate(climate.entity_id, -0.5); });
+  minus.addEventListener("click", (e) => { e.stopPropagation(); this._adjustClimate(climate.entity_id, -1); });
   const temp = document.createElement("div");
   temp.className = "atrium-climate-temp";
   const plus = document.createElement("button");
   plus.className = "atrium-tiny-btn";
   plus.innerHTML = haIcon(ICONS.plus, 20);
-  plus.addEventListener("click", (e) => { e.stopPropagation(); this._adjustClimate(climate.entity_id, 0.5); });
+  plus.addEventListener("click", (e) => { e.stopPropagation(); this._adjustClimate(climate.entity_id, 1); });
   setpointRow.append(minus, temp, plus);
   content.appendChild(setpointRow);
 
