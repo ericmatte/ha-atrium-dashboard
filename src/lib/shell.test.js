@@ -4,7 +4,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "../../tools/register.mjs";
 
-const { shellWeatherIcon, shellWeatherColor, shellPickWeatherEntity, shellWeatherSummary } = await import("./shell.js");
+const { shellWeatherIcon, shellWeatherColor, shellPickWeatherEntity, shellWeatherSummary, shellGreeting } = await import("./shell.js");
+
+test("shellGreeting: morning before noon, afternoon until 6pm, evening after", () => {
+  assert.equal(shellGreeting(0), "Good morning");
+  assert.equal(shellGreeting(11), "Good morning");
+  assert.equal(shellGreeting(12), "Good afternoon");
+  assert.equal(shellGreeting(17), "Good afternoon");
+  assert.equal(shellGreeting(18), "Good evening");
+  assert.equal(shellGreeting(23), "Good evening");
+});
 
 function weatherState(entityId, state, attributes = {}) {
   return { entity_id: entityId, state, attributes };

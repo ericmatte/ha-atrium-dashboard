@@ -69,12 +69,6 @@ export function vibrate(ms = 15) {
   if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(ms);
 }
 
-// Pointer x → 0-100% across an element's width.
-export function pctFromPointerX(target, clientX) {
-  const r = target.getBoundingClientRect();
-  return Math.max(0, Math.min(100, Math.round(((clientX - r.left) / r.width) * 100)));
-}
-
 // Tap vs long-press on a button-like element (no drag). Long-press haptic-buzzes
 // and fires `onLongPress`; a plain release fires `onTap`. Clicks are swallowed so
 // the two handlers stay the only entry points. For swipe surfaces that also drag,

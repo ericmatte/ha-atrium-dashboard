@@ -1,6 +1,5 @@
-import "./components/area-card.js";
+import "./components/rooms-view.js";
 import "./components/header.js";
-import "./components/floor-label.js";
 import { ALL_FLOOR_KEY } from "./lib/shell.js";
 
 class AtriumStrategy {
@@ -48,19 +47,9 @@ class AtriumStrategy {
       return `mdi:home-floor-${Math.min(lvl, 3)}`;
     };
 
-    const areaCard = (floor, { sections, exclude } = {}) => ({
-      type: "custom:atrium-area-card",
-      floor: floor.floor_id ?? null,
-      ...(sections ? { sections } : {}),
-      ...(exclude ? { exclude } : {}),
-    });
-
-    const floorLabelCard = (floor, showControls = true) => ({
-      type: "custom:atrium-floor-label",
-      name: floor.name,
-      icon: floorIcon(floor),
-      floor: floor.floor_id ?? null,
-      ...(showControls ? {} : { show_controls: false }),
+    const roomsCard = (floors) => ({
+      type: "custom:atrium-rooms",
+      floors: floors.map((f) => ({ floor_id: f.floor_id ?? null, name: f.name, icon: floorIcon(f) })),
     });
 
     // Each view is `panel: true` so it gets the full viewport width (no
@@ -86,11 +75,9 @@ class AtriumStrategy {
         ? { type: "entities", title, entities: ids.map((entity) => ({ entity })) }
         : null;
 
-    // Home is the all-floors room dashboard, with climate merged inline into
-    // each room card. Automations/scripts keep their own dedicated tab, so
-    // showing them here too would be redundant. The other tabs reuse the
-    // same area-card engine but pass a section profile, with a per-floor
-    // heading in place of the (light-only) floor dimmer.
+    // Home is every floor and area as photo tiles; picking one opens its
+    // details panel with lights, climate, covers, scenes and automations —
+    // there's no separate Routines tab any more, it's all in that panel.
     const homeView = baseView({
       title: "Home",
       path: "home",
@@ -98,37 +85,9 @@ class AtriumStrategy {
       cards: [
         stack([
           headerCard(ALL_FLOOR_KEY),
-          ...allFloors.flatMap((f) => [
-            floorLabelCard(f),
-            areaCard(f, {
-              exclude: ["automations", "scripts"],
-            }),
-          ]),
+          roomsCard(allFloors),
         ]),
       ],
-    });
-
-    const intentView = ({ title, path, icon, sections }) =>
-      baseView({
-        title,
-        path,
-        icon,
-        cards: [
-          stack([
-            headerCard(ALL_FLOOR_KEY, title),
-            ...allFloors.flatMap((f) => [
-              floorLabelCard(f, false),
-              areaCard(f, { sections }),
-            ]),
-          ]),
-        ],
-      });
-
-    const routinesView = intentView({
-      title: "Routines",
-      path: "routines",
-      icon: "mdi:robot",
-      sections: ["scenes", "routines"],
     });
 
     // Custom tabs are aggregate/manual: only what the user adds via YAML (no
@@ -165,7 +124,6 @@ class AtriumStrategy {
       title: "Atrium",
       views: [
         homeView,
-        routinesView,
         ...customTabs,
       ],
     };

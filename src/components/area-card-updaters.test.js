@@ -2,25 +2,52 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "../../tools/register.mjs";
 
-const { _bindSwipeTile, _updateToggleRef, _updateLightRef, _updateSwitchRef, _updateClimateRef, _wireClimateMode, _updateAutomationRef } = await import("./area-card-updaters.js");
+const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _wireClimateMode, _updateAutomationRef } = await import("./area-card-updaters.js");
 
-// Minimal fakes for the DOM surface _bindSwipeTile touches. Pointer event
-// listeners are captured directly so tests can invoke them without a real
-// PointerEvent/EventTarget stack.
-function makeTile() {
+// Minimal fakes for the DOM surface _bindDivaTrack/_updateDivaRef touch.
+// Pointer event listeners are captured directly so tests can invoke them
+// without a real PointerEvent/EventTarget stack. The track's geometry
+// (height 146, so usable travel = 146 - 34(thumb) - 12(pad*2) = 100) is
+// chosen so a few round pointer-Y values map to clean 0/50/100% fractions.
+function makeClassList() {
+  const classes = new Set();
+  return {
+    classes,
+    toggle(name, on) { on ? classes.add(name) : classes.delete(name); },
+    add(...names) { names.forEach((n) => classes.add(n)); },
+    remove(...names) { names.forEach((n) => classes.delete(n)); },
+    contains(name) { return classes.has(name); },
+  };
+}
+
+function makeTrack() {
   const handlers = {};
   return {
     handlers,
-    classList: { contains: () => false, add() {}, remove() {} },
+    classList: makeClassList(),
+    disabled: false,
     addEventListener(type, fn) { handlers[type] = fn; },
     setPointerCapture() {},
     releasePointerCapture() {},
-    getBoundingClientRect: () => ({ left: 0, width: 100 }),
+    setAttribute() {},
+    getBoundingClientRect: () => ({ bottom: 146, height: 146 }),
   };
 }
 
 function makeStyleEl() {
-  return { style: {}, classList: { add() {}, remove() {} }, textContent: "" };
+  return { style: {}, textContent: "" };
+}
+
+function makeDivaRef() {
+  return {
+    track: makeTrack(),
+    fill: makeStyleEl(),
+    pctTop: makeStyleEl(),
+    pctBottom: makeStyleEl(),
+    thumb: { style: {}, classList: makeClassList() },
+    name: { textContent: "Fan" },
+    ago: { textContent: "" },
+  };
 }
 
 function makeWindow() {
@@ -39,192 +66,158 @@ function makeContext(states) {
     _dragState: new Map(),
     _call: (...args) => calls.push(args),
     _moreInfo: () => {},
-    _updateToggleRef,
+    _toggleEntity,
+    _updateDivaRef,
     calls,
   };
 }
 
-// Minimal fakes for the tile/fill/thumb/swatch/state DOM surface that
-// _updateToggleRef (and the _updateLightRef/_updateSwitchRef wrappers around
-// it) read and write.
-function makeClassList() {
-  const classes = new Set();
-  return {
-    classes,
-    toggle(name, on) { on ? classes.add(name) : classes.delete(name); },
-    add(name) { classes.add(name); },
-    remove(name) { classes.delete(name); },
-    contains(name) { return classes.has(name); },
-  };
-}
-
-function makeToggleRef() {
-  return {
-    tile: { classList: makeClassList(), style: { setProperty() {}, removeProperty() {} } },
-    fill: { style: {} },
-    thumb: { style: {} },
-    swatch: { classList: makeClassList() },
-    iconEl: { setAttribute() {} },
-    state: { classList: makeClassList(), textContent: "" },
-  };
-}
-
-function pressAndDrift(tile, win, { dx = 10, dy = 0 } = {}) {
-  tile.handlers.pointerdown({ clientX: 0, clientY: 0, pointerId: 1 });
-  win.listeners.pointermove({ clientX: dx, clientY: dy, pointerId: 1 });
-}
-
-test("switch tile: a small horizontal drift still toggles on release (no dead swipe)", () => {
-  const origWindow = globalThis.window;
+function withWindow(fn) {
+  const orig = globalThis.window;
   globalThis.window = makeWindow();
   try {
-    const tile = makeTile();
-    const fill = makeStyleEl();
-    const thumb = makeStyleEl();
-    const stateEl = makeStyleEl();
+    fn(globalThis.window);
+  } finally {
+    globalThis.window = orig;
+  }
+}
+
+test("switch track: a tap (no drag) toggles on release", () => {
+  withWindow((win) => {
+    const ref = makeDivaRef();
     const entityId = "switch.fan";
     const ctx = makeContext({ [entityId]: { state: "off", attributes: {} } });
 
-    _bindSwipeTile.call(ctx, tile, fill, thumb, /* swatch */ {}, stateEl, entityId, "switch");
-
-    pressAndDrift(tile, globalThis.window, { dx: 10 });
-    globalThis.window.listeners.pointerup({ clientX: 10, clientY: 0, pointerId: 1 });
+    _bindDivaTrack.call(ctx, ref, entityId, "switch");
+    ref.track.handlers.pointerdown({ clientY: 100, pointerId: 1 });
+    win.listeners.pointerup({ clientY: 100, pointerId: 1 });
 
     assert.deepEqual(ctx.calls, [["switch", "turn_on", { entity_id: entityId }]]);
-  } finally {
-    globalThis.window = origWindow;
-  }
+  });
 });
 
-test("non-dimmable light tile: a small horizontal drift still toggles on release", () => {
-  const origWindow = globalThis.window;
-  globalThis.window = makeWindow();
-  try {
-    const tile = makeTile();
-    const fill = makeStyleEl();
-    const thumb = makeStyleEl();
-    const stateEl = makeStyleEl();
+test("non-dimmable light track: a tap toggles on release", () => {
+  withWindow((win) => {
+    const ref = makeDivaRef();
     const entityId = "light.hallway";
-    const ctx = makeContext({
-      [entityId]: { state: "off", attributes: { supported_color_modes: ["onoff"] } },
-    });
+    const ctx = makeContext({ [entityId]: { state: "off", attributes: { supported_color_modes: ["onoff"] } } });
 
-    _bindSwipeTile.call(ctx, tile, fill, thumb, /* swatch */ {}, stateEl, entityId, "light");
-
-    pressAndDrift(tile, globalThis.window, { dx: 10 });
-    globalThis.window.listeners.pointerup({ clientX: 10, clientY: 0, pointerId: 1 });
+    _bindDivaTrack.call(ctx, ref, entityId, "light");
+    ref.track.handlers.pointerdown({ clientY: 100, pointerId: 1 });
+    win.listeners.pointerup({ clientY: 100, pointerId: 1 });
 
     assert.deepEqual(ctx.calls, [["light", "turn_on", { entity_id: entityId }]]);
-  } finally {
-    globalThis.window = origWindow;
-  }
+  });
 });
 
-test("dimmable light tile: a horizontal drag still previews and commits a brightness (regression)", () => {
-  const origWindow = globalThis.window;
-  globalThis.window = makeWindow();
-  try {
-    const tile = makeTile();
-    const fill = makeStyleEl();
-    const thumb = makeStyleEl();
-    const stateEl = makeStyleEl();
+test("dimmable light track: dragging to a level previews and commits a brightness", () => {
+  withWindow((win) => {
+    const ref = makeDivaRef();
     const entityId = "light.living_room";
-    const ctx = makeContext({
-      [entityId]: { state: "on", attributes: { supported_color_modes: ["brightness"] } },
-    });
+    const ctx = makeContext({ [entityId]: { state: "on", attributes: { supported_color_modes: ["brightness"], brightness: 0 } } });
 
-    _bindSwipeTile.call(ctx, tile, fill, thumb, /* swatch */ {}, stateEl, entityId, "light");
+    _bindDivaTrack.call(ctx, ref, entityId, "light");
+    ref.track.handlers.pointerdown({ clientY: 100, pointerId: 1 });
+    win.listeners.pointermove({ clientY: 73, pointerId: 1 }); // 50% up the track
+    assert.equal(ref.fill.style.height, "50%"); // live preview, no service call yet
+    assert.equal(ctx.calls.length, 0);
 
-    pressAndDrift(tile, globalThis.window, { dx: 50 });
-    globalThis.window.listeners.pointermove({ clientX: 60, clientY: 0, pointerId: 1 });
-    globalThis.window.listeners.pointerup({ clientX: 60, clientY: 0, pointerId: 1 });
+    win.listeners.pointerup({ clientY: 73, pointerId: 1 });
 
-    assert.equal(ctx.calls.length, 1);
-    assert.equal(ctx.calls[0][0], "light");
-    assert.equal(ctx.calls[0][1], "turn_on");
-    assert.equal(ctx.calls[0][2].entity_id, entityId);
-    assert.equal(ctx.calls[0][2].brightness_pct, 60);
-  } finally {
-    globalThis.window = origWindow;
-  }
+    assert.deepEqual(ctx.calls, [["light", "turn_on", { entity_id: entityId, brightness_pct: 50 }]]);
+  });
 });
 
-// _updateLightRef and _updateSwitchRef both delegate to the shared
-// _updateToggleRef (see PR #12 review comment); these cover that each still
-// gets its kind-specific behavior through that shared path.
+test("cover track: dragging to the very top commits open_cover rather than a 100% position", () => {
+  withWindow((win) => {
+    const ref = makeDivaRef();
+    const entityId = "cover.blind";
+    const ctx = makeContext({ [entityId]: { state: "closed", attributes: { current_position: 0 } } });
 
-test("_updateSwitchRef: dimmable-looking attributes are still ignored (switches never dim)", () => {
-  const ref = makeToggleRef();
-  const entityId = "switch.fan";
+    _bindDivaTrack.call(ctx, ref, entityId, "cover");
+    ref.track.handlers.pointerdown({ clientY: 100, pointerId: 1 });
+    win.listeners.pointermove({ clientY: 23, pointerId: 1 }); // 100% up the track
+    win.listeners.pointerup({ clientY: 23, pointerId: 1 });
+
+    assert.deepEqual(ctx.calls, [["cover", "open_cover", { entity_id: entityId }]]);
+  });
+});
+
+test("switch track: dragging past the 80% flick threshold toggles on release (hysteresis)", () => {
+  withWindow((win) => {
+    const ref = makeDivaRef();
+    const entityId = "switch.fan";
+    const ctx = makeContext({ [entityId]: { state: "off", attributes: {} } });
+
+    _bindDivaTrack.call(ctx, ref, entityId, "switch");
+    ref.track.handlers.pointerdown({ clientY: 100, pointerId: 1 });
+    win.listeners.pointermove({ clientY: 15, pointerId: 1 }); // 85% of the way to "on"
+    win.listeners.pointerup({ clientY: 15, pointerId: 1 });
+
+    assert.deepEqual(ctx.calls, [["switch", "turn_on", { entity_id: entityId }]]);
+  });
+});
+
+test("switch track: dragging short of the 80% flick threshold does not toggle on release", () => {
+  withWindow((win) => {
+    const ref = makeDivaRef();
+    const entityId = "switch.fan";
+    const ctx = makeContext({ [entityId]: { state: "off", attributes: {} } });
+
+    _bindDivaTrack.call(ctx, ref, entityId, "switch");
+    ref.track.handlers.pointerdown({ clientY: 100, pointerId: 1 });
+    win.listeners.pointermove({ clientY: 50, pointerId: 1 }); // 50% of the way — short of 80%
+    win.listeners.pointerup({ clientY: 50, pointerId: 1 });
+
+    assert.deepEqual(ctx.calls, []);
+  });
+});
+
+test("_toggleEntity: turning a dimmable light on defaults to full brightness", () => {
+  const calls = [];
+  const ctx = { _hass: { states: { "light.a": { attributes: { supported_color_modes: ["brightness"] } } } }, _call: (...a) => calls.push(a) };
+  _toggleEntity.call(ctx, "light.a", "light", true);
+  assert.deepEqual(calls, [["light", "turn_on", { entity_id: "light.a", brightness_pct: 100 }]]);
+});
+
+test("_updateDivaRef: a dimmable light on renders a fill height, thumb, and crossfading pct labels", () => {
+  const ref = makeDivaRef();
+  const entityId = "light.living_room";
   const ctx = makeContext({
-    [entityId]: { state: "on", attributes: { brightness: 128 }, last_updated: "2024-01-01T00:00:00Z" },
+    [entityId]: { state: "on", attributes: { supported_color_modes: ["brightness"], brightness: 128 }, last_updated: "2024-01-01T00:00:00Z" },
   });
 
-  _updateSwitchRef.call(ctx, ref, entityId);
+  _updateDivaRef.call(ctx, ref, entityId, "light");
 
-  assert.equal(ref.tile.classList.contains("no-dim"), true);
-  assert.equal(ref.fill.style.width, "100%");
-  assert.equal(ref.thumb.style.display, "none");
-  assert.equal(ref.state.textContent.startsWith("On"), true);
+  assert.equal(ref.fill.style.height, "50%");
+  assert.equal(ref.thumb.classList.contains("on"), true);
+  assert.equal(ref.pctTop.textContent, "50%");
+  assert.equal(ref.pctTop.style.display, "");
 });
 
-test("_updateSwitchRef: unavailable state renders as unavailable with no fill", () => {
-  const ref = makeToggleRef();
+test("_updateDivaRef: a switch on renders a full, solid fill with no pct label", () => {
+  const ref = makeDivaRef();
+  const entityId = "switch.fan";
+  const ctx = makeContext({ [entityId]: { state: "on", attributes: {} } });
+
+  _updateDivaRef.call(ctx, ref, entityId, "switch");
+
+  assert.equal(ref.fill.style.height, "100%");
+  assert.equal(ref.pctTop.style.display, "none");
+  assert.equal(ref.ago.textContent, "On");
+});
+
+test("_updateDivaRef: an unavailable entity disables the track with no fill", () => {
+  const ref = makeDivaRef();
   const entityId = "switch.fan";
   const ctx = makeContext({ [entityId]: { state: "unavailable", attributes: {} } });
 
-  _updateSwitchRef.call(ctx, ref, entityId);
+  _updateDivaRef.call(ctx, ref, entityId, "switch");
 
-  assert.equal(ref.tile.classList.contains("unavailable"), true);
-  assert.equal(ref.fill.style.width, "0%");
-  assert.equal(ref.state.textContent, "Unavailable");
-});
-
-test("_updateLightRef: dimmable light on renders a brightness percentage and thumb", () => {
-  const ref = makeToggleRef();
-  const entityId = "light.living_room";
-  const ctx = makeContext({
-    [entityId]: {
-      state: "on",
-      attributes: { supported_color_modes: ["brightness"], brightness: 128 },
-      last_updated: "2024-01-01T00:00:00Z",
-    },
-  });
-
-  _updateLightRef.call(ctx, ref, entityId);
-
-  assert.equal(ref.tile.classList.contains("no-dim"), false);
-  assert.equal(ref.fill.style.width, "50%");
-  assert.equal(ref.thumb.style.display, "block");
-  assert.equal(ref.state.textContent.startsWith("50%"), true);
-});
-
-test("_updateLightRef: non-dimmable light on renders 'On' with no thumb (matches switch styling)", () => {
-  const ref = makeToggleRef();
-  const entityId = "light.hallway";
-  const ctx = makeContext({
-    [entityId]: { state: "on", attributes: { supported_color_modes: ["onoff"] } },
-  });
-
-  _updateLightRef.call(ctx, ref, entityId);
-
-  assert.equal(ref.tile.classList.contains("no-dim"), true);
-  assert.equal(ref.fill.style.width, "100%");
-  assert.equal(ref.thumb.style.display, "none");
-  assert.equal(ref.state.textContent, "On");
-});
-
-test("_updateLightRef: a drag in progress leaves the ref untouched", () => {
-  const ref = makeToggleRef();
-  const entityId = "light.living_room";
-  const ctx = makeContext({
-    [entityId]: { state: "on", attributes: { supported_color_modes: ["brightness"], brightness: 255 } },
-  });
-  ctx._dragState.set(entityId, { pct: 10, kind: "light" });
-
-  _updateLightRef.call(ctx, ref, entityId);
-
-  assert.equal(ref.state.textContent, ""); // untouched
+  assert.equal(ref.track.disabled, true);
+  assert.equal(ref.track.classList.contains("un"), true);
+  assert.equal(ref.fill.style.height, "0%");
+  assert.equal(ref.ago.textContent, "Unavailable");
 });
 
 // Minimal fakes for the compact inline climate row (icon, name+meta, target

@@ -1,86 +1,114 @@
-/* 1 column on mobile, 2 ≥ 900px, 3 ≥ 1380px. Masonry: cards are distributed
-   into flex columns by JS (area-card.js) so variable-height cards pack without
-   leaving gaps. CSS owns the column count via --atrium-cols, which the JS reads. */
-.atrium-root { display: flex; gap: 8px; align-items: flex-start; max-width: 1800px; --atrium-cols: 1; }
-@media (min-width: 900px) { .atrium-root { --atrium-cols: 2; } }
-@media (min-width: 1380px) { .atrium-root { --atrium-cols: 3; } }
-.atrium-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+/* Layout shell: content (floors of orbs) + panel. Mobile-first — the panel
+   is a bottom sheet and the floor strip shrinks horizontal once a room is
+   selected; ≥861px promotes the panel to a side column instead. */
+.atrium-rooms { position: relative; display: flex; flex-direction: column; }
+@media (min-width: 861px) {
+  .atrium-rooms { display: grid; grid-template-columns: minmax(0, 1fr) 0px; transition: grid-template-columns .4s cubic-bezier(.32,.72,0,1); align-items: start; }
+  .atrium-rooms.has-sel { grid-template-columns: minmax(0, 1fr) 420px; }
+}
 
-.atrium-floor-label { display: flex; align-items: center; gap: 8px; padding: 14px 4px 4px; font-size: 14px; color: var(--secondary-text-color, #9aa0aa); letter-spacing: .6px; text-transform: uppercase; font-weight: 600; grid-column: 1 / -1; }
-.atrium-floor-label > .line { flex: 1; height: 1px; background: var(--divider-color, rgba(127,127,127,0.18)); }
+.atrium-rooms-content { display: flex; flex-direction: column; gap: 28px; padding: 8px 16px 32px; min-width: 0; transition: padding .4s cubic-bezier(.32,.72,0,1); }
+@media (min-width: 861px) { .atrium-rooms-content { padding: 8px 32px 32px; } }
 
-.atrium-room { background: var(--ha-card-background, var(--card-background-color, var(--ha-card-background, var(--card-background-color, #16181d)))); border-radius: 14px; border: 1px solid var(--ha-card-border-color, var(--divider-color, transparent)); overflow: hidden; transition: border-color .2s, background .2s; scroll-margin-bottom: 16px; }
-.atrium-room.expanded { border-color: var(--ha-card-border-color, var(--divider-color, color-mix(in srgb, var(--primary-text-color, #e8e9ec) 10%, transparent))); }
-.atrium-room.lights-on { background: linear-gradient(180deg, color-mix(in srgb, var(--state-light-active-color, #f5c451) 9%, var(--ha-card-background, var(--card-background-color, #16181d))) 0%, var(--ha-card-background, var(--card-background-color, #16181d)) 100%); border-color: color-mix(in srgb, var(--state-light-active-color, #f5c451) 38%, transparent); }
+.atrium-floor-group { display: flex; flex-direction: column; gap: 14px; }
+.atrium-rooms.has-sel .atrium-floor-group { flex-direction: row; align-items: flex-start; gap: 14px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+@media (min-width: 861px) { .atrium-rooms.has-sel .atrium-floor-group { flex-direction: column; overflow-x: visible; } }
+.atrium-floor-name { font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--secondary-text-color, #9aa0aa); flex-shrink: 0; }
+.atrium-rooms.has-sel .atrium-floor-name { writing-mode: vertical-rl; text-orientation: mixed; padding-top: 6px; }
+@media (min-width: 861px) { .atrium-rooms.has-sel .atrium-floor-name { writing-mode: horizontal-tb; } }
 
-.atrium-row { padding: 14px; display: flex; align-items: center; gap: 12px; }
-.atrium-room-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background-color: transparent; color: var(--secondary-text-color, #9aa0aa); line-height: 0; transition: background-color .25s ease, color .25s ease; }
-.atrium-room-icon.on { background-color: var(--state-light-active-color, #f5c451); color: var(--ha-card-background, var(--card-background-color, #16181d)); }
-/* Area picture (from HA area settings) shown as a vignette in place of the icon. */
-.atrium-room-icon.has-img { background-size: cover; background-position: center; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-text-color, #e8e9ec) 12%, transparent); transform: scale(1.2); }
-.atrium-room-mid { flex: 1; min-width: 0; }
-.atrium-room-name { font-size: 18px; font-weight: 700; letter-spacing: -.1px; color: var(--primary-text-color, #e8e9ec); line-height: 16px; }
-.atrium-room-title-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; line-height: 16px; }
-.atrium-chips { margin-top: 2px; font-size: 15px; line-height: 16px; color: var(--secondary-text-color, #9aa0aa); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; transform: translate(-4px, 4px); }
-.atrium-chip { display: inline-flex; align-items: center; gap: 4px; padding: 0; line-height: 0; }
-.atrium-chip > span { line-height: 16px; }
-.atrium-chip ha-icon { --mdc-icon-size: 16px; }
-.atrium-chip.has-bg { padding: 2px 7px 2px 6px; border-radius: 999px; }
-.atrium-chip.pulse { animation: atrium-pulse 1.4s ease infinite; font-weight: 600; }
-.atrium-chip.clickable { cursor: pointer; transition: opacity .15s; }
-.atrium-chip.clickable:hover { opacity: .7; }
-.atrium-motion-pill { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; line-height: 16px; color: var(--state-binary_sensor-motion-color, #5cc6ff); padding: 2px 6px 2px 5px; border-radius: 999px; background: color-mix(in srgb, var(--state-binary_sensor-motion-color, #5cc6ff) 12%, transparent); cursor: pointer; transition: opacity .15s; }
-.atrium-motion-pill ha-icon { --mdc-icon-size: 14px; line-height: 0; }
-.atrium-motion-pill:hover { opacity: .7; }
-.atrium-room-actions { display: flex; align-items: center; gap: 6px; }
-.atrium-quick-btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 36px; height: 36px; padding: 0 12px; border-radius: 10px; border: none; cursor: pointer; background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 4%, transparent); color: var(--secondary-text-color, #9aa0aa); font-family: inherit; transition: background .25s ease, color .25s ease; }
-.atrium-quick-btn.on-light { background: color-mix(in srgb, var(--state-light-active-color, #f5c451) 18%, transparent); color: var(--state-light-active-color, #f5c451); }
-.atrium-quick-btn.on-cover { background: color-mix(in srgb, var(--state-cover-active-color, #9b7fd1) 18%, transparent); color: var(--state-cover-active-color, #9b7fd1); }
+.atrium-orb-row { display: flex; flex-wrap: wrap; gap: 24px; transition: gap .4s cubic-bezier(.32,.72,0,1); }
+.atrium-rooms.has-sel .atrium-orb-row { gap: 14px; flex-wrap: nowrap; }
+@media (min-width: 861px) { .atrium-rooms.has-sel .atrium-orb-row { flex-wrap: wrap; } }
 
-.atrium-body-wrap { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s ease; }
-.atrium-room.expanded .atrium-body-wrap { grid-template-rows: 1fr; }
-/* No padding here — it would leak visible height when the grid track is
-   0fr. Padding lives on .atrium-body-inner. */
-.atrium-body { overflow: hidden; min-height: 0; }
-.atrium-body-inner { padding: 0 14px 16px; display: flex; flex-direction: column; gap: 12px; }
-.atrium-grid { display: grid; gap: 6px; }
-.atrium-grid.cols-1 { grid-template-columns: 1fr; }
-.atrium-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+.atrium-orb { width: 104px; display: flex; flex-direction: column; align-items: center; gap: 10px; border: 0; background: none; color: inherit; font: inherit; padding: 0; cursor: pointer; flex-shrink: 0; transition: width .4s cubic-bezier(.32,.72,0,1); }
+.atrium-rooms.has-sel .atrium-orb { width: 76px; }
+@media (min-width: 861px) { .atrium-orb { width: 128px; } .atrium-rooms.has-sel .atrium-orb { width: 96px; } }
 
-.atrium-tile { position: relative; border-radius: 12px; padding: 4px 10px; background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 7%, transparent); border: 1px solid color-mix(in srgb, var(--primary-text-color, #e8e9ec) 3%, transparent); overflow: hidden; user-select: none; touch-action: pan-y; cursor: pointer; min-height: 44px; display: flex; flex-direction: column; justify-content: center; transition: background .25s ease, border-color .25s ease; }
-.atrium-tile.unavailable { cursor: not-allowed; }
-.atrium-tile.on { border-color: color-mix(in srgb, var(--tile-accent, var(--state-light-active-color, #f5c451)) 40%, transparent); }
-.atrium-grid .atrium-tile.wide { grid-column: 1 / -1; }
-.atrium-tile-fill { position: absolute; top: 0; bottom: 0; left: 0; width: 0%; pointer-events: none; transition: width .25s ease, background .2s ease; }
-.atrium-tile-fill.light { background: var(--tile-fill, linear-gradient(90deg, rgb(var(--rgb-state-light-active-color, 245 196 81) / 0.16) 0%, rgb(var(--rgb-state-light-active-color, 245 196 81) / 0.3) 100%)); }
-.atrium-tile-fill.cover { background: linear-gradient(90deg, color-mix(in srgb, var(--state-cover-active-color, #9b7fd1) 16%, transparent) 0%, color-mix(in srgb, var(--state-cover-active-color, #9b7fd1) 30%, transparent) 100%); }
-.atrium-tile.pressed .atrium-tile-fill.light { background: var(--tile-fill-pressed, linear-gradient(90deg, rgb(var(--rgb-state-light-active-color, 245 196 81) / 0.3) 0%, rgb(var(--rgb-state-light-active-color, 245 196 81) / 0.44) 100%)); }
-.atrium-tile.pressed .atrium-tile-fill.cover { background: linear-gradient(90deg, color-mix(in srgb, var(--state-cover-active-color, #9b7fd1) 30%, transparent) 0%, color-mix(in srgb, var(--state-cover-active-color, #9b7fd1) 44%, transparent) 100%); }
-.atrium-tile-thumb { display: none !important; }
-.atrium-tile-body { position: relative; display: flex; align-items: center; gap: 10px; }
-.atrium-swatch { width: 32px; height: 32px; border-radius: 8px; background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 6%, transparent); color: color-mix(in srgb, var(--secondary-text-color, #9aa0aa) 70%, transparent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; cursor: pointer; transition: background .25s ease, color .25s ease; }
-/* "On" swatches are solid, accent-filled badges with a dark glyph — reads at
-   a glance, same language as the climate swatch — rather than a faint tint
-   with a colored icon. */
-.atrium-swatch.on-light { background: var(--tile-accent, var(--state-light-active-color, #f5c451)); color: var(--ha-card-background, var(--card-background-color, #16181d)); }
-.atrium-swatch.on-cover { background: var(--state-cover-active-color, #9b7fd1); color: var(--ha-card-background, var(--card-background-color, #16181d)); }
-.atrium-swatch ha-icon { --mdc-icon-size: 20px; line-height: 0; }
-.atrium-tile-text { flex: 1; min-width: 0; }
-.atrium-tile-name { font-size: 16px; font-weight: 600; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--primary-text-color, #e8e9ec); }
-.atrium-tile-state { font-size: 14px; line-height: 14px; margin-top: 2px; color: color-mix(in srgb, var(--secondary-text-color, #9aa0aa) 70%, transparent); transition: color .25s ease; }
-.atrium-tile-state.on-light { color: var(--tile-accent, var(--state-light-active-color, #f5c451)); font-weight: 700; }
-.atrium-tile-state.on-cover { color: var(--state-cover-active-color, #9b7fd1); font-weight: 700; }
-.atrium-tile-caret { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: none; border: none; padding: 4px; margin: -4px -6px -4px 0; cursor: pointer; color: var(--secondary-text-color, #9aa0aa); --mdc-icon-size: 18px; }
-.atrium-unavail-dot { display: none; position: absolute; top: -4px; right: -4px; width: 14px; height: 14px; border-radius: 999px; background: var(--warning-color, #f0b13a); color: #fff; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; line-height: 1; border: 2px solid var(--ha-card-background, var(--card-background-color, #16181d)); box-sizing: content-box; }
-.atrium-tile.unavailable .atrium-unavail-dot { display: flex; }
-.atrium-tile.unavailable .atrium-swatch { opacity: .55; }
-.atrium-tile.unavailable .atrium-tile-text { opacity: .65; }
+.atrium-orb-photo { position: relative; width: 88px; height: 88px; border-radius: 50%; box-shadow: 0 8px 20px rgba(0,0,0,.35); transition: box-shadow .25s ease, width .4s cubic-bezier(.32,.72,0,1), height .4s cubic-bezier(.32,.72,0,1); flex-shrink: 0; }
+.atrium-rooms.has-sel .atrium-orb-photo { width: 64px; height: 64px; }
+@media (min-width: 861px) { .atrium-orb-photo { width: 112px; height: 112px; } .atrium-rooms.has-sel .atrium-orb-photo { width: 84px; height: 84px; } }
+.atrium-orb.lit .atrium-orb-photo { box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-light-active-color, #f5c451) 55%, transparent), 0 0 24px color-mix(in srgb, var(--state-light-active-color, #f5c451) 22%, transparent), 0 8px 20px rgba(0,0,0,.35); }
+.atrium-orb.sel .atrium-orb-photo { box-shadow: 0 0 0 3px var(--ha-card-background, #0e0f12), 0 0 0 5px var(--primary-text-color, #e8e9ec), 0 8px 20px rgba(0,0,0,.35); }
+.has-sel .atrium-orb:not(.sel) .atrium-orb-photo { opacity: .65; }
 
+.atrium-orb-art { position: absolute; inset: 0; border-radius: 50%; background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 8%, transparent); display: flex; align-items: center; justify-content: center; color: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 35%, transparent); transition: filter .4s ease; overflow: hidden; }
+.atrium-orb-art.has-img { background-size: cover; background-position: center; color: transparent; }
+.atrium-orb.gray .atrium-orb-art { filter: grayscale(1) brightness(.55); }
+.atrium-orb-art ha-icon { --mdc-icon-size: 30px; }
 
-/* Climate: one inline row, same grid as the light tiles it sits among —
-   icon, name + mode/current-temp, and a compact −/target/+. Background and
-   border color are set per hvac-mode accent from JS (_updateClimateRef). */
-.atrium-climate { display: flex; flex-direction: row; align-items: center; gap: 9px; border: 1px solid transparent; cursor: default; }
+.atrium-orb-badge-lit { position: absolute; left: -2px; top: 2px; display: inline-flex; align-items: center; gap: 2px; padding: 3px 7px 3px 5px; border-radius: 999px; background: var(--state-light-active-color, #f5c451); color: #1b1506; font-size: 11px; font-weight: 800; line-height: 1; }
+.atrium-orb-badge-lit ha-icon { --mdc-icon-size: 12px; }
+.atrium-orb-badge-alert { position: absolute; right: -2px; top: 2px; width: 22px; height: 22px; border-radius: 50%; background: var(--error-color, #ff5252); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 3px var(--ha-card-background, #0e0f12); }
+.atrium-orb-badge-alert ha-icon { --mdc-icon-size: 12px; }
+
+.atrium-orb-name { font-size: 14px; font-weight: 800; text-align: center; color: var(--primary-text-color, #e8e9ec); transition: font-size .4s ease; line-height: 1.2; }
+.atrium-rooms.has-sel .atrium-orb-name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 76px; }
+.atrium-orb-meta { font-size: 12px; font-weight: 600; color: var(--secondary-text-color, #9aa0aa); text-align: center; margin-top: -6px; }
+.atrium-rooms.has-sel .atrium-orb-meta { display: none; }
+@media (min-width: 861px) { .atrium-rooms.has-sel .atrium-orb-meta { display: block; } }
+
+/* Panel: bottom sheet on mobile, side column ≥861px. */
+.atrium-panel { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; max-height: 82vh; background: var(--ha-card-background, var(--card-background-color, #16181d)); border-radius: 22px 22px 0 0; box-shadow: 0 -12px 32px rgba(0,0,0,.4); transform: translateY(100%); transition: transform .35s cubic-bezier(.32,.72,0,1); overscroll-behavior: contain; }
+.atrium-panel.open { transform: translateY(0); }
+@media (min-width: 861px) {
+  .atrium-panel { position: static; max-height: none; border-radius: 0; box-shadow: none; border-left: 1px solid var(--divider-color, rgba(127,127,127,0.18)); transform: none; height: 100%; overflow: hidden; width: 0; transition: none; }
+  .atrium-rooms.has-sel .atrium-panel { width: 420px; }
+}
+.atrium-panel-inner { max-height: 82vh; overflow-y: auto; padding: 18px 18px 32px; display: flex; flex-direction: column; gap: 20px; scrollbar-width: thin; box-sizing: border-box; }
+@media (min-width: 861px) { .atrium-panel-inner { max-height: none; height: 100%; padding: 22px 22px 36px; width: 420px; } }
+.atrium-panel-scrim { position: fixed; inset: 0; z-index: 4; background: rgba(0,0,0,.45); opacity: 0; pointer-events: none; transition: opacity .35s ease; }
+.atrium-panel-scrim.open { opacity: 1; pointer-events: auto; }
+@media (min-width: 861px) { .atrium-panel-scrim { display: none; } }
+
+.atrium-panel-hero { display: flex; align-items: center; gap: 14px; }
+.atrium-panel-hero-photo { position: relative; width: 60px; height: 60px; border-radius: 50%; flex-shrink: 0; overflow: hidden; background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 8%, transparent); display: flex; align-items: center; justify-content: center; color: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 35%, transparent); }
+.atrium-panel-hero-photo.has-img { background-size: cover; background-position: center; color: transparent; }
+.atrium-panel-hero-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.atrium-panel-hero-name { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; color: var(--primary-text-color, #e8e9ec); }
+.atrium-panel-hero-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.atrium-panel-close { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; border: 0; background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 8%, transparent); color: var(--primary-text-color, #e8e9ec); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.atrium-panel-close ha-icon { --mdc-icon-size: 18px; }
+
+.atrium-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 3px 9px 3px 7px; border-radius: 999px; background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 8%, transparent); color: var(--secondary-text-color, #9aa0aa); }
+.atrium-badge ha-icon { --mdc-icon-size: 13px; }
+.atrium-badge.is-alert { background: color-mix(in srgb, var(--error-color, #ff5252) 18%, transparent); color: var(--error-color, #ff5252); }
+.atrium-badge.is-warn { background: color-mix(in srgb, var(--warning-color, #f0b13a) 18%, transparent); color: var(--warning-color, #f0b13a); }
+.atrium-badge.is-info { background: color-mix(in srgb, var(--state-climate-cool-color, #5cc6ff) 16%, transparent); color: var(--state-climate-cool-color, #5cc6ff); }
+
+.atrium-section { display: flex; flex-direction: column; gap: 12px; }
+.atrium-shead { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--secondary-text-color, #9aa0aa); }
+.atrium-act-btn { border: 0; border-radius: 999px; padding: 5px 11px; background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 8%, transparent); color: var(--primary-text-color, #e8e9ec); font: inherit; font-size: 11.5px; font-weight: 700; letter-spacing: 0; text-transform: none; cursor: pointer; }
+
+.atrium-climate-list { display: flex; flex-direction: column; gap: 8px; }
+
+.atrium-groups-row { display: flex; flex-wrap: wrap; gap: 18px 28px; align-items: flex-start; }
+.atrium-group { display: flex; flex-direction: column; gap: 10px; min-width: 0; flex: 1 1 200px; }
+
+.atrium-diva-grid { display: flex; flex-wrap: wrap; gap: 12px 8px; }
+.atrium-diva { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 58px; position: relative; }
+.atrium-diva-track { position: relative; height: 108px; width: 58px; border: 0; border-radius: 16px; background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-text-color, #e8e9ec) 5%, transparent); padding: 0; overflow: hidden; cursor: pointer; touch-action: none; }
+.atrium-diva-track.dim { cursor: grab; }
+.atrium-diva-track.dragging { cursor: grabbing; }
+.atrium-diva-track.un { cursor: not-allowed; opacity: .45; background: repeating-linear-gradient(135deg, transparent 0 8px, color-mix(in srgb, var(--primary-text-color, #e8e9ec) 4%, transparent) 8px 16px); }
+.atrium-diva-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0%; transition: height .3s cubic-bezier(.2,.8,.2,1); }
+.atrium-diva-track.dragging .atrium-diva-fill, .atrium-diva-track.dragging .atrium-diva-thumb { transition: none; }
+.atrium-diva-track.onoff .atrium-diva-thumb { transition: bottom .45s cubic-bezier(.34,1.56,.64,1); }
+.atrium-diva-track.onoff .atrium-diva-fill { transition: height .45s cubic-bezier(.32,.72,0,1); }
+.atrium-diva-track.onoff.dragging.flick .atrium-diva-thumb { transition: bottom .45s cubic-bezier(.3,1.35,.6,1); }
+.atrium-diva-tick { position: absolute; left: 50%; width: 10px; height: 2px; margin-left: -5px; border-radius: 1px; background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 8%, transparent); }
+.atrium-diva-thumb { position: absolute; left: 50%; width: 34px; height: 34px; margin-left: -17px; border-radius: 50%; background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 14%, transparent); color: var(--secondary-text-color, #9aa0aa); display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 14px rgba(0,0,0,.35); bottom: 6px; transition: bottom .3s cubic-bezier(.2,.8,.2,1); }
+.atrium-diva-thumb.on { background: var(--primary-text-color, #e8e9ec); color: var(--ha-card-background, var(--card-background-color, #16181d)); }
+.atrium-diva-thumb ha-icon { --mdc-icon-size: 17px; }
+.atrium-diva-pct { position: absolute; left: 0; right: 0; top: 6px; text-align: center; font-size: 10px; font-weight: 800; color: rgba(255,255,255,.8); pointer-events: none; display: none; }
+.atrium-diva-pct.bottom { top: auto; bottom: 6px; }
+.atrium-diva-name { font-size: 12.5px; font-weight: 700; color: var(--primary-text-color, #e8e9ec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 58px; text-align: center; }
+.atrium-diva-ago { font-size: 11px; font-weight: 600; color: var(--secondary-text-color, #9aa0aa); text-align: center; }
+.atrium-diva-caret { position: absolute; right: -6px; top: 0; background: none; border: none; padding: 4px; cursor: pointer; color: var(--secondary-text-color, #9aa0aa); --mdc-icon-size: 16px; }
+
+/* Climate: one inline row — icon, name + mode/current-temp, and a compact
+   −/target/+. Background/border color set per hvac-mode accent in JS. */
+.atrium-climate { display: flex; flex-direction: row; align-items: center; gap: 9px; border: 1px solid transparent; border-radius: 14px; padding: 10px 12px; cursor: default; }
 .atrium-climate-swatch { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; color: var(--ha-card-background, var(--card-background-color, #16181d)); }
 .atrium-climate-swatch ha-icon { --mdc-icon-size: 16px; line-height: 0; }
 .atrium-climate-text { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 6px; overflow: hidden; }
@@ -91,6 +119,10 @@
 .atrium-climate-btn { width: 24px; height: 24px; border-radius: 6px; border: none; cursor: pointer; background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 12%, transparent); color: var(--primary-text-color, #e8e9ec); display: inline-flex; align-items: center; justify-content: center; }
 .atrium-climate-btn ha-icon { --mdc-icon-size: 14px; line-height: 0; }
 .atrium-climate-num { font-size: 15.5px; font-weight: 700; min-width: 38px; text-align: center; font-variant-numeric: tabular-nums; color: var(--primary-text-color, #e8e9ec); }
+
+.atrium-grid { display: grid; gap: 6px; }
+.atrium-grid.cols-1 { grid-template-columns: 1fr; }
+.atrium-grid.cols-2 { grid-template-columns: 1fr 1fr; }
 
 .atrium-sensor { min-width: 0; height: 32px; background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 3%, transparent); border-radius: 9px; padding: 0 10px 0 8px; cursor: pointer; }
 .atrium-sensor-row { display: flex; align-items: center; gap: 6px; height: 100%; }
@@ -105,7 +137,9 @@
 .atrium-select-value { flex-shrink: 0; font-weight: 600; }
 .atrium-select-caret { --mdc-icon-size: 16px; flex-shrink: 0; line-height: 0; margin-left: -2px; color: var(--secondary-text-color, #9aa0aa); }
 
+.atrium-pills { display: flex; flex-direction: column; gap: 6px; }
 .atrium-scenes { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; overflow-y: hidden; cursor: grab; user-select: none; scrollbar-width: none; }
+.atrium-scenes:empty { display: none; }
 .atrium-scenes::-webkit-scrollbar { display: none; }
 .atrium-scenes.dragging { cursor: grabbing; }
 .atrium-scene-btn { position: relative; height: 32px; max-width: 160px; padding: 0 10px 0 8px; border-radius: 9px; border: none; cursor: pointer; background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 5%, transparent); color: var(--primary-text-color, #e8e9ec); display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 14px; line-height: 14px; transition: background .2s ease, color .2s ease; }
@@ -119,7 +153,6 @@
 .atrium-autos-trigger.atrium-pop-open { background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 8%, transparent); }
 .atrium-autos-trigger-iconwrap { width: 20px; height: 20px; border-radius: 6px; background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 5%, transparent); color: var(--secondary-text-color, #9aa0aa); display: inline-flex; align-items: center; justify-content: center; }
 .atrium-autos-trigger-label { font-size: 14px; color: var(--primary-text-color, #e8e9ec); font-weight: 500; line-height: 14px; }
-.atrium-autos-trigger-meta { font-size: 13px; color: color-mix(in srgb, var(--secondary-text-color, #9aa0aa) 70%, transparent); font-variant-numeric: tabular-nums; line-height: 14px; }
 .atrium-auto-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--divider-color, rgba(127,127,127,0.18)); }
 .atrium-auto-row:last-child { border-bottom: none; }
 .atrium-auto-row.disabled { opacity: .55; }
@@ -132,8 +165,6 @@
   border-radius: 999px;
   border: none;
   cursor: pointer;
-  /* Same accent as the play button — "on" reads as colored, "off"/script
-     reads as neutral (see the .disabled and .script overrides below). */
   background: color-mix(in srgb, var(--state-climate-cool-color, #5cc6ff) 14%, transparent);
   color: var(--state-climate-cool-color, #5cc6ff);
   display: inline-flex;
@@ -153,10 +184,3 @@
 .atrium-auto-label { display: inline-flex; align-items: center; gap: 2px; font-size: 10.5px; font-weight: 500; line-height: 1.5; }
 .atrium-auto-play { flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; border: none; cursor: pointer; background: color-mix(in srgb, var(--state-climate-cool-color, #5cc6ff) 12%, transparent); color: var(--state-climate-cool-color, #5cc6ff); display: inline-flex; align-items: center; justify-content: center; transition: background .15s ease; }
 .atrium-auto-play.disabled { background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 3%, transparent); color: color-mix(in srgb, var(--secondary-text-color, #9aa0aa) 70%, transparent); cursor: not-allowed; }
-
-.atrium-sparkline { width: 100%; height: 42px; margin-top: 4px; display: block; }
-
-@keyframes atrium-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .35; }
-}

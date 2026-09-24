@@ -7,8 +7,7 @@
 Atrium is a fully dynamic Lovelace dashboard for Home Assistant.
 No YAML editing, no per-room configuration.
 
-- **Home** — every floor and area, auto-grouped by domain (lights, switches, covers, sensors, climate, …), with a per-floor lights toggle. Each room's thermostat sits inline among its light tiles — icon, mode, current temp, and a −/target/+.
-- **Routines** — scenes, automations, and scripts, with an optional validation-checklist widget.
+- **Home** — every floor and area as a photo tile. Tap one to open its details panel: lights, switches and covers as swipe-to-dim tiles, the room's thermostat, scenes, sensor readings, and its automations & scripts — all in one place, no separate Routines tab.
 - Any number of **custom tabs** — fully config-driven, for things the strategy can't auto-discover (energy monitoring, system health, etc.).
 
 ![Atrium dashboard Home view, dark theme, showing floors, areas, and per-room lights, climate, and sensors](images/preview-dark.png)

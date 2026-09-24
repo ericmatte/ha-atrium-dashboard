@@ -2,7 +2,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "../../tools/register.mjs";
 
-const { lightRgbTriple, iconForSensor, fmtTimeAgoLong, computeSceneGradient, labelDescriptor } = await import("./area-card-shared.js");
+const { lightRgbTriple, iconForSensor, fmtTimeAgoLong, computeSceneGradient, labelDescriptor, nameWithoutAreaPrefix } = await import("./area-card-shared.js");
+
+test("nameWithoutAreaPrefix: strips the area name regardless of case (humanized fallback names are lower-case)", () => {
+  const area = { name: "Living Room" };
+  assert.equal(nameWithoutAreaPrefix("living room main", area), "Main");
+  assert.equal(nameWithoutAreaPrefix("Living Room Lamp", area), "Lamp");
+});
+
+test("nameWithoutAreaPrefix: only strips a leading match, not one in the middle of the name", () => {
+  const area = { name: "Fan" };
+  assert.equal(nameWithoutAreaPrefix("Bedroom Fan Speed", area), "Bedroom Fan Speed");
+});
 
 test("lightRgbTriple returns the rgb triple only for true color modes", () => {
   assert.deepEqual(

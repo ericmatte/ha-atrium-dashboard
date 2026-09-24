@@ -12,6 +12,7 @@ import {
   shellInitialFromName,
   shellPersonStatus,
   shellWeatherSummary,
+  shellGreeting,
   formatTempRange,
   PROBLEM_UNAVAILABLE_DOMAINS,
   ALL_FLOOR_KEY,
@@ -50,10 +51,6 @@ class AtriumHeader extends HTMLElement {
   }
 
   disconnectedCallback() {
-    if (this._headerResizeObserver) {
-      this._headerResizeObserver.disconnect();
-      this._headerResizeObserver = null;
-    }
     if (this._lightsAnchor) closePopoverFor(this._lightsAnchor);
     if (this._batteryAnchor) closePopoverFor(this._batteryAnchor);
     if (this._problemAnchor) closePopoverFor(this._problemAnchor);
@@ -87,7 +84,7 @@ class AtriumHeader extends HTMLElement {
     top.className = "atrium-shell-header-top";
     top.innerHTML = `
       <div class="atrium-shell-header-greeting">
-        <div class="atrium-shell-welcome" title="${this._welcomeTitle()}">${this._title || `Welcome ${this._welcomeName}`}</div>
+        <div class="atrium-shell-welcome" title="${this._welcomeTitle()}">${this._title || `${shellGreeting(new Date().getHours())}, ${this._welcomeName}`}</div>
       </div>
       <button type="button" class="atrium-shell-weather" hidden></button>
       <div class="atrium-shell-header-people"></div>
@@ -116,19 +113,6 @@ class AtriumHeader extends HTMLElement {
     });
 
     root.appendChild(header);
-
-    // Publish header height as a CSS variable so `atrium-floor-label` can
-    // park itself just below us when it goes sticky. Header height shifts
-    // with the people/stats pills, so a ResizeObserver is more reliable
-    // than a one-shot measurement.
-    this._headerEl = header;
-    this._headerResizeObserver = new ResizeObserver(() => {
-      document.documentElement.style.setProperty(
-        "--atrium-shell-header-height",
-        `${header.offsetHeight}px`
-      );
-    });
-    this._headerResizeObserver.observe(header);
   }
 
   _update() {

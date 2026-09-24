@@ -15,17 +15,15 @@ export function ensurePopoverItemStyle() {
 
 export const capitalize = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
+// Case-insensitive: a humanized fallback name (no friendly_name set) is all
+// lower-case, but the area name it's prefixed with isn't.
 export function nameWithoutAreaPrefix(name, area) {
-  return capitalize((name || "").replace(`${area.name} `, "").trim());
+  const escaped = (area.name || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return capitalize((name || "").replace(new RegExp(`^${escaped} `, "i"), "").trim());
 }
 
 export function nameWithoutStairs(name) {
   return capitalize((name || "").replace("Upstairs", "").replace("Downstairs", "").trim());
-}
-
-export function matchesAny(haystack, needles) {
-  const lower = (haystack || "").toLowerCase();
-  return needles.some((n) => lower.includes(n));
 }
 
 export const ICONS = {

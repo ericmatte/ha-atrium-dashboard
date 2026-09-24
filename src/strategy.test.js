@@ -1,10 +1,10 @@
 // strategy.js registers a custom element with no direct exports; it also
-// cascade-imports every other custom element in the dashboard (area-card,
-// header, floor-label) purely to register them, none of which are
-// exercised by generate() itself. Stub the browser globals they all touch
-// at import time (HTMLElement, customElements) so the whole module graph
-// loads under plain Node, then grab the registered strategy class out of
-// the customElements.define() call.
+// cascade-imports every other custom element in the dashboard (rooms-view,
+// header) purely to register them, none of which are exercised by
+// generate() itself. Stub the browser globals they all touch at import time
+// (HTMLElement, customElements) so the whole module graph loads under plain
+// Node, then grab the registered strategy class out of the
+// customElements.define() call.
 import test from "node:test";
 import assert from "node:assert/strict";
 import "../tools/register.mjs";
@@ -23,11 +23,11 @@ test("generate: with no cfg.tabs, ships zero custom tabs", async () => {
   const result = await AtriumStrategy.generate({}, hass);
   assert.deepEqual(
     result.views.map((v) => v.path),
-    ["home", "routines"]
+    ["home"]
   );
 });
 
-test("generate: cfg.tabs are appended in order, after routines", async () => {
+test("generate: cfg.tabs are appended in order, after home", async () => {
   const cfg = {
     tabs: [
       { title: "Energy", icon: "mdi:lightning-bolt" },
@@ -37,24 +37,24 @@ test("generate: cfg.tabs are appended in order, after routines", async () => {
   const result = await AtriumStrategy.generate(cfg, hass);
   assert.deepEqual(
     result.views.map((v) => v.path),
-    ["home", "routines", "energy", "maintenance"]
+    ["home", "energy", "maintenance"]
   );
 });
 
-test("generate: Home's area cards don't exclude climate (it merges inline)", async () => {
+test("generate: Home ships one atrium-rooms card with every floor, real and virtual", async () => {
   const hassWithFloor = {
     floors: { main: { floor_id: "main", name: "Main", level: 0 } },
-    areas: {},
+    areas: { garden: { area_id: "garden", floor_id: null, name: "Garden" } },
     user: { name: "Eric" },
   };
   const result = await AtriumStrategy.generate({}, hassWithFloor);
   const home = result.views.find((v) => v.path === "home");
-  const areaCards = home.cards[0].cards.filter((c) => c.type === "custom:atrium-area-card");
-  assert.ok(areaCards.length > 0);
-  for (const card of areaCards) {
-    assert.equal(card.exclude?.includes("climates") ?? false, false);
-    assert.deepEqual(card.exclude, ["automations", "scripts"]);
-  }
+  const roomsCards = home.cards[0].cards.filter((c) => c.type === "custom:atrium-rooms");
+  assert.equal(roomsCards.length, 1);
+  assert.deepEqual(
+    roomsCards[0].floors.map((f) => f.floor_id),
+    ["main", null]
+  );
 });
 
 test("generate: a custom tab uses its title/icon, or falls back to a slugified path", async () => {
