@@ -11,6 +11,7 @@ import {
   shellProblemIcon,
   shellInitialFromName,
   shellPersonStatus,
+  shellWeatherSummary,
   formatTempRange,
   PROBLEM_UNAVAILABLE_DOMAINS,
   ALL_FLOOR_KEY,
@@ -36,7 +37,6 @@ class AtriumHeader extends HTMLElement {
     this._welcomeName = "home";
     this._floorId = ALL_FLOOR_KEY;
     this._built = false;
-    this._timeInterval = null;
   }
 
   setConfig(config) {
@@ -49,17 +49,7 @@ class AtriumHeader extends HTMLElement {
     this._title = config.title || null;
   }
 
-  connectedCallback() {
-    if (!this._timeInterval) {
-      this._timeInterval = setInterval(() => this._updateDate(), 30 * 1000);
-    }
-  }
-
   disconnectedCallback() {
-    if (this._timeInterval) {
-      clearInterval(this._timeInterval);
-      this._timeInterval = null;
-    }
     if (this._headerResizeObserver) {
       this._headerResizeObserver.disconnect();
       this._headerResizeObserver = null;
@@ -97,12 +87,16 @@ class AtriumHeader extends HTMLElement {
     top.className = "atrium-shell-header-top";
     top.innerHTML = `
       <div class="atrium-shell-header-greeting">
-        <div class="atrium-shell-date"></div>
         <div class="atrium-shell-welcome" title="${this._welcomeTitle()}">${this._title || `Welcome ${this._welcomeName}`}</div>
       </div>
+      <button type="button" class="atrium-shell-weather" hidden></button>
       <div class="atrium-shell-header-people"></div>
     `;
     this._peopleEl = top.querySelector(".atrium-shell-header-people");
+    this._weatherEl = top.querySelector(".atrium-shell-weather");
+    this._weatherEl.addEventListener("click", () => {
+      if (this._weatherEntityId) this._openEntityMore(this._weatherEntityId);
+    });
     header.appendChild(top);
 
     const stats = document.createElement("div");
@@ -135,12 +129,10 @@ class AtriumHeader extends HTMLElement {
       );
     });
     this._headerResizeObserver.observe(header);
-
-    this._updateDate();
   }
 
   _update() {
-    this._updateDate();
+    this._updateWeather();
     this._updateStats();
   }
 
@@ -152,14 +144,29 @@ class AtriumHeader extends HTMLElement {
     return `Atrium v${version}`;
   }
 
-  _updateDate() {
-    if (!this._root) return;
-    const dateEl = this._root.querySelector(".atrium-shell-date");
-    if (!dateEl) return;
-    const now = new Date();
-    const weekday = now.toLocaleDateString(undefined, { weekday: "long" });
-    const time = now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-    dateEl.textContent = `${weekday} · ${time}`;
+  _updateWeather() {
+    if (!this._weatherEl || !this._hass) return;
+    const weather = shellWeatherSummary(this._hass);
+    const sig = weather ? `${weather.entityId}|${weather.icon}|${weather.color}|${weather.label}` : "";
+    if (sig === this._lastWeatherSig) return;
+    this._lastWeatherSig = sig;
+
+    this._weatherEntityId = weather?.entityId || null;
+    this._weatherEl.hidden = !weather;
+    if (!weather) {
+      this._weatherEl.replaceChildren();
+      return;
+    }
+
+    const st = this._hass.states[weather.entityId];
+    this._weatherEl.title = friendlyName(st, weather.entityId);
+    this._weatherEl.innerHTML = `
+      <span class="atrium-shell-weather-icon" style="color:${weather.color};background:${tint(weather.color, 16)}">
+        ${haIcon(weather.icon)}
+      </span>
+      <span class="atrium-shell-weather-temp"></span>
+    `;
+    this._weatherEl.querySelector(".atrium-shell-weather-temp").textContent = weather.label;
   }
 
   // Returns { scopeIds, personIds, floorEntitySet }:

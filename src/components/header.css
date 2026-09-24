@@ -23,11 +23,11 @@
   font-family: inherit; text-align: left; cursor: pointer;
 }
 .atrium-shell-pop-item-name {
-  font-size: 12.5px; color: var(--primary-text-color, #e8e9ec);
+  font-size: 14.5px; color: var(--primary-text-color, #e8e9ec);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .atrium-shell-pop-item-room {
-  font-size: 10.5px; color: color-mix(in srgb, var(--secondary-text-color, #9aa0aa) 70%, transparent);
+  font-size: 12.5px; color: color-mix(in srgb, var(--secondary-text-color, #9aa0aa) 70%, transparent);
   display: flex; align-items: center; gap: 4px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -39,7 +39,7 @@
 }
 .atrium-shell-pop-item-bar-fill { display: block; height: 100%; transition: width .2s; }
 .atrium-shell-pop-item-pct {
-  font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+  font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums;
   min-width: 34px; text-align: right;
 }
 .atrium-turn-off-all-btn {
@@ -48,7 +48,7 @@
   margin: 8px; border-radius: 8px;
   border: none; background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 8%, transparent);
   color: var(--primary-text-color, #e8e9ec);
-  font-family: inherit; font-size: 13px; font-weight: 500;
+  font-family: inherit; font-size: 15px; font-weight: 500;
   cursor: pointer; transition: background .2s;
 }
 .atrium-turn-off-all-btn:hover {

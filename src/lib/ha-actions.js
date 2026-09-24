@@ -11,9 +11,3 @@ export function toggleLights(hass, ids) {
   const anyOn = ids.some((id) => hass.states?.[id]?.state === "on");
   return callService(hass, "light", anyOn ? "turn_off" : "turn_on", { entity_id: ids });
 }
-
-// Set brightness; pct ≤ 0 turns off.
-export function setLightsBrightness(hass, ids, pct) {
-  if (pct <= 0) return callService(hass, "light", "turn_off", { entity_id: ids });
-  return callService(hass, "light", "turn_on", { entity_id: ids, brightness_pct: pct });
-}

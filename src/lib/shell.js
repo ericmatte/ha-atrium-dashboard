@@ -125,6 +125,87 @@ export function shellFormatTemp(value) {
   return (Math.round(value * 10) / 10).toFixed(1);
 }
 
+const WEATHER_ICONS = {
+  "clear-night": "mdi:weather-night",
+  cloudy: "mdi:weather-cloudy",
+  exceptional: "mdi:alert-circle-outline",
+  fog: "mdi:weather-fog",
+  hail: "mdi:weather-hail",
+  lightning: "mdi:weather-lightning",
+  "lightning-rainy": "mdi:weather-lightning-rainy",
+  partlycloudy: "mdi:weather-partly-cloudy",
+  pouring: "mdi:weather-pouring",
+  rainy: "mdi:weather-rainy",
+  snowy: "mdi:weather-snowy",
+  "snowy-rainy": "mdi:weather-snowy-rainy",
+  sunny: "mdi:weather-sunny",
+  windy: "mdi:weather-windy",
+  "windy-variant": "mdi:weather-windy-variant",
+};
+
+export function shellWeatherIcon(condition) {
+  return WEATHER_ICONS[condition] || "mdi:weather-cloudy";
+}
+
+const WEATHER_COLORS = {
+  "clear-night": "#8a93e0",
+  cloudy: "#9aa5b1",
+  exceptional: SHELL_TONE.danger,
+  fog: "#9aa5b1",
+  hail: "#7fd6f2",
+  lightning: "#f0c33a",
+  "lightning-rainy": "#f0c33a",
+  partlycloudy: "#f0b13a",
+  pouring: "#5b9bd9",
+  rainy: "#5b9bd9",
+  snowy: "#bfe3f7",
+  "snowy-rainy": "#7fd6f2",
+  sunny: "#f5a623",
+  windy: "#6fc9b8",
+  "windy-variant": "#6fc9b8",
+};
+
+export function shellWeatherColor(condition) {
+  return WEATHER_COLORS[condition] || SHELL_TONE.cool;
+}
+
+// Zero-config pick: `weather.home` wins, then `weather.forecast_home`, then
+// alphabetical so multi-provider setups stay stable across reloads.
+export function shellPickWeatherEntity(hass) {
+  const states = hass?.states || {};
+  const entReg = hass?.entities || {};
+  const candidates = Object.keys(states)
+    .filter((id) => id.startsWith("weather."))
+    .filter((id) => {
+      const st = states[id];
+      if (!st || st.state === "unavailable" || st.state === "unknown") return false;
+      const ent = entReg[id];
+      return !ent || (!ent.hidden && !ent.hidden_by && !ent.disabled_by);
+    })
+    .sort();
+  if (!candidates.length) return null;
+  return (
+    candidates.find((id) => id === "weather.home") ??
+    candidates.find((id) => id === "weather.forecast_home") ??
+    candidates[0]
+  );
+}
+
+export function shellWeatherSummary(hass) {
+  const entityId = shellPickWeatherEntity(hass);
+  if (!entityId) return null;
+  const st = hass.states[entityId];
+  const temp = Number(st.attributes?.temperature);
+  if (!Number.isFinite(temp)) return null;
+  return {
+    entityId,
+    condition: st.state,
+    icon: shellWeatherIcon(st.state),
+    color: shellWeatherColor(st.state),
+    label: `${shellFormatTemp(temp)}°`,
+  };
+}
+
 export function formatTempRange(temps) {
   if (!temps.length) return "";
   const min = shellFormatTemp(Math.min(...temps));

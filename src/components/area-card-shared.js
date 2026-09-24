@@ -1,4 +1,5 @@
 import { TONE } from "../lib/tone.js";
+import { getLabel } from "../lib/label-registry.js";
 import STYLE from "./area-card.css";
 import AREA_POPOVER_ITEM_STYLE from "./area-card-popover.css";
 
@@ -75,20 +76,6 @@ export const CLIMATE_ACCENT = {
 export const CLIMATE_LABELS = { auto: "Auto", heat_cool: "Heat/Cool", heat: "Heat", cool: "Cool", dry: "Dry", fan_only: "Fan only", off: "Off" };
 export const CLIMATE_ICONS = { auto: ICONS.auto, heat_cool: "mdi:sun-snowflake-variant", heat: ICONS.flame, cool: ICONS.snow, dry: ICONS.drop, fan_only: ICONS.fan, off: ICONS.power };
 
-// Specific gauges for high/low and a fan-auto badge; everything else (medium,
-// quiet, named modes) collapses to a neutral dot so the dropdown stays calm.
-export function iconForFanMode(mode) {
-  const m = (mode || "").toLowerCase();
-  if (m.includes("auto")) return "mdi:fan-auto";
-  if (m === "high" || m === "max" || m === "boost") return "mdi:speedometer";
-  if (m === "low" || m === "min") return "mdi:speedometer-slow";
-  return "mdi:circle-small";
-}
-
-export function iconForSwingMode() {
-  return "mdi:circle-small";
-}
-
 export function iconForArea(area) {
   if (area.icon) return area.icon;
   const name = (area.name || "").toLowerCase();
@@ -157,6 +144,33 @@ export function lightRgbTriple(state) {
   return null;
 }
 
+// Approximates a scene's badge gradient from the CURRENT color of the
+// lights it targets. This only reads what's already in `hass.states` (no
+// admin-only scene-config API call), so it's accurate right after the scene
+// fires (see _refreshSceneGradient in area-card-builders.js) and stale
+// otherwise — good enough for a decorative badge, not a live scene preview.
+// A scene with no contributing lights (all switches/covers, or every
+// light currently off) has nothing to show and returns null.
+export function computeSceneGradient(hass, sceneEntityId) {
+  const ids = hass.states?.[sceneEntityId]?.attributes?.entity_id;
+  if (!Array.isArray(ids)) return null;
+  const stops = [];
+  for (const id of ids) {
+    if (!id.startsWith("light.")) continue;
+    const st = hass.states?.[id];
+    if (!st || st.state !== "on") continue;
+    const rgb = lightRgbTriple(st);
+    stops.push(
+      rgb
+        ? `rgb(${rgb[0]} ${rgb[1]} ${rgb[2]} / 0.35)`
+        : "rgb(var(--rgb-state-light-active-color, 245 196 81) / 0.3)"
+    );
+  }
+  if (!stops.length) return null;
+  if (stops.length === 1) stops.push(stops[0]);
+  return `linear-gradient(90deg, ${stops.join(", ")})`;
+}
+
 const SENSOR_ICON_BY_DC = {
   temperature: "mdi:thermometer",
   humidity: "mdi:water-percent",
@@ -221,7 +235,7 @@ export function fmtSensorValue(state) {
 // HA stores label colors as theme keys ("blue", "red", …). Map them to the
 // TONE palette so atrium labels track the rest of the dashboard.
 export function labelDescriptor(hass, labelId) {
-  const lbl = hass.labels?.[labelId];
+  const lbl = getLabel(hass, labelId);
   if (!lbl) return null;
   const colorMap = {
     teal: TONE.cool,
@@ -242,8 +256,9 @@ export function labelDescriptor(hass, labelId) {
   const color = colorMap[lbl.color] || TONE.textDim;
   return {
     name: lbl.name || labelId,
-    icon: lbl.icon || "mdi:tag",
+    // Most labels are never given a custom icon in HA — don't fall back to
+    // a generic one, just show the colored text on its own.
+    icon: lbl.icon || null,
     color,
-    bg: `color-mix(in srgb, ${color} 12%, transparent)`,
   };
 }

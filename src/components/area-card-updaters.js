@@ -3,9 +3,7 @@ import { haIcon, tint, vibrate, pctFromPointerX, DRAG_THRESHOLD_PX, LONG_PRESS_M
 import {
   TONE, ICONS,
   CLIMATE_ACCENT, CLIMATE_LABELS, CLIMATE_ICONS,
-  capitalize,
   canDimLight, fmtBrightnessPct, fmtCoverPct, fmtSensorValue, fmtTimeAgoShort, fmtTimeAgoLong,
-  iconForFanMode, iconForSwingMode,
   levelColor, lightRgbTriple,
   labelDescriptor,
 } from "./area-card-shared.js";
@@ -71,7 +69,9 @@ export function _updateChips(ar) {
   if (data.sensors.leak.length) {
     const leaky = data.sensors.leak.find((s) => hass.states?.[s.entity_id]?.state === "on");
     if (leaky) {
-      addSpan(ICONS.leak, TONE.danger, "Leak!", { bg: tint(TONE.danger, 16), pulse: true, entityId: leaky.entity_id });
+      // Solid fill + dark glyph, not just a tinted pill — an active leak is
+      // the one thing on this card that should win the eye immediately.
+      addSpan(ICONS.leak, "var(--ha-card-background, var(--card-background-color, #16181d))", "Leak!", { bg: TONE.danger, pulse: true, entityId: leaky.entity_id });
     } else {
       addSpan(ICONS.leak, TONE.textDim, "Dry", { entityId: data.sensors.leak[0].entity_id });
     }
@@ -163,8 +163,9 @@ export function _updateToggleRef(ref, entityId, { canDim: supportsDim, icon: def
   ref.thumb.style.left = `calc(${pct}% - 2px)`;
   ref.thumb.style.display = on && canDim ? "block" : "none";
   ref.thumb.style.opacity = "0.55";
+  ref.tile.classList.toggle("on", on && !unavailable);
   ref.swatch.classList.toggle("on-light", on && !unavailable);
-  ref.state.classList.remove("on-light");
+  ref.state.classList.toggle("on-light", on && !unavailable);
   const stateText = unavailable ? "Unavailable" : on ? (canDim ? `${pct}%` : "On") : "Off";
   ref.state.textContent = st.last_updated ? `${stateText} - ${fmtTimeAgoShort(st.last_updated)}` : stateText;
 
@@ -175,12 +176,10 @@ export function _updateToggleRef(ref, entityId, { canDim: supportsDim, icon: def
   if (rgb) {
     const [r, g, b] = rgb;
     ref.tile.style.setProperty("--tile-accent", `rgb(${r},${g},${b})`);
-    ref.tile.style.setProperty("--tile-swatch-bg", `rgba(${r},${g},${b},0.20)`);
-    ref.tile.style.setProperty("--tile-fill", `linear-gradient(90deg, rgba(${r},${g},${b},0.24) 0%, rgba(${r},${g},${b},0.34) 100%)`);
-    ref.tile.style.setProperty("--tile-fill-pressed", `linear-gradient(90deg, rgba(${r},${g},${b},0.40) 0%, rgba(${r},${g},${b},0.52) 100%)`);
+    ref.tile.style.setProperty("--tile-fill", `linear-gradient(90deg, rgba(${r},${g},${b},0.16) 0%, rgba(${r},${g},${b},0.3) 100%)`);
+    ref.tile.style.setProperty("--tile-fill-pressed", `linear-gradient(90deg, rgba(${r},${g},${b},0.3) 0%, rgba(${r},${g},${b},0.44) 100%)`);
   } else {
     ref.tile.style.removeProperty("--tile-accent");
-    ref.tile.style.removeProperty("--tile-swatch-bg");
     ref.tile.style.removeProperty("--tile-fill");
     ref.tile.style.removeProperty("--tile-fill-pressed");
   }
@@ -217,118 +216,47 @@ export function _updateInputSelectRef(ref, entityId) {
   );
 }
 
-export function _wakeClimateGraph(ref) {
-  if (ref.graph || !ref.makeGraph) return;
-  ref.graph = ref.makeGraph();
-  if (ref.graph) ref.graph.hass = this._hass;
-}
-
-// Only push hass to the mini-graph while the card is expanded — a collapsed
-// card hides the bg layer behind `grid-template-rows: 0fr`. Own identity
-// slots so the caller's ordering doesn't matter.
-export function _syncClimateGraph(ref, st, isExpanded) {
-  if (!isExpanded || !ref.graph) return;
-  const tempSt = ref.tempId ? this._hass.states?.[ref.tempId] : null;
-  const stSame = unchangedState(ref, "_graphClimateSt", st);
-  const tempSame = unchangedState(ref, "_graphTempSt", tempSt);
-  if (stSame && tempSame) return;
-  ref.graph.hass = this._hass;
-}
-
-export function _updateClimateRef(ref, entityId, isExpanded) {
+export function _updateClimateRef(ref, entityId) {
   const st = this._hass.states?.[entityId];
   if (!st) return;
-  this._syncClimateGraph(ref, st, isExpanded);
   if (unchangedState(ref, "_lastState", st)) return;
   const mode = st.state;
   const attrs = st.attributes || {};
   const accent = CLIMATE_ACCENT[mode] || TONE.cool;
 
-  ref.swatch.style.background = tint(accent, 14);
-  ref.swatch.style.color = accent;
-  ref.swatch.innerHTML =
-    haIcon(CLIMATE_ICONS[mode] || ICONS.thermo, 20) +
-    `<span class="atrium-swatch-caret">${haIcon("mdi:menu-down")}</span>`;
-  ref.tile.style.opacity = mode === "off" ? "0.85" : "1";
+  ref.tile.style.background = tint(accent, 10);
+  ref.tile.style.borderColor = tint(accent, 28);
+  ref.swatch.style.background = accent;
+  ref.swatch.innerHTML = haIcon(CLIMATE_ICONS[mode] || ICONS.thermo, 16);
 
   const cur = attrs.current_temperature;
   const tgt = attrs.temperature;
-  const hum = attrs.current_humidity;
-  // Idle "heat" mode reads as urgent if we color it like an active heat
-  // call — keep it gray until the unit is actually heating.
-  const labelColor = mode === "heat" && attrs.hvac_action !== "heating"
-    ? TONE.textDim
-    : accent;
-  const subLabel = `${(CLIMATE_LABELS[mode] || mode.replace("_", " "))}${cur != null ? ` · ${cur}°` : ""}`;
-  ref.sub.innerHTML = `<span style="color:${labelColor}">${subLabel}</span>` +
-    (hum != null
-      ? `<span style="color:${TONE.textDim};display:inline-flex;align-items:center;gap:3px;text-transform:none">${haIcon(ICONS.drop, 10)}${Math.round(hum)}%</span>`
-      : "");
+  const modeLabel = CLIMATE_LABELS[mode] || mode.replace("_", " ");
+  ref.meta.textContent = `${modeLabel}${cur != null ? ` · ${cur}°` : ""}`;
 
   if (tgt != null && mode !== "off" && mode !== "fan_only") {
-    ref.temp.textContent = `${(+tgt).toFixed(1)}°`;
+    const decimals = Number.isInteger(Number(attrs.target_temp_step) || 0.5) ? 0 : 1;
+    ref.temp.textContent = `${(+tgt).toFixed(decimals)}°`;
   } else {
     ref.temp.textContent = mode === "off" ? "Off" : "—";
   }
 
-  this._wireClimateDropdowns(ref, entityId, attrs, mode);
-  this._updateClimate24hRange(ref, cur);
+  this._wireClimateMode(ref, entityId, attrs, mode);
 }
 
-export function _wireClimateDropdowns(ref, entityId, attrs, mode) {
+// Fan/swing/schedule live behind more-info now — the inline row only wires
+// up the hvac-mode quick picker behind the swatch.
+export function _wireClimateMode(ref, entityId, attrs, mode) {
   const hvacModes = Array.isArray(attrs.hvac_modes) ? attrs.hvac_modes : [];
-  const fanModes = Array.isArray(attrs.fan_modes) ? attrs.fan_modes : [];
-  const swingModes = Array.isArray(attrs.swing_modes) ? attrs.swing_modes : [];
   const isMultiMode = hvacModes.length > 1;
 
   ref.swatch.dataset.menu = isMultiMode ? "mode" : "";
-  ref.swatch.classList.toggle("has-dropdown", isMultiMode);
   if (isMultiMode) {
     ref.modeMenu.setItems(
       hvacModes.map((m) => ({ id: m, label: CLIMATE_LABELS[m] || m, icon: CLIMATE_ICONS[m] })),
       mode,
       (id) => this._call("climate", "set_hvac_mode", { entity_id: entityId, hvac_mode: id }),
     );
-  }
-
-  const showFan = fanModes.length > 1 && mode !== "off";
-  const showSwing = swingModes.length > 1 && mode !== "off";
-  if (showFan) {
-    ref.fanMenu.el.style.display = "";
-    ref.fanMenu.setItems(
-      fanModes.map((f) => ({ id: f, label: capitalize(f.replace(/_/g, " ")), icon: iconForFanMode(f) })),
-      attrs.fan_mode,
-      (id) => this._call("climate", "set_fan_mode", { entity_id: entityId, fan_mode: id }),
-    );
-  } else {
-    ref.fanMenu.el.style.display = "none";
-  }
-  if (showSwing) {
-    ref.swingMenu.el.style.display = "";
-    ref.swingMenu.setItems(
-      swingModes.map((s) => ({ id: s, label: capitalize(s.replace(/_/g, " ")), icon: iconForSwingMode(s) })),
-      attrs.swing_mode,
-      (id) => this._call("climate", "set_swing_mode", { entity_id: entityId, swing_mode: id }),
-    );
-  } else {
-    ref.swingMenu.el.style.display = "none";
-  }
-  ref.extras.style.display = (showFan || showSwing) ? "flex" : "none";
-}
-
-// Best-effort 24h min/max from the mini-graph — `graph.bound` isn't a stable
-// API, so we fall back gracefully if it disappears.
-export function _updateClimate24hRange(ref, cur) {
-  if (!ref.metaRange) return;
-  try {
-    const bounds = ref.graph?.bound;
-    if (Array.isArray(bounds) && bounds.length === 2 && isFinite(bounds[0]) && isFinite(bounds[1])) {
-      ref.metaRange.textContent = `${(+bounds[0]).toFixed(1)}° · ${(+bounds[1]).toFixed(1)}°`;
-    } else if (cur != null) {
-      ref.metaRange.textContent = "";
-    }
-  } catch (_) {
-    ref.metaRange.textContent = "";
   }
 }
 
@@ -340,11 +268,9 @@ export function _updateAutomationRef(ref, entityId) {
   const enabled = ref.isScript ? true : st.state !== "off";
   ref.row.classList.toggle("disabled", !enabled);
   ref.name.classList.toggle("disabled", !enabled);
-  if (!ref.isScript && "checked" in ref.swatch) {
-    ref.swatch.checked = enabled;
-  }
+  if (ref.status) ref.status.textContent = enabled ? "On" : "Off";
   const lastTs = st.attributes?.last_triggered;
-  ref.last.textContent = lastTs ? `Last triggered: ${fmtTimeAgoLong(lastTs)}` : "Never triggered";
+  ref.last.textContent = lastTs ? fmtTimeAgoLong(lastTs) : "Never triggered";
   ref.labels.innerHTML = "";
   const ent = hass.entities[entityId];
   const labelIds = ent?.labels || [];
@@ -353,9 +279,8 @@ export function _updateAutomationRef(ref, entityId) {
     if (!desc) continue;
     const chip = document.createElement("span");
     chip.className = "atrium-auto-label";
-    chip.style.background = desc.bg;
     chip.style.color = desc.color;
-    chip.innerHTML = `${haIcon(desc.icon, 9)}${desc.name}`;
+    chip.innerHTML = desc.icon ? `${haIcon(desc.icon, 9)}${desc.name}` : desc.name;
     ref.labels.appendChild(chip);
   }
   ref.play.classList.toggle("disabled", !enabled);

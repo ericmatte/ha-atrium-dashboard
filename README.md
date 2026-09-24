@@ -7,8 +7,7 @@
 Atrium is a fully dynamic Lovelace dashboard for Home Assistant.
 No YAML editing, no per-room configuration.
 
-- **Home** — every floor and area, auto-grouped by domain (lights, switches, covers, sensors, …), with a per-floor dimmer.
-- **Climate** — every thermostat and heat pump, with a live temperature graph.
+- **Home** — every floor and area, auto-grouped by domain (lights, switches, covers, sensors, climate, …), with a per-floor lights toggle. Each room's thermostat sits inline among its light tiles — icon, mode, current temp, and a −/target/+.
 - **Routines** — scenes, automations, and scripts, with an optional validation-checklist widget.
 - Any number of **custom tabs** — fully config-driven, for things the strategy can't auto-discover (energy monitoring, system health, etc.).
 
@@ -19,7 +18,6 @@ No YAML editing, no per-room configuration.
 ## Prerequisites
 
 1. [HACS](https://hacs.xyz/) installed on your Home Assistant instance.
-2. Through HACS → Frontend, install [mini-graph-card](https://github.com/kalkih/mini-graph-card) — used to render the background temperature graph on each climate tile. Optional: without it, the tile still works, just without the graph.
 
 ## Installation
 
@@ -64,7 +62,7 @@ This repository isn't in the default HACS store yet, so add it as a custom repos
 
 ## Custom tabs
 
-`Home`, `Climate`, and `Routines` are auto-discovered from your HA floors/areas. Anything beyond that (energy monitoring, system health, etc.) is manual and config-driven via a `tabs` list on the strategy — there are zero of these until you add some, and each one you add is appended as its own tab, in order, after `Routines`:
+`Home` and `Routines` are auto-discovered from your HA floors/areas. Anything beyond that (energy monitoring, system health, etc.) is manual and config-driven via a `tabs` list on the strategy — there are zero of these until you add some, and each one you add is appended as its own tab, in order, after `Routines`:
 
 ```yaml
 strategy:

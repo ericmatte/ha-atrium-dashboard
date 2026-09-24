@@ -1,11 +1,12 @@
 import { openPopover, closePopoverFor, openListPopover } from "../lib/popover.js";
-import { haIcon, tint, bindLongPress } from "../lib/dom-utils.js";
+import { haIcon, tint, bindLongPress, readSceneGradient, writeSceneGradient } from "../lib/dom-utils.js";
 import {
   TONE, ICONS,
   iconForArea, iconForScene, iconForSensor,
   nameWithoutAreaPrefix, nameWithoutStairs,
   ensurePopoverItemStyle,
   fmtSensorValue,
+  computeSceneGradient,
 } from "./area-card-shared.js";
 
 export function _buildRoomCard(area, data) {
@@ -17,6 +18,7 @@ export function _buildRoomCard(area, data) {
     data.sensors.extras.length > 0 ||
     data.sensors.other.length > 0 ||
     data.inputSelects.length > 0 ||
+    data.buttons.length > 0 ||
     data.scenes.length > 0 ||
     data.automations.length > 0 ||
     data.scripts.length > 0;
@@ -116,9 +118,13 @@ export function _buildRoomBody(area, data) {
   bodyInner.className = "atrium-body-inner";
 
   const sections = [];
-  if (data.lights.length) sections.push(this._buildLightsSection(area, data.lights, data.deviceSensors));
+  // Climate tiles are merged into the same grid as lights — a room's
+  // thermostat is just another quick-glance/quick-adjust control, not a
+  // separate destination.
+  if (data.lights.length || data.climates.length) {
+    sections.push(this._buildLightsSection(area, data.lights, data.climates, data.deviceSensors));
+  }
   if (data.switches.length) sections.push(this._buildSwitchesSection(area, data.switches, data.deviceSensors));
-  if (data.climates.length) sections.push(this._buildClimateSection(area, data.climates, data.sensors));
   // `other` holds binary_sensor entities not device-linked to any light/switch
   // (see groupDeviceSensors) — surface them alongside extras rather than
   // silently dropping them, which would otherwise hide a room whose only
@@ -126,6 +132,7 @@ export function _buildRoomBody(area, data) {
   const genericSensors = [...data.sensors.extras, ...data.sensors.other];
   if (genericSensors.length) sections.push(this._buildSensorsSection(area, genericSensors));
   if (data.inputSelects.length) sections.push(this._buildInputSelectsSection(area, data.inputSelects));
+  if (data.buttons.length) sections.push(this._buildButtonsSection(area, data.buttons));
   if (data.scenes.length) sections.push(this._buildScenesSection(area, data.scenes));
   const routines = this._buildAutomationsSection(area, data.automations, data.scripts);
   if (routines) sections.push(routines);
@@ -149,10 +156,11 @@ export function _section(title, children) {
   return wrap;
 }
 
-export function _buildLightsSection(area, lights, deviceSensors) {
+export function _buildLightsSection(area, lights, climates, deviceSensors) {
   const grid = document.createElement("div");
-  grid.className = "atrium-grid " + (lights.length === 1 ? "cols-1" : "cols-2");
+  grid.className = "atrium-grid " + (lights.length > 1 ? "cols-2" : "cols-1");
   for (const light of lights) grid.appendChild(this._buildLightTile(area, light, deviceSensors));
+  for (const climate of climates) grid.appendChild(this._buildClimateTile(area, climate));
   return this._section("Lights", grid);
 }
 
@@ -263,49 +271,22 @@ export function _buildDeviceSensorCaret(area, entity, sensors) {
   return caret;
 }
 
-export function _buildClimateSection(area, climates, sensors) {
-  const grid = document.createElement("div");
-  grid.className = "atrium-grid cols-1";
-  grid.style.gap = "8px";
-  for (const c of climates) grid.appendChild(this._buildClimateTile(area, c, sensors));
-  return this._section("Climate", grid);
-}
-
-export function _buildClimateTile(area, climate, sensors) {
+// A climate entity renders as one compact, full-width row inline among the
+// room's light tiles — icon, name + mode/current-temp, and a −/target/+
+// control. No graph, no footer: fan/swing and anything less common than
+// "see the temp, nudge the setpoint" live behind more-info (tap the name).
+export function _buildClimateTile(area, climate) {
   const tile = document.createElement("div");
-  tile.className = "atrium-climate";
+  tile.className = "atrium-tile wide atrium-climate";
   tile.dataset.entity = climate.entity_id;
 
-  // Mini-graph is instantiated lazily on first expansion — rooms that
-  // never open don't pay the mount cost.
-  const bg = document.createElement("div");
-  bg.className = "atrium-climate-bg";
-  const tempId =
-    this._findTemperatureSensorForDevice(climate.device_id) ||
-    area.temperature_entity_id;
-  const makeGraph = tempId
-    ? () => {
-        const g = this._tryCreateMiniGraph(tempId, climate.entity_id);
-        if (g) bg.appendChild(g);
-        return g;
-      }
-    : null;
-  tile.appendChild(bg);
-
-  const content = document.createElement("div");
-  content.className = "atrium-climate-content";
-  tile.appendChild(content);
-
-  const row = document.createElement("div");
-  row.className = "atrium-climate-row";
   const swatch = document.createElement("div");
-  swatch.className = "atrium-swatch";
+  swatch.className = "atrium-climate-swatch";
   swatch.style.cursor = "pointer";
-  swatch.innerHTML =
-    haIcon(ICONS.thermo, 20) +
-    `<span class="atrium-swatch-caret">${haIcon("mdi:menu-down")}</span>`;
+  swatch.innerHTML = haIcon(ICONS.thermo, 16);
+
   const text = document.createElement("div");
-  text.style.flex = "1";
+  text.className = "atrium-climate-text";
   const name = document.createElement("button");
   name.type = "button";
   name.className = "atrium-climate-name";
@@ -314,43 +295,27 @@ export function _buildClimateTile(area, climate, sensors) {
     e.stopPropagation();
     this._moreInfo(climate.entity_id);
   });
-  const sub = document.createElement("div");
-  sub.style.cssText = "font-size:11.5px;line-height:14px;text-transform:capitalize;display:flex;align-items:center;gap:6px";
-  text.append(name, sub);
-  row.append(swatch, text);
-  content.appendChild(row);
-
-  const meta = document.createElement("div");
+  const meta = document.createElement("span");
   meta.className = "atrium-climate-meta";
-  const metaLabel = document.createElement("span");
-  metaLabel.textContent = "24h";
-  const metaRange = document.createElement("span");
-  metaRange.className = "atrium-climate-meta-range";
-  meta.append(metaLabel, metaRange);
-  content.appendChild(meta);
+  text.append(name, meta);
 
-  const setpointRow = document.createElement("div");
-  setpointRow.className = "atrium-climate-target";
+  const controls = document.createElement("div");
+  controls.className = "atrium-climate-controls";
   const minus = document.createElement("button");
-  minus.className = "atrium-tiny-btn";
-  minus.innerHTML = haIcon(ICONS.minus, 20);
-  minus.addEventListener("click", (e) => { e.stopPropagation(); this._adjustClimate(climate.entity_id, -0.5); });
+  minus.type = "button";
+  minus.className = "atrium-climate-btn";
+  minus.innerHTML = haIcon(ICONS.minus, 14);
+  minus.addEventListener("click", (e) => { e.stopPropagation(); this._adjustClimate(climate.entity_id, -1); });
   const temp = document.createElement("div");
-  temp.className = "atrium-climate-temp";
+  temp.className = "atrium-climate-num";
   const plus = document.createElement("button");
-  plus.className = "atrium-tiny-btn";
-  plus.innerHTML = haIcon(ICONS.plus, 20);
-  plus.addEventListener("click", (e) => { e.stopPropagation(); this._adjustClimate(climate.entity_id, 0.5); });
-  setpointRow.append(minus, temp, plus);
-  content.appendChild(setpointRow);
+  plus.type = "button";
+  plus.className = "atrium-climate-btn";
+  plus.innerHTML = haIcon(ICONS.plus, 14);
+  plus.addEventListener("click", (e) => { e.stopPropagation(); this._adjustClimate(climate.entity_id, 1); });
+  controls.append(minus, temp, plus);
 
-  const extras = document.createElement("div");
-  extras.className = "atrium-climate-extras";
-  extras.style.display = "none";
-  const fanMenu = this._buildClimateMenu("fan", climate.entity_id);
-  const swingMenu = this._buildClimateMenu("swing", climate.entity_id);
-  extras.append(fanMenu.el, swingMenu.el);
-  content.appendChild(extras);
+  tile.append(swatch, text, controls);
 
   // The swatch doubles as the mode-picker anchor when the entity exposes
   // multiple hvac modes; otherwise it opens more-info.
@@ -372,15 +337,8 @@ export function _buildClimateTile(area, climate, sensors) {
     }
   });
 
-  const ref = {
-    tile, swatch, name, sub, temp, extras, meta, metaRange,
-    modeMenu, fanMenu, swingMenu,
-    graph: null, makeGraph, tempId,
-  };
+  const ref = { tile, swatch, name, meta, temp, modeMenu };
   this._refs.areas.get(area.area_id).climates.set(climate.entity_id, ref);
-  // Rooms are always expanded, so wake the graph immediately so the sparkline
-  // is populated from the first render.
-  this._wakeClimateGraph(ref);
   return tile;
 }
 
@@ -406,31 +364,6 @@ export function _openClimateMenu(anchor, items, current, onPick) {
     content: list,
     onClose: () => this._openAnchors.delete(anchor),
   });
-}
-
-export function _buildClimateMenu(kind, entityId) {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "atrium-climate-menu-btn";
-  const iconMap = { mode: ICONS.thermo, fan: ICONS.fan, swing: ICONS.swing };
-  const icon = iconMap[kind] || ICONS.cogs;
-  btn.innerHTML = `${haIcon(icon)}<span class="label"></span>`;
-
-  let cachedItems = [], cachedCurrent = null, cachedOnPick = () => {};
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    this._openClimateMenu(btn, cachedItems, cachedCurrent, cachedOnPick);
-  });
-
-  const setItems = (items, current, onPick) => {
-    cachedItems = items;
-    cachedCurrent = current;
-    cachedOnPick = onPick;
-    const matched = items.find((i) => i.id === current);
-    btn.querySelector(".label").textContent = matched?.label || (current || "—");
-  };
-
-  return { el: btn, btn, setItems };
 }
 
 export function _buildSensorsSection(area, sensors) {
@@ -532,6 +465,49 @@ export function _buildInputSelectTile(area, entity) {
 }
 
 export function _buildScenesSection(area, scenes) {
+  return this._buildBadgeRow(area, scenes, {
+    icon: (s, name) => iconForScene(s, name),
+    bg: (s) => readSceneGradient(s.entity_id),
+    onPress: (s, btn) => {
+      this._call("scene", "turn_on", { entity_id: s.entity_id });
+      this._refreshSceneGradient(s.entity_id, btn);
+    },
+  });
+}
+
+// A scene doesn't broadcast when its target lights finish transitioning, so
+// this samples shortly after `scene.turn_on` — accurate enough for a
+// decorative badge, and cheap to redo on every activation in case the scene
+// itself changed since the last time it ran.
+export function _refreshSceneGradient(entityId, btn) {
+  setTimeout(() => {
+    const gradient = computeSceneGradient(this._hass, entityId);
+    if (!gradient) return;
+    btn.style.background = gradient;
+    writeSceneGradient(entityId, gradient);
+  }, 700);
+}
+
+export function _buildButtonsSection(area, buttons) {
+  const hass = this._hass;
+  return this._buildBadgeRow(area, buttons, {
+    icon: (b) =>
+      hass.entities?.[b.entity_id]?.icon ??
+      hass.states?.[b.entity_id]?.attributes?.icon ??
+      "mdi:gesture-tap-button",
+    onPress: (b) => this._call("button", "press", { entity_id: b.entity_id }),
+    onHold: (b) => this._moreInfo(b.entity_id),
+  });
+}
+
+// Horizontally scrollable strip of badge buttons (scenes, `button` entities).
+// The strip is drag-to-scroll; a drag that moved is swallowed so releasing the
+// pointer over a badge doesn't fire its action. `onHold` is optional — badges
+// that pass it get the long-press-to-more-info of the light/cover tiles.
+// `bg` is optional — scenes use it to paint a cached color gradient (see
+// _refreshSceneGradient); `onPress` gets the button element as a second
+// argument so it can update that gradient live once its own async work lands.
+export function _buildBadgeRow(area, entities, { icon, onPress, onHold, bg }) {
   const wrap = document.createElement("div");
   wrap.className = "atrium-scenes";
 
@@ -564,17 +540,29 @@ export function _buildScenesSection(area, scenes) {
     wrap.classList.remove("dragging");
   });
 
-  for (const s of scenes) {
+  for (const entity of entities) {
     const btn = document.createElement("button");
     btn.className = "atrium-scene-btn";
-    const sceneName = this._entityName(s);
-    btn.title = sceneName;
-    btn.innerHTML = `${haIcon(iconForScene(s, sceneName))}<span class="atrium-scene-btn-name"></span>`;
-    btn.querySelector(".atrium-scene-btn-name").textContent = nameWithoutAreaPrefix(sceneName, area);
-    btn.addEventListener("click", (e) => {
-      if (dragMoved) { e.preventDefault(); return; }
-      this._call("scene", "turn_on", { entity_id: s.entity_id });
-    });
+    btn.dataset.entity = entity.entity_id;
+    const name = this._entityName(entity);
+    btn.title = name;
+    btn.innerHTML = `${haIcon(icon(entity, name))}<span class="atrium-scene-btn-name"></span>`;
+    btn.querySelector(".atrium-scene-btn-name").textContent = nameWithoutAreaPrefix(name, area);
+    const initialBg = bg?.(entity);
+    if (initialBg) btn.style.background = initialBg;
+    if (onHold) {
+      // bindLongPress swallows the badge's pointerdown, so a press here never
+      // starts the strip's drag and `dragMoved` can't be set by it.
+      bindLongPress(btn, {
+        onTap: () => onPress(entity, btn),
+        onLongPress: () => onHold(entity),
+      });
+    } else {
+      btn.addEventListener("click", (e) => {
+        if (dragMoved) { e.preventDefault(); return; }
+        onPress(entity, btn);
+      });
+    }
     wrap.appendChild(btn);
   }
   const section = document.createElement("div");
@@ -617,22 +605,18 @@ export function _buildAutomationRow(area, item) {
   // clicks on them bubble up to this listener too.
   if (isScript) row.addEventListener("click", () => this._moreInfo(item.entity_id));
 
-  let swatch;
-  if (isScript) {
-    swatch = document.createElement("div");
-    swatch.className = "atrium-auto-swatch script";
-    swatch.innerHTML = haIcon(customIcon || ICONS.script, 15);
-  } else {
-    // Stock HA toggle: animated, and reflects enable/disable directly. Setting
-    // `.checked` from the updater doesn't re-fire `change`, so no feedback loop.
-    swatch = document.createElement("ha-switch");
-    swatch.className = "atrium-auto-toggle";
-    swatch.checked = enabled;
+  // Same big round icon for both kinds — only automations are tappable (the
+  // icon itself doubles as the on/off toggle; scripts have no such state).
+  const swatch = document.createElement(isScript ? "div" : "button");
+  swatch.className = "atrium-auto-swatch" + (isScript ? " script" : "");
+  swatch.innerHTML = haIcon(customIcon || (isScript ? ICONS.script : ICONS.auto), 22);
+  if (!isScript) {
+    swatch.type = "button";
     swatch.setAttribute("aria-label", `Toggle ${this._entityName(item)}`);
-    swatch.addEventListener("click", (e) => e.stopPropagation());
-    swatch.addEventListener("change", (e) => {
+    swatch.addEventListener("click", (e) => {
       e.stopPropagation();
-      this._call("automation", e.target.checked ? "turn_on" : "turn_off", { entity_id: item.entity_id });
+      const isOn = this._hass.states?.[item.entity_id]?.state !== "off";
+      this._call("automation", isOn ? "turn_off" : "turn_on", { entity_id: item.entity_id });
     });
   }
 
@@ -641,18 +625,25 @@ export function _buildAutomationRow(area, item) {
   if (!isScript) body.addEventListener("click", () => this._moreInfo(item.entity_id));
   const name = document.createElement("div");
   name.className = "atrium-auto-name" + (enabled ? "" : " disabled");
-  if (!isScript && customIcon) {
-    name.className += " has-icon";
-    name.innerHTML = haIcon(customIcon, 13);
-    name.appendChild(document.createTextNode(this._entityName(item)));
-  } else {
-    name.textContent = this._entityName(item);
-  }
-  const last = document.createElement("div");
-  last.className = "atrium-auto-last";
+  name.textContent = this._entityName(item);
   const labels = document.createElement("div");
   labels.className = "atrium-auto-labels";
-  body.append(name, last, labels);
+  const titleLine = document.createElement("div");
+  titleLine.className = "atrium-auto-title";
+  titleLine.append(name, labels);
+  // Scripts have no persistent on/off state (their state is running/idle),
+  // so only automations get the "On"/"Off" prefix on the timestamp line.
+  const lastLine = document.createElement("div");
+  lastLine.className = "atrium-auto-last";
+  let status = null;
+  let last = lastLine;
+  if (!isScript) {
+    status = document.createElement("span");
+    status.className = "atrium-auto-status";
+    last = document.createElement("span");
+    lastLine.append(status, document.createTextNode(" · "), last);
+  }
+  body.append(titleLine, lastLine);
 
   const play = document.createElement("button");
   play.className = "atrium-auto-play" + (!enabled ? " disabled" : "");
@@ -668,7 +659,7 @@ export function _buildAutomationRow(area, item) {
 
   row.append(swatch, body, play);
 
-  const ref = { row, swatch, name, last, labels, play, isScript };
+  const ref = { row, swatch, name, status, last, labels, play, isScript };
   this._refs.areas.get(area.area_id).automations.set(item.entity_id, ref);
   return row;
 }

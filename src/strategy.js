@@ -30,10 +30,6 @@ class AtriumStrategy {
       : null;
     const allFloors = otherFloor ? [...floors, otherFloor] : floors;
 
-    // A single floor section has nothing to accordion against — leave it
-    // permanently expanded. Two or more become collapsible.
-    const collapsibleFloors = allFloors.length >= 2;
-
     const welcomeName = hass.user?.name?.split(" ")?.[0] || "home";
 
     const headerCard = (floorScope, title) => ({
@@ -57,7 +53,6 @@ class AtriumStrategy {
       floor: floor.floor_id ?? null,
       ...(sections ? { sections } : {}),
       ...(exclude ? { exclude } : {}),
-      ...(collapsibleFloors ? {} : { collapsible: false }),
     });
 
     const floorLabelCard = (floor, showControls = true) => ({
@@ -66,7 +61,6 @@ class AtriumStrategy {
       icon: floorIcon(floor),
       floor: floor.floor_id ?? null,
       ...(showControls ? {} : { show_controls: false }),
-      ...(collapsibleFloors ? {} : { collapsible: false }),
     });
 
     // Each view is `panel: true` so it gets the full viewport width (no
@@ -92,11 +86,11 @@ class AtriumStrategy {
         ? { type: "entities", title, entities: ids.map((entity) => ({ entity })) }
         : null;
 
-    // Home is the all-floors room dashboard, minus climate and
-    // automations/scripts — each of those has its own dedicated tab, so
-    // showing them here too is redundant. The other tabs reuse the same
-    // area-card engine but pass a section profile, with a per-floor heading
-    // in place of the (light-only) floor dimmer.
+    // Home is the all-floors room dashboard, with climate merged inline into
+    // each room card. Automations/scripts keep their own dedicated tab, so
+    // showing them here too would be redundant. The other tabs reuse the
+    // same area-card engine but pass a section profile, with a per-floor
+    // heading in place of the (light-only) floor dimmer.
     const homeView = baseView({
       title: "Home",
       path: "home",
@@ -107,7 +101,7 @@ class AtriumStrategy {
           ...allFloors.flatMap((f) => [
             floorLabelCard(f),
             areaCard(f, {
-              exclude: ["climates", "automations", "scripts"],
+              exclude: ["automations", "scripts"],
             }),
           ]),
         ]),
@@ -129,13 +123,6 @@ class AtriumStrategy {
           ]),
         ],
       });
-
-    const climateView = intentView({
-      title: "Climate",
-      path: "climate",
-      icon: "mdi:thermostat",
-      sections: ["climate"],
-    });
 
     const routinesView = intentView({
       title: "Routines",
@@ -178,7 +165,6 @@ class AtriumStrategy {
       title: "Atrium",
       views: [
         homeView,
-        climateView,
         routinesView,
         ...customTabs,
       ],

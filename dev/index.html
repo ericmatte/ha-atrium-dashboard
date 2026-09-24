@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Atrium — Dev Render Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/iconify-icon@2.1.0/dist/iconify-icon.min.js"></script>
+<style>
+  :root {
+    --primary-background-color: #0e0f12;
+    --primary-text-color: #e8e9ec;
+    --secondary-text-color: #9aa0aa;
+    color-scheme: dark;
+  }
+  /* No `* { box-sizing: border-box }` reset here on purpose: Atrium's own
+     CSS is injected as a <style> inside its own light-DOM subtree (see the
+     comment in area-card.js — HA's shadow DOM boundaries mean document.head
+     resets never reach it in production either), so it renders against the
+     plain browser default (content-box). A blanket reset here would make
+     every padded/min-height box a few px shorter than real Home Assistant
+     actually renders it. */
+  html, body {
+    margin: 0;
+    background: var(--primary-background-color);
+    color: var(--primary-text-color);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  /* Stands in for Home Assistant's own top app bar + view tabs. Its height
+     is published to --header-height so atrium-header (which sticks itself
+     at `top: var(--header-height, 0px)`) parks right below it instead of
+     underneath it. */
+  .dev-tabbar {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 12px;
+    background: #16181d;
+    border-bottom: 1px solid color-mix(in srgb, var(--primary-text-color) 12%, transparent);
+  }
+  .dev-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    background: transparent;
+    color: var(--secondary-text-color);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 13px 14px 11px;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+  }
+  .dev-tab ha-icon { --mdc-icon-size: 18px; }
+  .dev-tab:hover { color: var(--primary-text-color); }
+  .dev-tab.is-active { color: var(--primary-text-color); border-bottom-color: var(--state-light-active-color, #f5c451); }
+  .dev-tabbar-spacer { flex: 1; }
+  .dev-tabbar-note { font-size: 11px; color: var(--secondary-text-color); padding-right: 4px; white-space: nowrap; }
+
+  .dev-view { display: none; }
+  .dev-view.is-active { display: block; }
+  .dev-view atrium-area-card { display: block; }
+
+  .dev-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translate(-50%, 12px);
+    background: #1a1d23;
+    border: 1px solid color-mix(in srgb, var(--primary-text-color) 15%, transparent);
+    color: var(--primary-text-color);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s ease, transform .15s ease;
+    z-index: 100;
+  }
+  .dev-toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+  <div id="tabbar" class="dev-tabbar"></div>
+  <div id="views"></div>
+  <div id="toast" class="dev-toast"></div>
+  <script type="module" src="/out/main.js"></script>
+</body>
+</html>

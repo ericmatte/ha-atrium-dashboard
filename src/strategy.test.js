@@ -23,7 +23,7 @@ test("generate: with no cfg.tabs, ships zero custom tabs", async () => {
   const result = await AtriumStrategy.generate({}, hass);
   assert.deepEqual(
     result.views.map((v) => v.path),
-    ["home", "climate", "routines"]
+    ["home", "routines"]
   );
 });
 
@@ -37,8 +37,24 @@ test("generate: cfg.tabs are appended in order, after routines", async () => {
   const result = await AtriumStrategy.generate(cfg, hass);
   assert.deepEqual(
     result.views.map((v) => v.path),
-    ["home", "climate", "routines", "energy", "maintenance"]
+    ["home", "routines", "energy", "maintenance"]
   );
+});
+
+test("generate: Home's area cards don't exclude climate (it merges inline)", async () => {
+  const hassWithFloor = {
+    floors: { main: { floor_id: "main", name: "Main", level: 0 } },
+    areas: {},
+    user: { name: "Eric" },
+  };
+  const result = await AtriumStrategy.generate({}, hassWithFloor);
+  const home = result.views.find((v) => v.path === "home");
+  const areaCards = home.cards[0].cards.filter((c) => c.type === "custom:atrium-area-card");
+  assert.ok(areaCards.length > 0);
+  for (const card of areaCards) {
+    assert.equal(card.exclude?.includes("climates") ?? false, false);
+    assert.deepEqual(card.exclude, ["automations", "scripts"]);
+  }
 });
 
 test("generate: a custom tab uses its title/icon, or falls back to a slugified path", async () => {

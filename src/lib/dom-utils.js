@@ -32,6 +32,28 @@ export function injectStyleOnce(id, css) {
   document.head.appendChild(style);
 }
 
+// Persists a scene's badge gradient (see area-card-shared.js's
+// computeSceneGradient) across reloads, keyed by entity id. Wrapped in
+// try/catch — some HA frontend contexts (kiosk browsers, restricted
+// webviews) block storage entirely, and losing the gradient is harmless.
+const SCENE_GRADIENT_PREFIX = "atrium-scene-gradient:";
+
+export function readSceneGradient(entityId) {
+  try {
+    return localStorage.getItem(SCENE_GRADIENT_PREFIX + entityId);
+  } catch (_) {
+    return null;
+  }
+}
+
+export function writeSceneGradient(entityId, gradient) {
+  try {
+    localStorage.setItem(SCENE_GRADIENT_PREFIX + entityId, gradient);
+  } catch (_) {
+    // ignore
+  }
+}
+
 // Open Home Assistant's more-info dialog for an entity.
 export function fireMoreInfo(target, entityId) {
   target.dispatchEvent(
