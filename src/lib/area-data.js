@@ -196,8 +196,16 @@ export function areaAlertIcon(hass, data) {
 
 // The line under an area's tile. An alert replaces the humidity: it's what
 // matters right now, and the line stays one short glance.
-export function areaMetaLine({ temp, humid, alert }) {
-  return [temp != null ? `${temp.toFixed(1)}°` : null, alert ?? (humid != null ? `${humid}%` : null)].filter(Boolean).join(" · ");
+export function areaMetaParts({ temp, humid, alert }) {
+  const parts = [];
+  if (temp != null) parts.push({ kind: "temp", text: `${temp.toFixed(1)}°`, value: temp });
+  if (alert) parts.push({ kind: "alert", text: alert });
+  else if (humid != null) parts.push({ kind: "humid", text: `${humid}%`, value: humid });
+  return parts;
+}
+
+export function areaMetaLine(args) {
+  return areaMetaParts(args).map((p) => p.text).join(" · ");
 }
 
 // How many of these lights are on, out of how many — unavailable ones count

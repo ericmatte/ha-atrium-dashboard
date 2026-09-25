@@ -13,7 +13,6 @@ import {
   shellPersonStatus,
   shellWeatherSummary,
   shellGreeting,
-  formatTempRange,
   PROBLEM_UNAVAILABLE_DOMAINS,
   ALL_FLOOR_KEY,
 } from "../lib/shell.js";
@@ -27,15 +26,10 @@ function ensurePopoverItemStyle() {
   injectStyleOnce("atrium-popover-item-style", POPOVER_ITEM_STYLE);
 }
 
-// Reject obviously-bogus sensor readings (disconnected probes report extreme
-// values) before they skew the header's temperature range.
-const MIN_PLAUSIBLE_TEMP_C = -40;
-const MAX_PLAUSIBLE_TEMP_C = 60;
 
 class AtriumHeader extends HTMLElement {
   constructor() {
     super();
-    this._welcomeName = "home";
     this._floorId = ALL_FLOOR_KEY;
     this._built = false;
   }
@@ -45,7 +39,6 @@ class AtriumHeader extends HTMLElement {
     // `floor: null` → orphan areas; ALL_FLOOR_KEY → "All" view rolling up
     // every floor; otherwise a specific floor_id.
     this._floorId = config.floor === ALL_FLOOR_KEY ? ALL_FLOOR_KEY : config.floor;
-    this._welcomeName = config.welcome_name || "home";
     // The default (home) tab greets the user; every other tab labels itself.
     this._title = config.title || null;
   }
@@ -85,7 +78,7 @@ class AtriumHeader extends HTMLElement {
     top.className = "atrium-shell-header-top";
     top.innerHTML = `
       <div class="atrium-shell-header-greeting">
-        <div class="atrium-shell-welcome" title="${this._welcomeTitle()}">${this._title || `${shellGreeting(new Date().getHours())}, ${this._welcomeName}`}</div>
+        <div class="atrium-shell-welcome" title="${this._welcomeTitle()}">${this._title || shellGreeting(new Date().getHours())}</div>
       </div>
       <button type="button" class="atrium-shell-weather" hidden></button>
       <div class="atrium-shell-header-people"></div>
@@ -154,14 +147,11 @@ class AtriumHeader extends HTMLElement {
     this._weatherEl.querySelector(".atrium-shell-weather-temp").textContent = weather.label;
   }
 
-  // Returns { scopeIds, personIds, floorEntitySet }:
+  // Returns { scopeIds, personIds }:
   //   scopeIds       — entities on the configured floor, or null on the
   //                    "All" view (every entity counts).
   //   personIds      — `person.*` entity_ids; presence is dashboard-wide
   //                    and ignores the floor filter.
-  //   floorEntitySet — entities anchored to any area on a real floor; lets
-  //                    the All view exclude the "Other" bucket from the
-  //                    temperature range.
   _scope() {
     const hass = this._hass;
     if (!hass) return null;
@@ -172,7 +162,6 @@ class AtriumHeader extends HTMLElement {
     const targetFloor = this._floorId ?? null;
     const scopeIds = isAllView ? null : new Set();
     const personIds = [];
-    const floorEntitySet = isAllView ? new Set() : null;
 
     for (const ent of Object.values(hass.entities)) {
       const entityId = ent.entity_id;
@@ -182,10 +171,9 @@ class AtriumHeader extends HTMLElement {
       if (!areaId) continue;
       const area = hass.areas?.[areaId];
       if (!area) continue;
-      if (floorEntitySet && area.floor_id != null) floorEntitySet.add(entityId);
       if (scopeIds && (area.floor_id ?? null) === targetFloor) scopeIds.add(entityId);
     }
-    this._scopeCache = { scopeIds, personIds, floorEntitySet };
+    this._scopeCache = { scopeIds, personIds };
     return this._scopeCache;
   }
 
@@ -193,26 +181,22 @@ class AtriumHeader extends HTMLElement {
     if (!this._statsEl || !this._peopleEl || !this._hass) return;
     const scope = this._scope();
     if (!scope) return;
-    const { scopeIds, personIds, floorEntitySet } = scope;
-    const isAllView = scopeIds == null;
+    const { scopeIds, personIds } = scope;
     const hass = this._hass;
     const states = hass.states;
     const entReg = hass.entities || {};
 
     let lightsOn = 0;
     const activeLights = [];
-    const temps = [];
     const batteries = [];
     const problems = [];
 
     // On per-floor views, iterating scopeIds is an order of magnitude
-    // smaller than the full state map. inTempScope excludes the floorless
-    // "Other" bucket from the home-wide temp range on the All view.
+    // smaller than the full state map.
     const iterIds = scopeIds ?? Object.keys(states);
     for (const id of iterIds) {
       const st = states[id];
       if (!st) continue;
-      const inTempScope = isAllView ? floorEntitySet.has(id) : true;
       const domain = id.split(".")[0];
       const dc = st.attributes?.device_class;
       const ent = entReg[id];
@@ -222,12 +206,6 @@ class AtriumHeader extends HTMLElement {
           lightsOn += 1;
           activeLights.push({ id, state: st });
         }
-      } else if (domain === "climate" && inTempScope) {
-        const t = Number(st.attributes?.current_temperature);
-        if (Number.isFinite(t)) temps.push(t);
-      } else if (domain === "sensor" && dc === "temperature" && inTempScope) {
-        const t = Number(st.state);
-        if (Number.isFinite(t) && t > MIN_PLAUSIBLE_TEMP_C && t < MAX_PLAUSIBLE_TEMP_C) temps.push(t);
       } else if (domain === "sensor" && dc === "battery") {
         const v = Number(st.state);
         if (Number.isFinite(v) && v >= 0 && v <= 100) {
@@ -272,7 +250,6 @@ class AtriumHeader extends HTMLElement {
 
     // Signature gate so we skip the pill recreation + replaceChildren when
     // nothing displayed actually changed.
-    const tempLabel = formatTempRange(temps);
     const battLabel = batteries.length
       ? `${batteries.length}·${Math.round(batteries[0].value)}`
       : "";
@@ -280,7 +257,7 @@ class AtriumHeader extends HTMLElement {
     const hasActiveProblem = problems.some((p) => p.kind === "problem");
     const probLabel = problems.length ? `${problems.length}:${hasActiveProblem ? "a" : "i"}` : "";
     const personSig = persons.map((p) => `${p.entity_id}=${p.state}`).join(",");
-    const sig = `${lightsOn}:${lightLabel}|${tempLabel}|${battLabel}|${probLabel}|${personSig}`;
+    const sig = `${lightsOn}:${lightLabel}|${battLabel}|${probLabel}|${personSig}`;
     if (sig === this._lastStatsSig) return;
     this._lastStatsSig = sig;
 
@@ -288,10 +265,6 @@ class AtriumHeader extends HTMLElement {
 
     const statPills = [];
     statPills.push(this._statPill("mdi:lightbulb", SHELL_TONE.light, `${lightsOn} lights on`, "lights"));
-
-    if (tempLabel) {
-      statPills.push(this._statPill("mdi:thermometer", SHELL_TONE.cool, tempLabel));
-    }
 
     if (batteries.length) {
       const min = batteries[0].value;

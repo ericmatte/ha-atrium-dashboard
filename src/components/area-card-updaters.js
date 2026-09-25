@@ -1,5 +1,6 @@
 import { haIcon, setIcon, tint, vibrate } from "../lib/dom-utils.js";
 import { sensorTone } from "../lib/area-data.js";
+import { tempColor, humidityColor, toCelsius } from "../lib/comfort-colors.js";
 import {
   TONE, ICONS,
   CLIMATE_LABELS, CLIMATE_ICONS,
@@ -29,11 +30,31 @@ const DRAG_SLOP = 3;
 const NOTCH_STRETCH = 0.1;
 const NOTCH_STIFFNESS = 2.5;
 const NOTCH_FLICK_AT = 0.8;
-const FLICK_MS = 450;
+const FLICK_MS = 360;
 // The live "NN%" label sits above the thumb at low levels, below it at high
 // levels, crossfading in between so it's never covered by the icon.
 const PCT_SWAP_FROM = 40;
 const PCT_SWAP_TO = 60;
+// Touch: the tiles are vertical sliders on a vertically scrolling page, so
+// a touch first has to say which it is. A finger that moves off within the
+// first TOUCH_INTENT_MS is a scroll (the browser takes it); one that stays
+// put that long and then moves is a drag. While the page is still scrolling
+// (momentum, a swipe that just ended) a touch only stops/continues the
+// scroll: no drag, no toggle. Mice drag right away.
+const TOUCH_INTENT_MS = 100;
+const SCROLL_SLOP = 6;
+const RECENT_SCROLL_MS = 300;
+let lastScrollAt = -Infinity;
+export function noteScroll(timeStamp) {
+  lastScrollAt = timeStamp;
+}
+let watchingScroll = false;
+function watchScroll() {
+  if (watchingScroll || typeof document === "undefined" || !document.addEventListener) return;
+  watchingScroll = true;
+  document.addEventListener("scroll", (e) => noteScroll(e.timeStamp), { capture: true, passive: true });
+}
+
 // Kept in sync with the `.flash` state in area-card.css.
 export const FLASH_MS = 1400;
 
@@ -169,23 +190,50 @@ export function _bindDivaTrack(ref, entityId, kind) {
     this._toggleEntity(entityId, kind, !onOffAndLevel(kind, st).on);
   });
 
+  watchScroll();
   track.addEventListener("pointerdown", (e) => {
     // A tap or drag shouldn't leave the tile focused (and ringed like a
     // keyboard focus); Tab still reaches it.
     e.preventDefault?.();
     const st = this._hass.states?.[entityId];
     if (!st || st.state === "unavailable") return;
+    const touch = e.pointerType === "touch";
+    const t0 = e.timeStamp ?? 0;
+    // Mid-scroll: this touch belongs to the scroll.
+    if (touch && t0 - lastScrollAt < RECENT_SCROLL_MS) return;
     const { on, level, dimmable } = onOffAndLevel(kind, st);
     const startFrac = on ? (dimmable ? level / 100 : 1) : 0;
     const rect = track.getBoundingClientRect();
     try { track.setPointerCapture(e.pointerId); } catch (_) {}
 
-    const drag = { pointerId: e.pointerId, y: e.clientY, startFrac, dimmable, held: false, notch: null, rect, flickTimer: 0 };
+    const drag = { pointerId: e.pointerId, y: e.clientY, startFrac, dimmable, held: false, notch: null, rect, flickTimer: 0, intent: touch ? "pending" : "drag" };
     const usable = rect.height - THUMB - PAD * 2;
     const fracFromPointer = (clientY) => clamp01((rect.bottom - clientY - PAD - THUMB / 2) / usable);
 
+    const decideIntent = (timeStamp, clientY) => {
+      if (drag.intent !== "pending") return;
+      const moved = Math.abs(clientY - drag.y);
+      if (timeStamp - t0 < TOUCH_INTENT_MS) {
+        if (moved > SCROLL_SLOP) drag.intent = "scroll";
+      } else {
+        drag.intent = "drag";
+        vibrate(6);
+      }
+    };
+    // Once it's a drag, keep the page from scrolling for the rest of the
+    // gesture (touch-action: pan-y leaves scrolling to the browser until then).
+    const onTouchMove = (te) => {
+      const t = te.touches?.[0];
+      if (t) decideIntent(te.timeStamp, t.clientY);
+      if (drag.intent === "drag") te.preventDefault();
+    };
+    if (touch) track.addEventListener("touchmove", onTouchMove, { passive: false });
+
     const onMove = (ev) => {
       if (ev.pointerId !== drag.pointerId) return;
+      decideIntent(ev.timeStamp ?? 0, ev.clientY);
+      if (drag.intent === "scroll") return finish(ev, false);
+      if (drag.intent !== "drag") return;
       if (!drag.held) {
         if (Math.abs(ev.clientY - drag.y) <= DRAG_SLOP) return;
         drag.held = true;
@@ -218,6 +266,7 @@ export function _bindDivaTrack(ref, entityId, kind) {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onCancel);
+      track.removeEventListener?.("touchmove", onTouchMove);
       try { track.releasePointerCapture(drag.pointerId); } catch (_) {}
       clearTimeout(drag.flickTimer);
       track.classList.remove("flick", "dragging");
@@ -259,7 +308,6 @@ export function _bindDivaTrack(ref, entityId, kind) {
 
 const WARM_MODES = new Set(["heat", "heat_cool", "auto"]);
 const COOL_MODES = new Set(["cool", "dry"]);
-const TREND_FROM_MODE = { off: "off", cool: "cooling", auto: "auto", dry: "drying", fan_only: "fan" };
 const humanize = (v) => (v ? String(v).charAt(0).toUpperCase() + String(v).slice(1).replace(/_/g, " ") : v);
 
 // Icons for the free-form fan/swing mode names integrations report
@@ -301,7 +349,10 @@ export function climateView(st, lastMode) {
   let target = "—";
   if (tgt != null) target = `${fmt(tgt)}°`;
   else if (attrs.target_temp_low != null && attrs.target_temp_high != null) target = `${fmt(attrs.target_temp_low)}–${fmt(attrs.target_temp_high)}°`;
-  const trend = attrs.hvac_action || TREND_FROM_MODE[mode] || (cur != null && tgt != null && cur < tgt ? "heating" : "idle");
+  // Only what the device reports: many units (IR-controlled heat pumps) have
+  // no hvac_action at all, and guessing "heating"/"idle" from the target
+  // would be wrong.
+  const trend = attrs.hvac_action ? humanize(attrs.hvac_action).toLowerCase() : null;
   const shownMode = off ? (activeModes.includes(lastMode) ? lastMode : activeModes[0]) : mode;
   const modeIcon = (m) => CLIMATE_ICONS[m] || ICONS.thermo;
   const dropdowns = [
@@ -312,7 +363,7 @@ export function climateView(st, lastMode) {
   return {
     off,
     tone: off ? "neutral" : WARM_MODES.has(mode) ? "warm" : COOL_MODES.has(mode) ? "cool" : "neutral",
-    now: cur != null ? `Now ${cur}° · ${humanize(trend).toLowerCase()}` : humanize(trend),
+    now: [cur != null ? `Now ${cur}°` : null, trend].filter(Boolean).join(" · "),
     target,
     canAdjust: tgt != null && !off,
     // Single-mode thermostats show no mode chips or power button.
@@ -429,6 +480,12 @@ export function _updateSensorRef(ref) {
   setIcon(ref.icon, iconForSensor(st));
   const tone = sensorTone(st);
   for (const t of ["alert", "warn", "info"]) ref.tile.classList.toggle(`t-${t}`, tone === t);
+  // Temperature / humidity readings take their comfort color.
+  const dc = st?.attributes?.device_class;
+  const v = parseFloat(st?.state);
+  const comfort = !Number.isFinite(v) ? "" : dc === "temperature" ? tempColor(toCelsius(v, st.attributes?.unit_of_measurement)) : dc === "humidity" ? humidityColor(v) : "";
+  ref.value.style.color = comfort;
+  ref.icon.style.color = comfort;
 }
 
 export function _updateAutomationRef(ref, entityId) {

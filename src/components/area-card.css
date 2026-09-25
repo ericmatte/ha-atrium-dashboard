@@ -36,14 +36,14 @@
 .atrium-floor-group { display: flex; flex-direction: column; gap: 12px; }
 .atrium-floor-label { display: flex; align-items: center; gap: 10px; min-height: 28px; color: color-mix(in srgb, var(--a-dim) 85%, transparent); }
 .atrium-floor-label > ha-icon { --mdc-icon-size: 20px; flex-shrink: 0; }
-.atrium-floor-name { font-size: 15px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
+.atrium-floor-name { font-size: 15px; font-weight: 800; letter-spacing: .01em; text-transform: capitalize; white-space: nowrap; }
 .atrium-floor-count { font-size: 13px; font-weight: 700; letter-spacing: 0; font-variant-numeric: tabular-nums; }
 .atrium-floor-toggle { flex-shrink: 0; height: 28px; gap: 5px; padding: 0 10px 0 8px; border: 0; border-radius: 999px; font: inherit; background: var(--a-surface); color: color-mix(in srgb, var(--a-dim) 75%, transparent); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: background .25s, color .25s; --mdc-icon-size: 16px; }
 .atrium-floor-toggle.on { background: color-mix(in srgb, #f6c14b 16%, transparent); color: #f6c14b; }
 .atrium-orb-row { display: grid; grid-template-columns: repeat(var(--orb-cols, 3), var(--orb-size, minmax(0, 1fr))); gap: calc(var(--orb-gap, 24px) * .8) var(--orb-gap, 24px); }
 
-.atrium-orb { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; animation: atrium-room-in-b .45s var(--a-ease) both; animation-delay: calc(var(--i, 0) * 28ms); }
-.atrium-orb-photo { position: relative; width: 100%; aspect-ratio: 1; border-radius: 50%; flex-shrink: 0; box-shadow: 0 14px 30px rgba(0,0,0,.45); transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .3s, opacity .4s; }
+.atrium-orb { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; animation: atrium-room-in-b .34s var(--a-ease) both; animation-delay: calc(var(--i, 0) * 20ms); }
+.atrium-orb-photo { position: relative; width: 100%; aspect-ratio: 1; border-radius: 50%; flex-shrink: 0; box-shadow: 0 14px 30px rgba(0,0,0,.45); transition: transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .24s, opacity .3s; }
 .atrium-orb:hover .atrium-orb-photo { transform: scale(1.04); }
 .atrium-orb.lit .atrium-orb-photo { box-shadow: 0 0 0 3px rgba(246,193,75,.5), 0 0 34px rgba(246,193,75,.2), 0 14px 30px rgba(0,0,0,.45); }
 .atrium-orb.sel .atrium-orb-photo { box-shadow: 0 0 0 3px var(--a-bg), 0 0 0 6px var(--a-text), 0 14px 30px rgba(0,0,0,.45); }
@@ -52,7 +52,7 @@
 .atrium-orb-art { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--a-text) 22%, transparent) 0%, color-mix(in srgb, var(--a-text) 7%, transparent) 70%); color: color-mix(in srgb, var(--a-text) 40%, transparent); transition: filter .5s ease; }
 .atrium-orb-art.has-img { background-size: cover; background-position: center; }
 .atrium-orb-row .atrium-orb-art ha-icon { --mdc-icon-size: calc(var(--orb-size, 100px) * .28); }
-.atrium-orb.gray .atrium-orb-art, .atrium-panel-hero-photo.gray .atrium-orb-art { filter: grayscale(1) brightness(.42); }
+.atrium-orb.gray .atrium-orb-art, .atrium-panel-hero-photo.gray .atrium-orb-art { filter: grayscale(.8) brightness(.65); }
 
 /* The light count and alert dot sit ON the photo's circle — centred on it at
    10 and 2 o'clock (50% ± 50%·cos 45°) — at every tile size. rooms-view.js
@@ -104,27 +104,19 @@
   .atrium-orb-badge ha-icon, .atrium-orb-badge::before, .atrium-orb-badge::after { animation: none; }
 }
 
-.atrium-orb-name { font-size: 13px; font-weight: 700; line-height: 1.2; text-align: center; color: var(--a-text); transition: font-size .55s var(--a-ease); }
+.atrium-orb-name { font-size: 13px; font-weight: 700; line-height: 1.2; text-align: center; color: var(--a-text);  }
 .atrium-orb-meta { font-size: 11px; font-weight: 600; text-align: center; color: var(--a-dim); margin-top: -6px; }
 
 /* ── Details panel ───────────────────────────────────────────────────── */
 .atrium-panel { display: none; background: var(--a-panel); color: var(--a-text); overflow: hidden; }
 .atrium-panel-inner { height: 100%; box-sizing: border-box; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 20px; padding: 18px 16px 32px; scrollbar-width: thin; }
-.atrium-panel-inner > * { animation: atrium-sec-in .45s var(--a-ease) both; }
-.atrium-panel-inner > :nth-child(1) { animation-delay: .08s; }
-.atrium-panel-inner > :nth-child(2) { animation-delay: .12s; }
-.atrium-panel-inner > :nth-child(3) { animation-delay: .16s; }
-.atrium-panel-inner > :nth-child(4) { animation-delay: .20s; }
-.atrium-panel-inner > :nth-child(5) { animation-delay: .24s; }
-.atrium-panel-inner > :nth-child(6) { animation-delay: .28s; }
-.atrium-panel-inner > :nth-child(7) { animation-delay: .32s; }
-.atrium-panel-inner > :nth-child(8) { animation-delay: .36s; }
-.atrium-panel-inner > :nth-child(9) { animation-delay: .40s; }
-.atrium-panel-inner > :nth-child(n+10) { animation-delay: .44s; }
-.atrium-panel-inner.settled > * { animation: none; }
 
 .atrium-panel-hero { display: flex; align-items: center; gap: 16px; }
+.atrium-sheet-grabber { display: none; }
+@media (max-width: 860px) { .atrium-sheet-grabber { display: block; } }
 .atrium-panel-hero-photo { position: relative; width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0; overflow: hidden; }
+button.atrium-panel-hero-photo { padding: 0; border: 0; background: none; cursor: pointer; transition: transform .15s; }
+button.atrium-panel-hero-photo:active { transform: scale(.93); }
 .atrium-panel-hero-photo .atrium-orb-art ha-icon { --mdc-icon-size: 22px; }
 .atrium-panel-hero-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .atrium-panel-hero-name { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; color: var(--a-text); }
@@ -156,23 +148,23 @@ button.atrium-badge { cursor: pointer; }
    track clips an unrounded fill — shape lives on the track, never the fill. */
 .atrium-diva-grid { display: flex; flex-wrap: wrap; gap: 14px 10px; }
 .atrium-diva { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 72px; }
-.atrium-diva-track { position: relative; width: 58px; height: 108px; padding: 0; border: 0; border-radius: 16px; overflow: hidden; background: color-mix(in srgb, var(--a-text) 4%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--a-text) 7%, transparent); cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.atrium-diva-track { position: relative; width: 58px; height: 108px; padding: 0; border: 0; border-radius: 16px; overflow: hidden; background: color-mix(in srgb, var(--a-text) 4%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--a-text) 7%, transparent); cursor: pointer; touch-action: pan-y; -webkit-tap-highlight-color: transparent; }
 .atrium-diva-track.dim { cursor: grab; }
 .atrium-diva-track.dragging { cursor: grabbing; }
 .atrium-diva-track.un { cursor: not-allowed; opacity: .45; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--a-text) 4%, transparent) 0 8px, color-mix(in srgb, var(--a-text) 6%, transparent) 8px 16px); }
-.atrium-diva-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0; transition: height .32s cubic-bezier(.2,.8,.2,1); }
+.atrium-diva-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0; transition: height .26s cubic-bezier(.2,.8,.2,1); }
 .atrium-diva-tick { position: absolute; left: 50%; width: 10px; height: 2px; margin-left: -5px; border-radius: 1px; background: color-mix(in srgb, var(--a-text) 8%, transparent); }
-.atrium-diva-thumb { position: absolute; left: 50%; bottom: 6px; width: 34px; height: 34px; margin-left: -17px; border-radius: 50%; background: color-mix(in srgb, var(--a-text) 11%, var(--a-panel)); color: var(--a-dim); display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(0,0,0,.45); transition: bottom .32s cubic-bezier(.2,.8,.2,1), background .25s, color .25s, transform .2s; }
+.atrium-diva-thumb { position: absolute; left: 50%; bottom: 6px; width: 34px; height: 34px; margin-left: -17px; border-radius: 50%; background: color-mix(in srgb, var(--a-text) 11%, var(--a-panel)); color: var(--a-dim); display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(0,0,0,.45); transition: bottom .26s cubic-bezier(.2,.8,.2,1), background .2s, color .2s, transform .16s; }
 .atrium-diva-thumb ha-icon { --mdc-icon-size: 17px; }
 .atrium-diva-track.on .atrium-diva-thumb { background: #fff; color: #1b1506; }
 .atrium-diva-track.dragging .atrium-diva-fill, .atrium-diva-track.dragging .atrium-diva-thumb { transition: none; }
 .atrium-diva-track.dragging .atrium-diva-thumb { transform: scale(1.14); box-shadow: 0 10px 24px rgba(0,0,0,.55), 0 0 0 3px rgba(255,255,255,.25); }
-.atrium-diva-track.onoff .atrium-diva-thumb { transition: bottom .45s cubic-bezier(.34,1.56,.64,1), background .25s, color .25s, transform .2s; }
-.atrium-diva-track.onoff .atrium-diva-fill { transition: height .45s var(--a-ease); }
+.atrium-diva-track.onoff .atrium-diva-thumb { transition: bottom .36s cubic-bezier(.34,1.56,.64,1), background .2s, color .2s, transform .16s; }
+.atrium-diva-track.onoff .atrium-diva-fill { transition: height .36s var(--a-ease); }
 .atrium-diva-track.onoff.dragging .atrium-diva-fill { transition: none; }
-.atrium-diva-track.onoff.dragging .atrium-diva-thumb { transition: bottom .08s linear, transform .2s, background .25s, color .25s; }
-.atrium-diva-track.onoff.dragging.flick .atrium-diva-thumb { transition: bottom .45s cubic-bezier(.3,1.35,.6,1), transform .2s, background .3s, color .3s; }
-.atrium-diva-track.onoff.dragging.flick .atrium-diva-fill { transition: height .45s var(--a-ease); }
+.atrium-diva-track.onoff.dragging .atrium-diva-thumb { transition: bottom .06s linear, transform .16s, background .2s, color .2s; }
+.atrium-diva-track.onoff.dragging.flick .atrium-diva-thumb { transition: bottom .36s cubic-bezier(.3,1.35,.6,1), transform .16s, background .24s, color .24s; }
+.atrium-diva-track.onoff.dragging.flick .atrium-diva-fill { transition: height .36s var(--a-ease); }
 .atrium-diva-pct { position: absolute; left: 0; right: 0; top: 6px; text-align: center; font-size: 10px; font-weight: 800; line-height: 12px; color: rgba(255,255,255,.75); pointer-events: none; }
 .atrium-diva-pct.bottom { top: auto; bottom: 6px; color: rgba(20,16,6,.72); }
 .atrium-diva-name { max-width: 72px; font-size: 13px; font-weight: 700; line-height: 1.2; color: var(--a-text); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -273,7 +265,8 @@ button.atrium-badge { cursor: pointer; }
 .atrium-auto-title { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
 .atrium-auto-name { font-size: 14px; font-weight: 700; line-height: 1.25; color: var(--a-text); }
 .atrium-auto-row.off .atrium-auto-name { color: color-mix(in srgb, var(--a-text) 75%, transparent); }
-.atrium-auto-labels { display: contents; }
+.atrium-auto-labels { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 2px; }
+.atrium-auto-labels:empty { display: none; }
 .atrium-auto-label { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 6px; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 14px; }
 .atrium-auto-last { font-size: 12px; font-weight: 600; color: var(--a-dim); }
 .atrium-auto-play { flex-shrink: 0; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: rgba(140,193,255,.14); color: #8cc1ff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: background .2s, color .2s, transform .15s; }
@@ -282,7 +275,8 @@ button.atrium-badge { cursor: pointer; }
 .atrium-auto-play.flash { background: #8cc1ff; color: #0c1a2b; }
 
 .atrium-auto-row.is-script .atrium-auto-swatch { border-radius: 11px; background: color-mix(in srgb, #79d99a 16%, transparent); color: #79d99a; box-shadow: none; }
-.atrium-auto-row.is-script .atrium-auto-play { background: color-mix(in srgb, #79d99a 16%, transparent); color: #79d99a; }
+.atrium-auto-row.is-script { cursor: pointer; }
+.atrium-auto-row.is-script .atrium-auto-play { pointer-events: none; background: color-mix(in srgb, #79d99a 16%, transparent); color: #79d99a; }
 .atrium-auto-row.is-script .atrium-auto-play.flash { background: #79d99a; color: #0b2414; }
 .atrium-routine-drawers { display: flex; flex-wrap: wrap; gap: 8px; }
 .atrium-alist[hidden] { display: none; }
@@ -297,14 +291,16 @@ button.atrium-badge { cursor: pointer; }
 /* ── Phone: room picked → strip on top, sheet below ──────────────────── */
 @media (max-width: 860px) {
   .atrium-rooms.has-sel { position: fixed; top: var(--header-height, 0px); left: 0; right: 0; bottom: 0; z-index: 3; display: flex; flex-direction: column; background: var(--a-bg); }
-  .has-sel .atrium-rooms-content { flex: 0 0 auto; flex-direction: row; gap: 14px; padding: 22px 18px 20px; overflow-x: auto; scrollbar-width: none; animation: atrium-strip-in .45s var(--a-ease) both; }
+  .has-sel .atrium-rooms-content { flex: 0 0 auto; flex-direction: row; gap: 14px; padding: 22px 18px 20px; overflow-x: auto; scrollbar-width: none; animation: atrium-strip-in .34s var(--a-ease) both; }
   .has-sel .atrium-rooms-content::-webkit-scrollbar { display: none; }
   .closing .atrium-rooms-content { opacity: .5; transition: opacity .25s; }
   .has-sel .atrium-floor-group { gap: 8px; flex-shrink: 0; }
   .has-sel .atrium-floor-group + .atrium-floor-group { padding-left: 14px; border-left: 1px solid color-mix(in srgb, var(--a-text) 10%, transparent); }
-  .has-sel .atrium-floor-label { min-height: 0; gap: 6px; }
+  /* While its floor scrolls by in the strip, the floor's name stays pinned
+     to the strip's left edge (until the floor itself scrolls out). */
+  .has-sel .atrium-floor-label { min-height: 0; gap: 6px; position: sticky; left: 0; align-self: flex-start; }
   .has-sel .atrium-floor-label > ha-icon { --mdc-icon-size: 13px; }
-  .has-sel .atrium-floor-name { font-size: 10px; letter-spacing: .12em; }
+  .has-sel .atrium-floor-name { font-size: 11px; }
   .has-sel .atrium-floor-toggle { display: none; }
   .has-sel .atrium-orb-row { display: flex; flex-wrap: nowrap; gap: 24px; margin-block: 8px; }
   .has-sel .atrium-orb { width: 70px; flex-shrink: 0; gap: 6px; animation-name: atrium-room-in-a; }
@@ -314,25 +310,33 @@ button.atrium-badge { cursor: pointer; }
   .has-sel .atrium-orb-name { font-size: 11px; max-width: 70px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .has-sel .atrium-orb-meta { display: none; }
 
-  .has-sel .atrium-panel { display: block; flex: 1; min-height: 0; border-radius: 26px 26px 0 0; box-shadow: 0 -12px 40px rgba(0,0,0,.5); animation: atrium-sheet-in .55s var(--a-ease) both; }
+  .has-sel .atrium-panel { display: block; flex: 1; min-height: 0; border-radius: 26px 26px 0 0; box-shadow: 0 -12px 40px rgba(0,0,0,.5); animation: atrium-sheet-in .42s var(--a-ease) both; will-change: transform; }
   .atrium-climate-dd { flex-basis: 0; padding: 0 8px; gap: 5px; }
   .atrium-climate-dd:first-of-type { flex-grow: 1.5; }
   .atrium-climate-dd-value { font-size: 13px; }
 
-  .closing .atrium-panel { animation: atrium-sheet-out .28s cubic-bezier(.4,0,1,1) both; }
+  /* Pull-to-close: the header and grab bar take vertical drags (see
+     _bindSheetSwipe); the rest of the sheet scrolls normally. */
+  .has-sel .atrium-panel { position: relative; }
+  .atrium-sheet-grabber { position: absolute; top: 0; left: 0; right: 0; height: 18px; z-index: 1; touch-action: none; }
+  .atrium-sheet-grabber::after { content: ""; position: absolute; top: 7px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: color-mix(in srgb, var(--a-text) 22%, transparent); }
+  .atrium-panel-hero { touch-action: none; }
+
+  .closing .atrium-panel { animation: atrium-sheet-out .26s cubic-bezier(.4,0,1,1) both; }
 }
 
 /* ── Desktop: room grid + fixed side panel ───────────────────────────── */
 @media (min-width: 861px) {
-  .atrium-rooms { display: grid; grid-template-columns: minmax(0, 1fr) 0px; transition: grid-template-columns .55s var(--a-ease); }
+  /* Smoothness: only the panel moves (a transform, on the compositor). The
+     grid makes room in one step — as the panel starts sliding in, and once
+     it has slid out — instead of re-laying out every frame. */
+  .atrium-rooms { display: grid; grid-template-columns: minmax(0, 1fr) 0px; }
   .atrium-rooms.has-sel { grid-template-columns: minmax(0, 1fr) 580px; }
-  .atrium-rooms.has-sel.closing { grid-template-columns: minmax(0, 1fr) 0px; }
 
-  .atrium-rooms-content { gap: 32px; padding: 8px 80px 40px; transition: padding .55s var(--a-ease); }
+  .atrium-rooms-content { gap: 32px; padding: 8px 80px 40px; }
   .has-sel .atrium-rooms-content { padding-inline: 40px; }
-  .has-sel.closing .atrium-rooms-content { padding-inline: 80px; }
   .atrium-floor-group { gap: 16px; }
-  .atrium-orb { gap: 14px; animation: none; transition: gap .55s var(--a-ease); }
+  .atrium-orb { gap: 14px; animation: none; }
   .has-sel .atrium-orb { gap: 12px; }
   .atrium-orb-name { font-size: 16px; font-weight: 800; }
   .has-sel .atrium-orb-name { font-size: 14px; }
@@ -340,12 +344,10 @@ button.atrium-badge { cursor: pointer; }
 
   /* Above the sticky atrium-header (z-index 2), whose full-width box would
      otherwise swallow clicks on the panel's top row (the close button). */
-  .atrium-panel { display: block; position: fixed; top: var(--header-height, 0px); right: 0; bottom: 0; z-index: 3; width: 0; border-left: 1px solid color-mix(in srgb, var(--a-text) 8%, transparent); transition: width .55s var(--a-ease); }
-  .atrium-rooms:not(.has-sel) .atrium-panel { border-left: 0; }
-  .has-sel .atrium-panel { width: 580px; }
-  .has-sel.closing .atrium-panel { width: 0; }
-  .atrium-panel-inner { width: 580px; gap: 24px; padding: 26px 28px 40px; animation: atrium-pin-in .5s .1s var(--a-ease) both; }
-  .closing .atrium-panel-inner { animation: atrium-pin-out .24s ease both; }
+  .atrium-panel { display: block; position: fixed; top: var(--header-height, 0px); right: 0; bottom: 0; z-index: 3; width: 580px; border-left: 1px solid color-mix(in srgb, var(--a-text) 8%, transparent); transform: translateX(100%); visibility: hidden; transition: transform .26s cubic-bezier(.4,0,1,1), visibility 0s .26s; }
+  .has-sel .atrium-panel { transform: none; visibility: visible; transition: transform .42s var(--a-ease), visibility 0s; will-change: transform; }
+  .has-sel.closing .atrium-panel { transform: translateX(100%); transition: transform .26s cubic-bezier(.4,0,1,1); }
+  .atrium-panel-inner { width: 580px; gap: 24px; padding: 26px 28px 40px; }
   .atrium-panel-hero-photo { width: 72px; height: 72px; }
   .atrium-panel-hero-photo .atrium-orb-art ha-icon { --mdc-icon-size: 30px; }
   .atrium-panel-hero-name { font-size: 28px; }
@@ -353,9 +355,6 @@ button.atrium-badge { cursor: pointer; }
 
 @keyframes atrium-sheet-in { from { transform: translateY(100%); } to { transform: none; } }
 @keyframes atrium-sheet-out { from { transform: none; } to { transform: translateY(100%); } }
-@keyframes atrium-pin-in { from { opacity: 0; transform: translateX(32px); } to { opacity: 1; transform: none; } }
-@keyframes atrium-pin-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(32px); } }
-@keyframes atrium-sec-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes atrium-strip-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
 /* Two identical keyframes on purpose: swapping animation-name when the
    layout flips (grid ↔ strip) is what replays the staggered pop-in. */

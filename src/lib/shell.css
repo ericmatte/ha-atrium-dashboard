@@ -30,7 +30,7 @@
   width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
 }
 .atrium-shell-weather-icon ha-icon { --mdc-icon-size: 18px; }
-.atrium-shell-welcome { font-size: 27px; font-weight: 700; letter-spacing: -.4px; color: var(--primary-text-color, #e8e9ec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.atrium-shell-welcome { font-size: 24px; font-weight: 700; letter-spacing: -.4px; color: var(--primary-text-color, #e8e9ec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .atrium-shell-pills { display: flex; gap: 6px; padding: 4px 12px; overflow-x: auto; scrollbar-width: none; }
 .atrium-shell-pills::-webkit-scrollbar { display: none; }
@@ -85,7 +85,6 @@
     --atrium-open: var(--atrium-panel-open, 0);
     padding-left: calc(62px - 40px * var(--atrium-open));
     padding-right: calc(62px - 40px * var(--atrium-open) + 580px * var(--atrium-open));
-    transition: padding .55s cubic-bezier(.32,.72,0,1);
   }
   .atrium-shell-root.is-home .atrium-shell-pills { padding-inline: 18px; }
 }

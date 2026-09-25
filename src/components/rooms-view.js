@@ -18,7 +18,7 @@ import {
   areaPresence,
   areaActivity,
   areaStatusDot,
-  areaMetaLine,
+  areaMetaParts,
   lightsSummary,
   levelTone,
   areaPanelSignature,
@@ -27,12 +27,19 @@ import * as buildersMod from "./area-card-builders.js";
 import * as updatersMod from "./area-card-updaters.js";
 import { subscribeLabelsLoaded } from "../lib/label-registry.js";
 import { orbGrid, orbBadgeFont } from "../lib/orb-grid.js";
+import { tempColor, humidityColor, toCelsius } from "../lib/comfort-colors.js";
 
-// Matches the design's exit animations (pinOut .24s / sheetOut .28s) so the
-// selection is only dropped once they've played.
-const CLOSE_MS = 280;
+// Matches the panel's exit (desktop slide / phone sheet-out, .26s in
+// area-card.css) so the selection is only dropped once it has played.
+const CLOSE_MS = 260;
+const PANEL_HISTORY_KEY = "atriumPanel";
+// Must match the phone breakpoint in area-card.css.
+const SHEET_MEDIA = "(max-width: 860px)";
+const SWIPE_SLOP = 6;
+const SWIPE_CLOSE_AT = 0.25;
+const SWIPE_FLICK_SPEED = 0.6; // px/ms
 
-const heroBadgesKey = (els) => els.map((b) => `${b.className}|${b.textContent}|${b.querySelector("ha-icon")?.getAttribute("icon")}`).join(";");
+const heroBadgesKey = (els) => els.map((b) => `${b.className}|${b.textContent}|${b.style.color}|${b.querySelector("ha-icon")?.getAttribute("icon")}`).join(";");
 
 // Screen-reader label of the bottom-right "what's running" badge, by kind.
 const ACTIVITY_LABEL = {
@@ -54,6 +61,16 @@ class AtriumRooms extends HTMLElement {
     this._routineDrawers = new Map();
     // Escape closes the details panel — unless a menu/popover is open, in
     // which case that Escape is the popover's (it closes itself first).
+    // Back button: the panel's history entry was popped. (A dialog opened
+    // over the panel — e.g. more-info — pops its own entry first and lands
+    // back on ours, which keeps the panel open.)
+    this._onPopState = () => {
+      if (this._ignoreNextPop) {
+        this._ignoreNextPop = false;
+        return;
+      }
+      if (this._selectedAreaId && !history.state?.[PANEL_HISTORY_KEY]) this._closePanel({ fromHistory: true });
+    };
     this._onKeydown = (e) => {
       if (e.key !== "Escape" || e.defaultPrevented || !this._selectedAreaId) return;
       if (document.querySelector(".atrium-pop")) return;
@@ -71,6 +88,7 @@ class AtriumRooms extends HTMLElement {
   connectedCallback() {
     this.style.display = "block";
     document.addEventListener("keydown", this._onKeydown);
+    window.addEventListener("popstate", this._onPopState);
     if (this._content && !this._resizeObserver) {
       this._resizeObserver = new ResizeObserver(() => this._sizeOrbs());
       this._resizeObserver.observe(this._content);
@@ -84,6 +102,7 @@ class AtriumRooms extends HTMLElement {
 
   disconnectedCallback() {
     document.removeEventListener("keydown", this._onKeydown);
+    window.removeEventListener("popstate", this._onPopState);
     this._closeOpenPopovers();
     document.documentElement.style.removeProperty("--atrium-panel-open");
     this._unsubLabels?.();
@@ -176,23 +195,43 @@ class AtriumRooms extends HTMLElement {
     const reopening = !this._selectedAreaId || this._closing;
     this._closing = false;
     this._selectedAreaId = areaId;
-    this._renderPanel({ replayPanelIn: reopening });
+    if (reopening) this._pushPanelHistory();
+    this._renderPanel({ freshPanel: reopening });
     this._syncLayout();
   }
 
   // The panel plays its exit animation first; only then is the selection
   // dropped, so the side column / sheet collapses with its content still in it.
-  _closePanel() {
+  // `fromHistory`: the Back button already popped the panel's history entry.
+  // `animated: false`: the sheet was already swiped off-screen.
+  _closePanel({ fromHistory = false, animated = true } = {}) {
     if (!this._selectedAreaId || this._closing) return;
+    if (!fromHistory) this._popPanelHistory();
     this._closing = true;
     this._syncLayout();
     clearTimeout(this._closeTimer);
-    this._closeTimer = setTimeout(() => {
+    const done = () => {
       this._closing = false;
       this._selectedAreaId = null;
       this._renderPanel();
       this._syncLayout();
-    }, CLOSE_MS);
+    };
+    if (animated) this._closeTimer = setTimeout(done, CLOSE_MS);
+    else done();
+  }
+
+  // Opening the panel adds a history entry (same URL), so the phone's Back
+  // button closes the panel instead of leaving the dashboard. Closing it any
+  // other way removes that entry again.
+  _pushPanelHistory() {
+    if (history.state?.[PANEL_HISTORY_KEY]) return;
+    history.pushState({ ...history.state, [PANEL_HISTORY_KEY]: true }, "");
+  }
+
+  _popPanelHistory() {
+    if (!history.state?.[PANEL_HISTORY_KEY]) return;
+    this._ignoreNextPop = true;
+    history.back();
   }
 
   _syncLayout() {
@@ -208,7 +247,9 @@ class AtriumRooms extends HTMLElement {
     // The header is a separate card; it reads these to keep its content
     // clear of the fixed side panel and aligned with the room grid.
     const docStyle = document.documentElement.style;
-    if (open && !this._closing) docStyle.setProperty("--atrium-panel-open", "1");
+    // Kept through the exit slide, like the grid's column, so the header
+    // makes room in the same single step as the grid.
+    if (open) docStyle.setProperty("--atrium-panel-open", "1");
     else docStyle.removeProperty("--atrium-panel-open");
   }
 
@@ -326,7 +367,7 @@ class AtriumRooms extends HTMLElement {
     ref.toggle.setAttribute("aria-label", `${on} of ${total} ${ref.floor.name} lights on — turn ${on > 0 ? "off" : "on"}`);
   }
 
-  _renderPanel({ replayPanelIn = false } = {}) {
+  _renderPanel({ freshPanel = false } = {}) {
     const areaId = this._selectedAreaId;
     const area = areaId ? this._hass.areas?.[areaId] : null;
     if (!area) {
@@ -344,18 +385,20 @@ class AtriumRooms extends HTMLElement {
       this._updatePanel(area, data);
       return;
     }
-    // Sections slide in only when the panel first opens; switching rooms or
-    // a rebuild (an entity was added/removed) swaps the content in place.
+    // Only the panel itself slides in/out; its content just appears. A panel
+    // opened from closed starts from a fresh, unscrolled container.
     this._panelSig = sig;
     this._panelAreaId = area.area_id;
     this._closeOpenPopovers();
-    if (!this._pin || replayPanelIn) {
+    if (!this._pin || freshPanel) {
       this._panel.innerHTML = "";
       this._pin = document.createElement("div");
       this._pin.className = "atrium-panel-inner";
-      this._panel.appendChild(this._pin);
+      const grabber = document.createElement("div");
+      grabber.className = "atrium-sheet-grabber";
+      this._bindSheetSwipe(grabber);
+      this._panel.append(grabber, this._pin);
     }
-    this._pin.classList.toggle("settled", !replayPanelIn);
     this._pin.innerHTML = "";
     this._pin.scrollTop = 0;
     this._panel.setAttribute("aria-label", area.name);
@@ -395,6 +438,56 @@ class AtriumRooms extends HTMLElement {
       this._heroRefs.key = key;
       this._heroRefs.badges.replaceChildren(...badges);
     }
+  }
+
+  // Phone bottom sheet: pulling its header (or grab bar) down drags the sheet
+  // with the finger; let go past a quarter of its height, or with a quick
+  // flick, and it closes — otherwise it springs back. The offset rides on
+  // `translate`, separate from the `transform` the sheet's open/close
+  // animations drive, so neither disturbs the other.
+  _bindSheetSwipe(handle) {
+    handle.addEventListener("pointerdown", (e) => {
+      if (!matchMedia(SHEET_MEDIA).matches || this._closing || (this._pin?.scrollTop ?? 0) > 0) return;
+      const panel = this._panel;
+      const y0 = e.clientY;
+      const t0 = e.timeStamp;
+      let dy = 0;
+      let dragging = false;
+      const onMove = (ev) => {
+        if (ev.pointerId !== e.pointerId) return;
+        dy = Math.max(0, ev.clientY - y0);
+        if (!dragging && dy > SWIPE_SLOP) {
+          dragging = true;
+          try { handle.setPointerCapture(e.pointerId); } catch (_) {}
+          panel.style.transition = "none";
+        }
+        if (dragging) panel.style.translate = `0 ${dy}px`;
+      };
+      const onUp = (ev) => {
+        if (ev.pointerId !== e.pointerId) return;
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
+        if (!dragging) return;
+        // The release shouldn't also count as a tap on a header badge.
+        handle.addEventListener("click", (c) => c.stopPropagation(), { capture: true, once: true });
+        const fast = dy / Math.max(1, ev.timeStamp - t0) > SWIPE_FLICK_SPEED;
+        const far = dy > panel.offsetHeight * SWIPE_CLOSE_AT;
+        const reset = () => { panel.style.transition = ""; panel.style.translate = ""; };
+        if (ev.type !== "pointercancel" && (fast || far)) {
+          panel.style.transition = "translate .22s cubic-bezier(.4,0,1,1)";
+          panel.style.translate = "0 100%";
+          setTimeout(() => { this._closePanel({ animated: false }); reset(); }, 220);
+        } else {
+          panel.style.transition = "translate .3s cubic-bezier(.32,.72,0,1)";
+          panel.style.translate = "";
+          setTimeout(reset, 300);
+        }
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
+    });
   }
 
   _closeOpenPopovers() {
@@ -492,7 +585,7 @@ class AtriumRooms extends HTMLElement {
     this._setDotBadge(ref.activityBadge, activity, activity && ACTIVITY_LABEL[activity.kind](nameWithoutAreaPrefix(this._entityName(hass.entities?.[activity.entityId] || { entity_id: activity.entityId }), area)));
     for (const kind of Object.keys(ACTIVITY_LABEL)) ref.activityBadge.classList.toggle(`is-${kind}`, activity?.kind === kind);
 
-    ref.meta.textContent = this._areaMeta(area, data, alert) || " ";
+    this._renderAreaMeta(ref.meta, area, data, alert);
   }
 
   _setDotBadge(el, info, label) {
@@ -505,21 +598,54 @@ class AtriumRooms extends HTMLElement {
     el.setAttribute("aria-label", label);
   }
 
-  _areaMeta(area, data, alert) {
-    const tempSt = data.sensors.temp && this._hass.states?.[data.sensors.temp.entity_id];
-    const climate = data.climates[0] && this._hass.states?.[data.climates[0].entity_id];
-    const temp = tempSt && tempSt.state !== "unavailable" ? parseFloat(tempSt.state) : climate?.attributes?.current_temperature;
-    const humidSt = data.sensors.humid && this._hass.states?.[data.sensors.humid.entity_id];
+  // The line under a tile: temperature · humidity (or the alert), the
+  // readings colored by comfort (see comfort-colors.js).
+  _renderAreaMeta(el, area, data, alert) {
+    const hass = this._hass;
+    const tempSt = data.sensors.temp && hass.states?.[data.sensors.temp.entity_id];
+    const climate = data.climates[0] && hass.states?.[data.climates[0].entity_id];
+    const fromSensor = tempSt && tempSt.state !== "unavailable";
+    const temp = fromSensor ? parseFloat(tempSt.state) : climate?.attributes?.current_temperature;
+    const tempUnit = fromSensor ? tempSt.attributes?.unit_of_measurement : hass.config?.unit_system?.temperature;
+    const humidSt = data.sensors.humid && hass.states?.[data.sensors.humid.entity_id];
     const humid = humidSt && humidSt.state !== "unavailable" ? Math.round(parseFloat(humidSt.state)) : null;
-    return areaMetaLine({ temp: Number.isFinite(temp) ? temp : null, humid: Number.isFinite(humid) ? humid : null, alert: alert?.label });
+    const parts = areaMetaParts({ temp: Number.isFinite(temp) ? temp : null, humid: Number.isFinite(humid) ? humid : null, alert: alert?.label });
+    const key = parts.map((p) => p.text).join(" · ");
+    if (el.dataset.key === key && el.childNodes.length) return;
+    el.dataset.key = key;
+    if (!parts.length) {
+      el.textContent = "\u00a0";
+      return;
+    }
+    const nodes = [];
+    parts.forEach((p, i) => {
+      if (i) nodes.push(document.createTextNode(" · "));
+      const span = document.createElement("span");
+      span.textContent = p.text;
+      if (p.kind === "temp") span.style.color = tempColor(toCelsius(p.value, tempUnit));
+      else if (p.kind === "humid") span.style.color = humidityColor(p.value);
+      nodes.push(span);
+    });
+    el.replaceChildren(...nodes);
   }
+
 
   _buildHero(area, data) {
     const hero = document.createElement("div");
     hero.className = "atrium-panel-hero";
 
-    const photo = document.createElement("span");
+    // With lights in the room, the photo is a button that turns them all on.
+    const hasLights = data.lights.length > 0;
+    const photo = document.createElement(hasLights ? "button" : "span");
     photo.className = "atrium-panel-hero-photo" + (this._allLightsOff(data) ? " gray" : "");
+    if (hasLights) {
+      photo.type = "button";
+      photo.setAttribute("aria-label", `Turn on all lights in ${area.name}`);
+      photo.addEventListener("click", () => {
+        const ids = this._dataForArea(area).lights.map((l) => l.entity_id).filter((id) => this._hass.states?.[id]?.state !== "unavailable");
+        if (ids.length) this._call("light", "turn_on", { entity_id: ids });
+      });
+    }
     const art = document.createElement("span");
     art.className = "atrium-orb-art" + (area.picture ? " has-img" : "");
     if (area.picture) art.style.backgroundImage = `url("${area.picture}")`;
@@ -544,6 +670,7 @@ class AtriumRooms extends HTMLElement {
     close.addEventListener("click", () => this._select(null));
 
     hero.append(photo, mid, close);
+    this._bindSheetSwipe(hero);
     this._heroRefs = { photo, badges, key: heroBadgesKey([...badges.children]) };
     return hero;
   }
@@ -551,10 +678,14 @@ class AtriumRooms extends HTMLElement {
   _buildHeroBadges(area, data) {
     const hass = this._hass;
     const badges = [];
-    const add = (icon, text, tone, entityId) => {
+    const add = (icon, text, tone, entityId, color) => {
       const el = document.createElement(entityId ? "button" : "span");
       if (entityId) el.type = "button";
       el.className = "atrium-badge" + (tone ? ` is-${tone}` : "");
+      if (color) {
+        el.style.color = color;
+        el.style.background = `color-mix(in srgb, ${color} 14%, transparent)`;
+      }
       el.innerHTML = `${haIcon(icon, 13)}<span></span>`;
       el.querySelector("span").textContent = text;
       if (entityId) el.addEventListener("click", () => this._moreInfo(entityId));
@@ -563,11 +694,13 @@ class AtriumRooms extends HTMLElement {
 
     if (data.sensors.temp) {
       const st = hass.states?.[data.sensors.temp.entity_id];
-      if (st && st.state !== "unavailable") add("mdi:thermometer", `${parseFloat(st.state).toFixed(1)}°`, null, data.sensors.temp.entity_id);
+      const v = parseFloat(st?.state);
+      if (st && st.state !== "unavailable" && Number.isFinite(v)) add("mdi:thermometer", `${v.toFixed(1)}°`, null, data.sensors.temp.entity_id, tempColor(toCelsius(v, st.attributes?.unit_of_measurement)));
     }
     if (data.sensors.humid) {
       const st = hass.states?.[data.sensors.humid.entity_id];
-      if (st && st.state !== "unavailable") add("mdi:water-percent", `${Math.round(parseFloat(st.state))}%`, null, data.sensors.humid.entity_id);
+      const v = Math.round(parseFloat(st?.state));
+      if (st && st.state !== "unavailable" && Number.isFinite(v)) add("mdi:water-percent", `${v}%`, null, data.sensors.humid.entity_id, humidityColor(v));
     }
     // Soil moisture and tank levels, as the pre-redesign area chips showed
     // them: a plant in green, a propane tank colored by how full it is.

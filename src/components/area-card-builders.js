@@ -9,6 +9,7 @@ import {
   lightsGradient,
 } from "./area-card-shared.js";
 import { routineRows } from "../lib/area-data.js";
+import { settleStep } from "../lib/settle.js";
 import { FLASH_MS } from "./area-card-updaters.js";
 
 // Panel content for one selected room, in the order the design settled on:
@@ -345,7 +346,7 @@ export function _buildDivaTile(area, entity, { kind, icon, refKey }, deviceSenso
 
   const name = document.createElement("div");
   name.className = "atrium-diva-name";
-  name.textContent = nameWithoutAreaPrefix(this._entityName(entity), area);
+  name.textContent = nameWithoutAreaPrefix(this._entityName(entity), area, entity.entity_id);
   const ago = document.createElement("div");
   ago.className = "atrium-diva-ago";
 
@@ -473,10 +474,7 @@ export function _buildPillsSection(area, scenes, buttons, lights) {
   for (const scene of scenes) {
     const pill = this._buildPill(area, scene, {
       icon: (name) => iconForScene(scene, name),
-      onPress: () => {
-        this._call("scene", "turn_on", { entity_id: scene.entity_id });
-        this._captureSceneColors(scene.entity_id, lightIds, pill);
-      },
+      onPress: () => this._captureSceneColors(scene.entity_id, lightIds, pill, () => this._call("scene", "turn_on", { entity_id: scene.entity_id })),
     });
     const saved = readSceneGradient(scene.entity_id);
     if (saved) pill.style.setProperty("--pill-bg", saved);
@@ -514,16 +512,34 @@ export function _buildPill(area, entity, { icon, onPress }) {
   return pill;
 }
 
-// Lights fade into a scene over a moment, so the snapshot waits for them.
-const SCENE_SETTLE_MS = 1000;
+// Lights fade into a scene over a moment (and a slow bulb or a busy
+// integration can take a few seconds), so rather than a fixed delay the
+// snapshot polls the room's lights and waits until they've changed and then
+// held still — see settleStep.
+const SCENE_POLL_MS = 250;
+const SCENE_SETTLE = { stableMs: 800, maxMs: 8000 };
 
-export function _captureSceneColors(sceneId, lightIds, pill) {
-  setTimeout(() => {
+// `fire` applies the scene; the lights' "before" is read first, so even an
+// instant state change counts as a change.
+export function _captureSceneColors(sceneId, lightIds, pill, fire) {
+  clearInterval(pill._sceneWatch);
+  const sample = () => lightIds.map((id) => {
+    const st = this._hass.states?.[id];
+    const a = st?.attributes || {};
+    return `${st?.state}|${a.brightness}|${a.rgb_color}|${a.color_temp_kelvin ?? a.color_temp}`;
+  }).join(";");
+  let state = settleStep(null, sample(), Date.now(), SCENE_SETTLE).state;
+  fire();
+  pill._sceneWatch = setInterval(() => {
+    const step = settleStep(state, sample(), Date.now(), SCENE_SETTLE);
+    state = step.state;
+    if (!step.done) return;
+    clearInterval(pill._sceneWatch);
     const gradient = lightsGradient(this._hass, lightIds);
     if (!gradient) return;
     pill.style.setProperty("--pill-bg", gradient);
     writeSceneGradient(sceneId, gradient);
-  }, SCENE_SETTLE_MS);
+  }, SCENE_POLL_MS);
 }
 
 // Scripts first, then automations (see routineRows). The "N off" badge
@@ -584,7 +600,7 @@ export function _refreshRoutines(data) {
   this._syncRoutineRows(ui.area, ui.list, routineRows(data, ui.open));
 }
 
-const ROW_MOTION = { duration: 320, easing: "cubic-bezier(.32,.72,0,1)" };
+const ROW_MOTION = { duration: 260, easing: "cubic-bezier(.32,.72,0,1)" };
 
 // Rows that stay are left exactly as they are (same elements, nothing
 // re-rendered); rows that move (switched on/off) slide into their new spot;
@@ -637,7 +653,7 @@ function collapseRow(row) {
   row.style.overflow = "hidden";
   const from = { height: `${row.offsetHeight}px`, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, marginTop: "0px", opacity: style.opacity };
   const to = { height: "0px", paddingTop: "0px", paddingBottom: "0px", marginTop: "-6px", opacity: 0 };
-  row.animate([from, to], { ...ROW_MOTION, duration: 240, fill: "forwards" }).finished.then(() => row.remove(), () => row.remove());
+  row.animate([from, to], { ...ROW_MOTION, duration: 200, fill: "forwards" }).finished.then(() => row.remove(), () => row.remove());
 }
 
 // Toggle swatch left, name + labels / "On · 42 minutes ago" in the middle,
@@ -669,7 +685,10 @@ export function _buildAutomationRow(area, item) {
   const body = document.createElement("button");
   body.type = "button";
   body.className = "atrium-auto-body";
-  body.addEventListener("click", () => this._moreInfo(item.entity_id));
+  // A script's whole row (▶ included) opens its details — HA's own way to run
+  // it, with its fields if it has any. An automation's name does the same.
+  if (isScript) row.addEventListener("click", () => this._moreInfo(item.entity_id));
+  else body.addEventListener("click", () => this._moreInfo(item.entity_id));
   const titleLine = document.createElement("span");
   titleLine.className = "atrium-auto-title";
   const name = document.createElement("span");
@@ -677,13 +696,16 @@ export function _buildAutomationRow(area, item) {
   name.textContent = displayName;
   const labels = document.createElement("span");
   labels.className = "atrium-auto-labels";
-  titleLine.append(name, labels);
+  titleLine.append(name);
   const sub = document.createElement("span");
   sub.className = "atrium-auto-last";
-  body.append(titleLine, sub);
+  // Labels get their own line, above the name.
+  body.append(labels, titleLine, sub);
 
-  const play = document.createElement("button");
-  play.type = "button";
+  // For a script, ▶ is only a visual cue: clicks pass through to the row.
+  const play = document.createElement(isScript ? "span" : "button");
+  if (isScript) play.setAttribute("aria-hidden", "true");
+  else play.type = "button";
   play.className = "atrium-auto-play";
   play.setAttribute("aria-label", `${isScript ? "Run" : "Trigger"} ${displayName}`);
   play.innerHTML = haIcon(ICONS.play, 15);
@@ -691,15 +713,16 @@ export function _buildAutomationRow(area, item) {
   row.append(swatch, body, play);
 
   const ref = { row, swatch, name, sub, labels, play, isScript, flashUntil: 0 };
-  play.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (play.classList.contains("disabled")) return;
-    if (isScript) this._call("script", "turn_on", { entity_id: item.entity_id });
-    else this._call("automation", "trigger", { entity_id: item.entity_id });
-    ref.flashUntil = Date.now() + FLASH_MS;
-    this._updateAutomationRef(ref, item.entity_id);
-    setTimeout(() => this._updateAutomationRef(ref, item.entity_id), FLASH_MS);
-  });
+  if (!isScript) {
+    play.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (play.classList.contains("disabled")) return;
+      this._call("automation", "trigger", { entity_id: item.entity_id });
+      ref.flashUntil = Date.now() + FLASH_MS;
+      this._updateAutomationRef(ref, item.entity_id);
+      setTimeout(() => this._updateAutomationRef(ref, item.entity_id), FLASH_MS);
+    });
+  }
 
   this._refs.areas.get(area.area_id).automations.set(item.entity_id, ref);
   this._updateAutomationRef(ref, item.entity_id);

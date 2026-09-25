@@ -58,7 +58,7 @@ const FLOORS = [
 const view = document.createElement("div");
 view.className = "dev-view is-active";
 document.getElementById("views").appendChild(view);
-mount("atrium-header", { floor: ALL_FLOOR_KEY, welcome_name: "Eric" }, view);
+mount("atrium-header", { floor: ALL_FLOOR_KEY }, view);
 mount("atrium-rooms", { floors: FLOORS }, view);
 
 // `?room=<area_id>` opens that room's details panel on load — handy for
