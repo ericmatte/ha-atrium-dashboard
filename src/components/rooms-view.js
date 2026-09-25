@@ -470,6 +470,11 @@ class AtriumRooms extends HTMLElement {
 
     const activity = areaActivity(hass, data);
     ref.activity = activity;
+    // A paused player's badge times out with no state change to trigger a
+    // render, so re-check this tile when it's due.
+    clearTimeout(ref.activityTimer);
+    if (activity?.expiresAt) ref.activityTimer = setTimeout(() => this._updateOrb(ref, area, this._dataForArea(area)), Math.max(0, activity.expiresAt - Date.now()) + 50);
+    ref.activityBadge.classList.toggle("is-paused", activity?.kind === "media" && !activity.playing);
     this._setDotBadge(ref.activityBadge, activity, activity && ACTIVITY_LABEL[activity.kind](nameWithoutAreaPrefix(this._entityName(hass.entities?.[activity.entityId] || { entity_id: activity.entityId }), area)));
     for (const kind of Object.keys(ACTIVITY_LABEL)) ref.activityBadge.classList.toggle(`is-${kind}`, activity?.kind === kind);
 

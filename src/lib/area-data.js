@@ -163,16 +163,29 @@ export function areaStatusDot(presence, alert) {
   return null;
 }
 
-// The one thing actively running in the room, by priority: media playing,
-// then a vacuum cleaning, then climate actually heating or cooling (not
-// merely switched on). `action` is what tapping it does.
-const TV_DEVICE_CLASSES = new Set(["tv", "receiver"]);
-export function areaActivity(hass, data) {
+// The one thing actively running in the room, by priority: media playing
+// (or paused less than a minute ago, so a quick pause doesn't make the
+// badge vanish under your finger), then a vacuum cleaning, then climate
+// actually heating or cooling (not merely switched on). `action` is what
+// tapping it does; a media badge's icon is that action (pause while
+// playing, play while paused). `expiresAt` (ms) is when a paused player's
+// badge should disappear.
+export const MEDIA_PAUSE_GRACE_MS = 60_000;
+export function areaActivity(hass, data, now = Date.now()) {
   const st = (e) => hass.states?.[e.entity_id];
-  const media = data.mediaPlayers.find((e) => st(e)?.state === "playing");
+  const pausedSince = (e) => (st(e)?.state === "paused" ? new Date(st(e).last_changed || 0).getTime() : null);
+  const media = data.mediaPlayers.find((e) => st(e)?.state === "playing")
+    || data.mediaPlayers.find((e) => pausedSince(e) != null && now - pausedSince(e) < MEDIA_PAUSE_GRACE_MS);
   if (media) {
-    const isTv = TV_DEVICE_CLASSES.has(st(media).attributes?.device_class);
-    return { kind: "media", icon: isTv ? "mdi:television-play" : "mdi:music", entityId: media.entity_id, action: ["media_player", "media_play_pause"] };
+    const playing = st(media).state === "playing";
+    return {
+      kind: "media",
+      playing,
+      icon: playing ? "mdi:pause" : "mdi:play",
+      entityId: media.entity_id,
+      action: ["media_player", "media_play_pause"],
+      ...(playing ? {} : { expiresAt: pausedSince(media) + MEDIA_PAUSE_GRACE_MS }),
+    };
   }
   const vacuum = data.vacuums.find((e) => st(e)?.state === "cleaning");
   if (vacuum) return { kind: "vacuum", icon: "mdi:robot-vacuum", entityId: vacuum.entity_id, action: ["vacuum", "pause"] };

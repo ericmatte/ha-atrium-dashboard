@@ -200,29 +200,34 @@ test("areaActivity: media playing beats a vacuum cleaning, which beats climate h
   data.climates.push({ entity_id: "climate.hp" });
   const hass = {
     states: {
-      "media_player.tv": { state: "playing", attributes: { device_class: "tv" } },
+      "media_player.tv": { state: "playing", attributes: {} },
       "vacuum.roby": { state: "cleaning", attributes: {} },
       "climate.hp": { state: "heat", attributes: { hvac_action: "heating" } },
     },
   };
-  assert.deepEqual(areaActivity(hass, data), { kind: "media", icon: "mdi:television-play", entityId: "media_player.tv", action: ["media_player", "media_play_pause"] });
-  hass.states["media_player.tv"].state = "paused";
+  assert.deepEqual(areaActivity(hass, data), { kind: "media", playing: true, icon: "mdi:pause", entityId: "media_player.tv", action: ["media_player", "media_play_pause"] });
+  hass.states["media_player.tv"].state = "idle";
   assert.equal(areaActivity(hass, data).kind, "vacuum");
   hass.states["vacuum.roby"].state = "docked";
   assert.equal(areaActivity(hass, data).kind, "heating");
+  hass.states["climate.hp"].attributes.hvac_action = "cooling";
+  assert.equal(areaActivity(hass, data).icon, "mdi:snowflake");
   hass.states["climate.hp"].attributes.hvac_action = "idle";
   assert.equal(areaActivity(hass, data), null);
 });
 
-test("areaActivity: a speaker gets a music icon, cooling a snowflake", () => {
+test("areaActivity: a paused player keeps its badge (play icon) for a minute, then drops it", () => {
   const data = emptyAreaData();
   data.mediaPlayers.push({ entity_id: "media_player.sonos" });
-  data.climates.push({ entity_id: "climate.hp" });
-  const hass = { states: { "media_player.sonos": { state: "playing", attributes: { device_class: "speaker" } }, "climate.hp": { state: "cool", attributes: { hvac_action: "cooling" } } } };
-  assert.equal(areaActivity(hass, data).icon, "mdi:music");
-  hass.states["media_player.sonos"].state = "idle";
-  assert.equal(areaActivity(hass, data).icon, "mdi:snowflake");
+  const pausedAt = Date.parse("2026-09-24T12:00:00Z");
+  const hass = { states: { "media_player.sonos": { state: "paused", last_changed: new Date(pausedAt).toISOString(), attributes: {} } } };
+  const soon = areaActivity(hass, data, pausedAt + 30_000);
+  assert.equal(soon.icon, "mdi:play");
+  assert.equal(soon.playing, false);
+  assert.equal(soon.expiresAt, pausedAt + 60_000);
+  assert.equal(areaActivity(hass, data, pausedAt + 61_000), null);
 });
+
 
 test("lightsSummary: counts lights on out of the total", () => {
   const hass = { states: { "light.a": { state: "on" }, "light.b": { state: "off" }, "light.c": { state: "unavailable" } } };
