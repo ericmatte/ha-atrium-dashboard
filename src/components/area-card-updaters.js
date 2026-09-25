@@ -38,7 +38,6 @@ const PCT_SWAP_TO = 60;
 export const FLASH_MS = 1400;
 
 const SWITCH_COLOR = "#79d99a";
-const TOGGLE_COLOR = "#8cc1ff";
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const alpha = (color, pct) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
@@ -49,8 +48,7 @@ function isDimmableFor(kind, st) {
 
 function accentFor(kind, st) {
   if (kind === "cover") return TONE.curtain;
-  if (kind === "switch") return SWITCH_COLOR;
-  if (kind === "input_boolean") return TOGGLE_COLOR;
+  if (kind === "switch" || kind === "input_boolean") return SWITCH_COLOR;
   const rgb = lightRgbTriple(st);
   return rgb ? `rgb(${rgb[0]},${rgb[1]},${rgb[2]})` : TONE.light;
 }
@@ -162,7 +160,19 @@ export function _updateDivaRef(ref, entityId, kind, override) {
 export function _bindDivaTrack(ref, entityId, kind) {
   const { track } = ref;
 
+  // Keyboard: Enter/Space fire a click with no pointer behind it (detail 0),
+  // which toggles like a tap. Pointer taps are handled below instead.
+  track.addEventListener("click", (e) => {
+    if (e.detail !== 0) return;
+    const st = this._hass.states?.[entityId];
+    if (!st || st.state === "unavailable") return;
+    this._toggleEntity(entityId, kind, !onOffAndLevel(kind, st).on);
+  });
+
   track.addEventListener("pointerdown", (e) => {
+    // A tap or drag shouldn't leave the tile focused (and ringed like a
+    // keyboard focus); Tab still reaches it.
+    e.preventDefault?.();
     const st = this._hass.states?.[entityId];
     if (!st || st.state === "unavailable") return;
     const { on, level, dimmable } = onOffAndLevel(kind, st);

@@ -505,3 +505,15 @@ test("_updateAutomationRef: labels are only rebuilt when they change, so their i
     globalThis.document = prevDocument;
   }
 });
+
+test("diva track: a keyboard click (Enter/Space, detail 0) toggles; a pointer's click is left to pointerup", () => {
+  withWindow(() => {
+    const ref = makeDivaRef();
+    const ctx = makeContext({ "switch.fan": { state: "off", attributes: {} } });
+    _bindDivaTrack.call(ctx, ref, "switch.fan", "switch");
+    ref.track.handlers.click({ detail: 1 });
+    assert.deepEqual(ctx.calls, []);
+    ref.track.handlers.click({ detail: 0 });
+    assert.deepEqual(ctx.calls, [["switch", "turn_on", { entity_id: "switch.fan" }]]);
+  });
+});
