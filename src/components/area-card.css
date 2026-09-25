@@ -52,7 +52,8 @@
    their text size, insets and ring from the tile size (orbBadge in
    orb-grid.js), and each badge is sized in em off that text size. */
 .atrium-orb-photo { font-size: var(--orb-badge-font, 15px); }
-.atrium-orb-badge-lit { position: absolute; left: var(--orb-badge-x, 4px); top: var(--orb-badge-y, 8px); display: inline-flex; align-items: center; gap: .167em; padding: .333em .667em .333em .5em; border-radius: 999px; background: #f6c14b; color: #1b1506; font-size: 1em; font-weight: 800; line-height: 1; }
+/* Shorter than the alert dot (2.167em), so it's offset to share its centre line. */
+.atrium-orb-badge-lit { position: absolute; left: var(--orb-badge-x, 4px); top: calc(var(--orb-badge-y, 8px) + .208em); box-sizing: border-box; height: 1.75em; display: inline-flex; align-items: center; gap: .167em; padding: 0 .667em 0 .5em; border-radius: 999px; background: #f6c14b; color: #1b1506; font-size: 1em; font-weight: 800; line-height: 1; }
 .atrium-orb-badge-lit ha-icon { --mdc-icon-size: 1.083em; }
 .atrium-orb-badge-alert { position: absolute; right: var(--orb-badge-x, 4px); top: var(--orb-badge-y, 8px); width: 2.167em; height: 2.167em; border-radius: 50%; background: #ff5d5d; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 var(--orb-badge-ring, 3px) var(--a-bg); }
 .atrium-orb-badge-alert ha-icon { --mdc-icon-size: 1.167em; }
