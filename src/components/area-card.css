@@ -85,7 +85,8 @@
 .atrium-orb-badge-status.is-presence ha-icon { animation: atrium-walk .9s ease-in-out infinite alternate; }
 .atrium-orb-badge-status.is-presence::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: .12em solid #8cc1ff; pointer-events: none; animation: atrium-ping 1.8s cubic-bezier(0,0,.2,1) infinite; }
 .atrium-orb-badge-activity.is-vacuum ha-icon { animation: atrium-spin 6s linear infinite; }
-/* Notes rise only while playing (the badge lingers a minute after a pause).
+/* Notes rise only while playing (the badge stays, with a play icon, while
+   the player is paused or idle).
    They are the MDI music-note / music glyphs drawn through a mask, so
    they keep their real proportions (a text ♪ comes out tall and thin). */
 .atrium-orb-badge-activity.is-media::before, .atrium-orb-badge-activity.is-media::after { content: ""; --dx: .9em; position: absolute; left: 50%; top: -.5em; width: 1.15em; height: 1.15em; background: #fff; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z'/%3E%3C/svg%3E") center / contain no-repeat; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.85)); opacity: 0; pointer-events: none; animation: atrium-note 2.4s ease-out infinite; }

@@ -214,20 +214,25 @@ test("areaActivity: media playing beats a vacuum cleaning, which beats climate h
   hass.states["climate.hp"].attributes.hvac_action = "cooling";
   assert.equal(areaActivity(hass, data).icon, "mdi:snowflake");
   hass.states["climate.hp"].attributes.hvac_action = "idle";
+  assert.equal(areaActivity(hass, data).icon, "mdi:play");
+  hass.states["media_player.tv"].state = "off";
   assert.equal(areaActivity(hass, data), null);
 });
 
-test("areaActivity: a paused player keeps its badge (play icon) for a minute, then drops it", () => {
+test("areaActivity: a paused or idle player shows play (after live activity); an off one shows nothing", () => {
   const data = emptyAreaData();
-  data.mediaPlayers.push({ entity_id: "media_player.sonos" });
-  const pausedAt = Date.parse("2026-09-24T12:00:00Z");
-  const hass = { states: { "media_player.sonos": { state: "paused", last_changed: new Date(pausedAt).toISOString(), attributes: {} } } };
-  const soon = areaActivity(hass, data, pausedAt + 30_000);
-  assert.equal(soon.icon, "mdi:play");
-  assert.equal(soon.playing, false);
-  assert.equal(soon.expiresAt, pausedAt + 60_000);
-  assert.equal(areaActivity(hass, data, pausedAt + 61_000), null);
+  data.mediaPlayers.push({ entity_id: "media_player.tv" });
+  data.climates.push({ entity_id: "climate.hp" });
+  const hass = { states: { "media_player.tv": { state: "idle", attributes: {} }, "climate.hp": { state: "heat", attributes: { hvac_action: "heating" } } } };
+  assert.equal(areaActivity(hass, data).kind, "heating");
+  hass.states["climate.hp"].attributes.hvac_action = "idle";
+  assert.deepEqual(areaActivity(hass, data), { kind: "media", playing: false, icon: "mdi:play", entityId: "media_player.tv", action: ["media_player", "media_play_pause"] });
+  hass.states["media_player.tv"].state = "paused";
+  assert.equal(areaActivity(hass, data).icon, "mdi:play");
+  hass.states["media_player.tv"].state = "off";
+  assert.equal(areaActivity(hass, data), null);
 });
+
 
 
 test("lightsSummary: counts lights on out of the total", () => {
