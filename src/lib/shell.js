@@ -214,10 +214,3 @@ export function shellWeatherSummary(hass) {
     label: `${shellFormatTemp(temp)}°`,
   };
 }
-
-export function formatTempRange(temps) {
-  if (!temps.length) return "";
-  const min = shellFormatTemp(Math.min(...temps));
-  const max = shellFormatTemp(Math.max(...temps));
-  return min === max ? `${min}°` : `${min} – ${max}°`;
-}

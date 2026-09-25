@@ -37,15 +37,15 @@
 .atrium-shell-pills-stats { padding-bottom: 10px; }
 .atrium-shell-stat {
   flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px;
-  padding: 4px 9px; border-radius: 999px;
+  padding: 5px 10px; border-radius: 999px;
   background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 4%, transparent); color: var(--secondary-text-color, #9aa0aa);
-  font-size: 13.5px; white-space: nowrap; line-height: 1;
+  font-size: 15px; white-space: nowrap; line-height: 1;
   border: none; font-family: inherit;
 }
 .atrium-shell-stat.is-button { cursor: pointer; }
 .atrium-shell-stat.is-button:hover { background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 8%, transparent); }
 .atrium-shell-stat .atrium-shell-stat-icon { display: inline-flex; }
-.atrium-shell-stat .atrium-shell-stat-icon ha-icon { --mdc-icon-size: 12px; }
+.atrium-shell-stat .atrium-shell-stat-icon ha-icon { --mdc-icon-size: 13px; }
 
 /* Battery + problem popover content uses the shared openPopover() chrome
    (see atrium-popover.js). The body-attached row styles for items live in
