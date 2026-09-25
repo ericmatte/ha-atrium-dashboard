@@ -10,7 +10,7 @@ test("orbGrid: never more columns than the busiest floor has areas, so rows end 
 });
 
 test("orbGrid: a narrow phone fits three tiles at the minimum size", () => {
-  assert.deepEqual(orbGrid(354, 4), { cols: 3, gap: 18, size: 106 });
+  assert.deepEqual(orbGrid(354, 4), { cols: 3, gap: 24, size: 102 });
 });
 
 test("orbGrid: tiles grow with the width but stop at the maximum size", () => {
@@ -20,10 +20,10 @@ test("orbGrid: tiles grow with the width but stop at the maximum size", () => {
   assert.equal(orbGrid(1280, 4).size, MAX_ORB_SIZE);
 });
 
-test("orbGrid: gaps scale with the width between 18 and 48px", () => {
-  assert.equal(orbGrid(300, 3).gap, 18);
-  assert.equal(orbGrid(1000, 3).gap, 35);
-  assert.equal(orbGrid(3000, 3).gap, 48);
+test("orbGrid: gaps scale with the width between 24 and 64px", () => {
+  assert.equal(orbGrid(300, 3).gap, 24);
+  assert.equal(orbGrid(1000, 3).gap, 50);
+  assert.equal(orbGrid(3000, 3).gap, 64);
 });
 
 test("orbGrid: an empty floor list still yields one column", () => {
