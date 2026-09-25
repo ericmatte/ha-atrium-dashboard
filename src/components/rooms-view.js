@@ -28,9 +28,9 @@ import * as updatersMod from "./area-card-updaters.js";
 import { subscribeLabelsLoaded } from "../lib/label-registry.js";
 import { orbGrid, orbBadgeFont } from "../lib/orb-grid.js";
 
-// Matches the design's exit animations (pinOut .24s / sheetOut .28s) so the
-// selection is only dropped once they've played.
-const CLOSE_MS = 280;
+// Matches the panel's exit (desktop slide / phone sheet-out, .26s in
+// area-card.css) so the selection is only dropped once it has played.
+const CLOSE_MS = 260;
 const PANEL_HISTORY_KEY = "atriumPanel";
 // Must match the phone breakpoint in area-card.css.
 const SHEET_MEDIA = "(max-width: 860px)";
@@ -246,7 +246,9 @@ class AtriumRooms extends HTMLElement {
     // The header is a separate card; it reads these to keep its content
     // clear of the fixed side panel and aligned with the room grid.
     const docStyle = document.documentElement.style;
-    if (open && !this._closing) docStyle.setProperty("--atrium-panel-open", "1");
+    // Kept through the exit slide, like the grid's column, so the header
+    // makes room in the same single step as the grid.
+    if (open) docStyle.setProperty("--atrium-panel-open", "1");
     else docStyle.removeProperty("--atrium-panel-open");
   }
 

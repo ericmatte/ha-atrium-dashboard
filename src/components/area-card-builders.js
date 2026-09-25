@@ -600,7 +600,7 @@ export function _refreshRoutines(data) {
   this._syncRoutineRows(ui.area, ui.list, routineRows(data, ui.open));
 }
 
-const ROW_MOTION = { duration: 320, easing: "cubic-bezier(.32,.72,0,1)" };
+const ROW_MOTION = { duration: 260, easing: "cubic-bezier(.32,.72,0,1)" };
 
 // Rows that stay are left exactly as they are (same elements, nothing
 // re-rendered); rows that move (switched on/off) slide into their new spot;
@@ -653,7 +653,7 @@ function collapseRow(row) {
   row.style.overflow = "hidden";
   const from = { height: `${row.offsetHeight}px`, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, marginTop: "0px", opacity: style.opacity };
   const to = { height: "0px", paddingTop: "0px", paddingBottom: "0px", marginTop: "-6px", opacity: 0 };
-  row.animate([from, to], { ...ROW_MOTION, duration: 240, fill: "forwards" }).finished.then(() => row.remove(), () => row.remove());
+  row.animate([from, to], { ...ROW_MOTION, duration: 200, fill: "forwards" }).finished.then(() => row.remove(), () => row.remove());
 }
 
 // Toggle swatch left, name + labels / "On · 42 minutes ago" in the middle,

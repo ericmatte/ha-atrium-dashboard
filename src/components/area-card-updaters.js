@@ -29,7 +29,7 @@ const DRAG_SLOP = 3;
 const NOTCH_STRETCH = 0.1;
 const NOTCH_STIFFNESS = 2.5;
 const NOTCH_FLICK_AT = 0.8;
-const FLICK_MS = 450;
+const FLICK_MS = 360;
 // The live "NN%" label sits above the thumb at low levels, below it at high
 // levels, crossfading in between so it's never covered by the icon.
 const PCT_SWAP_FROM = 40;

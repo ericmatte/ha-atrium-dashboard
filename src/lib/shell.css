@@ -85,7 +85,6 @@
     --atrium-open: var(--atrium-panel-open, 0);
     padding-left: calc(62px - 40px * var(--atrium-open));
     padding-right: calc(62px - 40px * var(--atrium-open) + 580px * var(--atrium-open));
-    transition: padding .55s cubic-bezier(.32,.72,0,1);
   }
   .atrium-shell-root.is-home .atrium-shell-pills { padding-inline: 18px; }
 }
