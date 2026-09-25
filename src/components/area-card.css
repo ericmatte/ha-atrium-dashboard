@@ -290,6 +290,7 @@ button.atrium-badge { cursor: pointer; }
 .atrium-autos-trigger.open { background: var(--a-knob); color: var(--a-text); }
 .atrium-autos-trigger-iconwrap { display: inline-flex; --mdc-icon-size: 16px; }
 .atrium-autos-trigger-label { font-size: 13px; font-weight: 600; color: var(--a-text); }
+.atrium-autos-trigger-hint { font-weight: 500; color: var(--a-dim); }
 
 /* ── Phone: room picked → strip on top, sheet below ──────────────────── */
 @media (max-width: 860px) {

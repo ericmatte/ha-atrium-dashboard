@@ -547,7 +547,7 @@ export function _buildAutomationsSection(area, data) {
   const badge = document.createElement("button");
   badge.type = "button";
   badge.className = "atrium-autos-trigger";
-  badge.innerHTML = `<span class="atrium-autos-trigger-iconwrap">${haIcon("mdi:pause-circle-outline", 20)}</span><span class="atrium-autos-trigger-label"></span>`;
+  badge.innerHTML = `<span class="atrium-autos-trigger-iconwrap">${haIcon("mdi:pause-circle-outline", 20)}</span><span class="atrium-autos-trigger-label"><span></span><span class="atrium-autos-trigger-hint"></span></span>`;
   badge.addEventListener("click", () => {
     open.showDisabled = !open.showDisabled;
     this._routineDrawers.set(area.area_id, { ...open });
@@ -568,7 +568,9 @@ export function _updateRoutinesBadge(data) {
   const { badge, drawers, open } = this._routinesUI;
   const count = data.disabledAutomations.length;
   drawers.hidden = !count;
-  badge.lastChild.textContent = `${count} off · click to ${open.showDisabled ? "hide" : "show"}`;
+  const [countEl, hintEl] = badge.lastChild.children;
+  countEl.textContent = `${count} off`;
+  hintEl.textContent = ` · click to ${open.showDisabled ? "hide" : "show"}`;
   badge.classList.toggle("open", open.showDisabled);
   badge.setAttribute("aria-pressed", String(open.showDisabled));
 }

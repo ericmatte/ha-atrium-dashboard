@@ -60,3 +60,8 @@ view.className = "dev-view is-active";
 document.getElementById("views").appendChild(view);
 mount("atrium-header", { floor: ALL_FLOOR_KEY, welcome_name: "Eric" }, view);
 mount("atrium-rooms", { floors: FLOORS }, view);
+
+// `?room=<area_id>` opens that room's details panel on load — handy for
+// screenshots (e.g. the README's preview).
+const room = new URLSearchParams(location.search).get("room");
+if (room) setTimeout(() => document.querySelector("atrium-rooms")?._select(room));
