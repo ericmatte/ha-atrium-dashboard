@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "../../tools/register.mjs";
 
-const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _wireClimateMode, _updateAutomationRef, divaVisual } = await import("./area-card-updaters.js");
+const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _updateAutomationRef, divaVisual, climateView } = await import("./area-card-updaters.js");
 
 // Minimal fakes for the DOM surface _bindDivaTrack/_updateDivaRef touch.
 // Pointer event listeners are captured directly so tests can invoke them
@@ -269,75 +269,68 @@ test("_updateDivaRef: an unavailable entity disables the track with no fill", ()
   assert.equal(ref.ago.textContent, "Unavailable");
 });
 
-// Minimal fakes for the compact inline climate row (icon, name+meta, target
-// controls) — no graph, no fan/swing menus.
+test("climateView: a heating single-mode thermostat shows now/trend and target, with no mode controls", () => {
+  const v = climateView({ state: "heat", attributes: { current_temperature: 19.8, temperature: 21, target_temp_step: 0.5, hvac_modes: ["heat"] } });
+  assert.equal(v.now, "Now 19.8° · heating");
+  assert.equal(v.target, "21°");
+  assert.equal(v.tone, "warm");
+  assert.equal(v.hasControls, false);
+});
+
+test("climateView: hvac_action wins over the guessed trend", () => {
+  const v = climateView({ state: "heat", attributes: { current_temperature: 19, temperature: 21, hvac_action: "idle", hvac_modes: ["heat"] } });
+  assert.equal(v.now, "Now 19° · idle");
+});
+
+test("climateView: a multi-mode unit gets Mode + Fan dropdowns, without 'off' among the modes", () => {
+  const v = climateView({ state: "cool", attributes: { hvac_modes: ["off", "heat", "cool"], fan_mode: "low", fan_modes: ["auto", "low"], temperature: 24, target_temp_step: 1 } });
+  assert.equal(v.hasControls, true);
+  assert.equal(v.tone, "cool");
+  assert.equal(v.target, "24°");
+  assert.deepEqual(v.dropdowns.map((d) => d.key), ["mode", "fan"]);
+  assert.deepEqual(v.dropdowns[0].options, ["heat", "cool"]);
+  assert.equal(v.dropdowns[1].labelFor("auto"), "Auto");
+});
+
+test("climateView: off keeps showing the mode it will return to, and can't be adjusted", () => {
+  const v = climateView({ state: "off", attributes: { hvac_modes: ["off", "heat", "cool"], temperature: 21 } }, "cool");
+  assert.equal(v.off, true);
+  assert.equal(v.canAdjust, false);
+  assert.equal(v.turnOnMode, "cool");
+  assert.equal(v.dropdowns[0].value, "cool");
+  assert.equal(v.tone, "neutral");
+});
+
+test("climateView: a heat/cool range with no single target shows low–high", () => {
+  const v = climateView({ state: "heat_cool", attributes: { target_temp_low: 20, target_temp_high: 24, target_temp_step: 1, hvac_modes: ["heat_cool"] } });
+  assert.equal(v.target, "20–24°");
+  assert.equal(v.canAdjust, false);
+});
+
 function makeClimateRef() {
-  return {
-    tile: { style: {} },
-    swatch: { style: {}, innerHTML: "", dataset: {} },
-    meta: { textContent: "" },
-    temp: { textContent: "" },
-    modeMenu: {
-      items: null, current: null, onPick: null,
-      setItems(items, current, onPick) { this.items = items; this.current = current; this.onPick = onPick; },
-    },
-  };
+  const el = () => ({ classList: makeClassList(), setAttribute() {}, textContent: "", disabled: false, hidden: false });
+  return { card: el(), now: el(), target: el(), minus: el(), plus: el(), controls: el(), power: el(), displayName: "Heat pump", dropdowns: new Map(), turnOnMode: null };
 }
 
-function makeClimateContext(states) {
-  const calls = [];
-  return {
-    _hass: { states },
-    _call: (...args) => calls.push(args),
-    _updateClimateRef,
-    _wireClimateMode,
-    calls,
-  };
-}
-
-test("_updateClimateRef: heat mode with a target shows mode/current in meta and the target in temp", () => {
+test("_updateClimateRef: remembers the last active mode so power brings it back", () => {
   const ref = makeClimateRef();
-  const ctx = makeClimateContext({
-    "climate.x": {
-      state: "heat",
-      attributes: { current_temperature: 19.8, temperature: 21, target_temp_step: 1, hvac_modes: ["heat", "off"] },
-    },
-  });
-  ctx._updateClimateRef(ref, "climate.x");
-  assert.equal(ref.meta.textContent, "Heat · 19.8°");
-  assert.equal(ref.temp.textContent, "21°");
+  const states = { "climate.x": { state: "cool", attributes: { hvac_modes: ["off", "heat", "cool"], temperature: 23 } } };
+  const ctx = { _hass: { states }, _lastClimateMode: new Map() };
+  _updateClimateRef.call(ctx, ref, "climate.x");
+  states["climate.x"] = { state: "off", attributes: { hvac_modes: ["off", "heat", "cool"], temperature: 23 } };
+  _updateClimateRef.call(ctx, ref, "climate.x");
+  assert.equal(ref.turnOnMode, "cool");
+  assert.equal(ref.card.classList.contains("off"), true);
+  assert.equal(ref.power.classList.contains("on"), false);
+  assert.equal(ref.minus.disabled, true);
 });
 
-test("_updateClimateRef: off mode shows 'Off' even with a stale target still on the entity", () => {
+test("_updateClimateRef: a single-mode thermostat hides the controls row", () => {
   const ref = makeClimateRef();
-  const ctx = makeClimateContext({ "climate.x": { state: "off", attributes: { temperature: 21 } } });
-  ctx._updateClimateRef(ref, "climate.x");
-  assert.equal(ref.temp.textContent, "Off");
-});
-
-test("_updateClimateRef: fan_only mode shows a dash even with a target present", () => {
-  const ref = makeClimateRef();
-  const ctx = makeClimateContext({ "climate.x": { state: "fan_only", attributes: { temperature: 21 } } });
-  ctx._updateClimateRef(ref, "climate.x");
-  assert.equal(ref.temp.textContent, "—");
-});
-
-test("_wireClimateMode: a single-hvac-mode entity gets no mode menu", () => {
-  const ref = makeClimateRef();
-  const ctx = makeClimateContext({});
-  ctx._wireClimateMode(ref, "climate.x", { hvac_modes: ["heat"] }, "heat");
-  assert.equal(ref.swatch.dataset.menu, "");
-  assert.equal(ref.modeMenu.items, null);
-});
-
-test("_wireClimateMode: a multi-hvac-mode entity wires the mode menu, and picking one calls set_hvac_mode", () => {
-  const ref = makeClimateRef();
-  const ctx = makeClimateContext({});
-  ctx._wireClimateMode(ref, "climate.x", { hvac_modes: ["heat", "cool", "off"] }, "heat");
-  assert.equal(ref.swatch.dataset.menu, "mode");
-  assert.equal(ref.modeMenu.items.length, 3);
-  ref.modeMenu.onPick("cool");
-  assert.deepEqual(ctx.calls, [["climate", "set_hvac_mode", { entity_id: "climate.x", hvac_mode: "cool" }]]);
+  const ctx = { _hass: { states: { "climate.x": { state: "heat", attributes: { hvac_modes: ["heat"], temperature: 21, current_temperature: 20 } } } }, _lastClimateMode: new Map() };
+  _updateClimateRef.call(ctx, ref, "climate.x");
+  assert.equal(ref.controls.hidden, true);
+  assert.equal(ref.now.textContent, "Now 20° · heating");
 });
 
 function makeAutomationRef(isScript) {

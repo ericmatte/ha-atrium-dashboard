@@ -16,13 +16,16 @@
 }
 
 /* ── Floors & room tiles ─────────────────────────────────────────────── */
-.atrium-rooms-content { display: flex; flex-direction: column; gap: 22px; padding: 4px 18px 28px; min-width: 0; box-sizing: border-box; }
-.atrium-floor-group { display: flex; flex-direction: column; gap: 12px; }
+.atrium-rooms-content { display: flex; flex-direction: column; gap: 22px; padding: 4px 18px 28px; min-width: 0; box-sizing: border-box; container-type: inline-size; }
+/* Tile size follows the width actually available, continuously: columns are
+   at least --orb-col wide (which itself grows with the width) and stretch to
+   fill the row, so the photos are always as big as the space allows. */
+.atrium-floor-group { display: flex; flex-direction: column; gap: 12px; --orb-col: clamp(92px, 10cqi + 40px, 180px); --orb-gap: clamp(10px, 2.6cqi, 40px); }
 .atrium-floor-name { font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: color-mix(in srgb, var(--a-dim) 75%, transparent); }
-.atrium-orb-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 10px; }
+.atrium-orb-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--orb-col), 1fr)); gap: clamp(18px, 2.2cqi, 32px) var(--orb-gap); }
 
-.atrium-orb { display: flex; flex-direction: column; align-items: center; gap: 8px; border: 0; background: none; color: inherit; font: inherit; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; animation: atrium-room-in-b .45s var(--a-ease) both; animation-delay: calc(var(--i, 0) * 28ms); }
-.atrium-orb-photo { position: relative; width: 88px; height: 88px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 14px 30px rgba(0,0,0,.45); transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .3s, opacity .4s, width .55s var(--a-ease), height .55s var(--a-ease); }
+.atrium-orb { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; border: 0; background: none; color: inherit; font: inherit; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; animation: atrium-room-in-b .45s var(--a-ease) both; animation-delay: calc(var(--i, 0) * 28ms); }
+.atrium-orb-photo { position: relative; width: 100%; aspect-ratio: 1; border-radius: 50%; flex-shrink: 0; box-shadow: 0 14px 30px rgba(0,0,0,.45); transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .3s, opacity .4s; }
 .atrium-orb:hover .atrium-orb-photo { transform: scale(1.04); }
 .atrium-orb.lit .atrium-orb-photo { box-shadow: 0 0 0 3px rgba(246,193,75,.5), 0 0 34px rgba(246,193,75,.2), 0 14px 30px rgba(0,0,0,.45); }
 .atrium-orb.sel .atrium-orb-photo { box-shadow: 0 0 0 3px var(--a-bg), 0 0 0 6px var(--a-text), 0 14px 30px rgba(0,0,0,.45); }
@@ -30,7 +33,7 @@
 
 .atrium-orb-art { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--a-text) 22%, transparent) 0%, color-mix(in srgb, var(--a-text) 7%, transparent) 70%); color: color-mix(in srgb, var(--a-text) 40%, transparent); transition: filter .5s ease; }
 .atrium-orb-art.has-img { background-size: cover; background-position: center; }
-.atrium-orb-art ha-icon { --mdc-icon-size: 30px; }
+.atrium-orb-row .atrium-orb-art ha-icon { --mdc-icon-size: calc(var(--orb-col) * .28); }
 .atrium-orb.gray .atrium-orb-art, .atrium-panel-hero-photo.gray .atrium-orb-art { filter: grayscale(1) brightness(.42); }
 
 .atrium-orb-badge-lit { position: absolute; left: -4px; top: -2px; display: inline-flex; align-items: center; gap: 2px; padding: 2px 6px 2px 4px; border-radius: 999px; background: #f6c14b; color: #1b1506; font-size: 11px; font-weight: 800; line-height: 16px; }
@@ -111,28 +114,44 @@ button.atrium-badge { cursor: pointer; }
 .atrium-diva-pct.bottom { top: auto; bottom: 6px; color: rgba(20,16,6,.72); }
 .atrium-diva-name { max-width: 72px; font-size: 13px; font-weight: 700; line-height: 1.2; color: var(--a-text); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .atrium-diva-ago { margin-top: -6px; font-size: 11px; font-weight: 600; color: var(--a-dim); text-align: center; white-space: nowrap; }
-.atrium-diva-caret { position: absolute; right: -4px; top: -4px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: var(--a-panel); color: var(--a-dim); display: flex; align-items: center; justify-content: center; cursor: pointer; --mdc-icon-size: 16px; }
+.atrium-diva-caret { position: absolute; right: -2px; top: -6px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--a-text) 24%, var(--a-panel)); color: var(--a-text); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 0 2px var(--a-panel), 0 2px 6px rgba(0,0,0,.4); --mdc-icon-size: 18px; }
+.atrium-diva-caret:hover { background: color-mix(in srgb, var(--a-text) 34%, var(--a-panel)); }
 
-/* Climate: one inline row — icon, name + mode/current-temp, and a compact
-   −/target/+. Background/border color set per hvac-mode accent in JS. */
+/* Climate: name + "Now 21.4° · heating" beside a big −/target/+, and — for
+   units with several hvac modes — a power button plus Mode/Fan/Swing pills.
+   The tone (warm/cool/neutral) follows the hvac mode, set in JS. */
 .atrium-climate-list { display: flex; flex-direction: column; gap: 8px; }
-.atrium-climate { display: flex; flex-direction: row; align-items: center; gap: 9px; border: 1px solid transparent; border-radius: 16px; padding: 10px 12px; cursor: default; }
-.atrium-climate-swatch { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; color: var(--a-panel); }
-.atrium-climate-swatch ha-icon { --mdc-icon-size: 16px; line-height: 0; }
-.atrium-climate-text { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 6px; overflow: hidden; }
-.atrium-climate-name { font-size: 15px; font-weight: 700; line-height: 16px; color: var(--a-text); background: none; border: none; padding: 0; font-family: inherit; cursor: pointer; text-align: left; white-space: nowrap; }
-.atrium-climate-meta { font-size: 14px; line-height: 16px; color: var(--a-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: capitalize; }
-.atrium-climate-controls { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.atrium-climate-btn { width: 28px; height: 28px; border-radius: 50%; border: none; cursor: pointer; background: var(--a-knob); color: var(--a-text); display: inline-flex; align-items: center; justify-content: center; }
-.atrium-climate-btn ha-icon { --mdc-icon-size: 14px; line-height: 0; }
-.atrium-climate-num { font-size: 16px; font-weight: 800; min-width: 40px; text-align: center; font-variant-numeric: tabular-nums; color: var(--a-text); }
+.atrium-climate { --c-accent: var(--a-text); --c-soft: var(--a-dim); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 14px; align-items: center; padding: 12px 14px; border-radius: 18px; background: linear-gradient(135deg, color-mix(in srgb, var(--c-accent) 11%, var(--a-panel)), var(--a-surface) 70%); }
+.atrium-climate.tone-warm { --c-accent: #ff9a6b; --c-soft: #ffc3a6; }
+.atrium-climate.tone-cool { --c-accent: #8cc1ff; --c-soft: #c3dcff; }
+.atrium-climate-top { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 0; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
+.atrium-climate-name { font-size: 15px; font-weight: 800; color: var(--a-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.atrium-climate-now { font-size: 13px; font-weight: 600; color: var(--c-soft); }
+.atrium-climate-mid { display: flex; align-items: center; gap: 6px; transition: opacity .2s; }
+.atrium-climate-round { width: 36px; height: 36px; flex-shrink: 0; padding: 0; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--a-text) 10%, transparent); color: var(--a-text); font: inherit; font-size: 18px; line-height: 1; cursor: pointer; }
+.atrium-climate-round:hover { background: color-mix(in srgb, var(--a-text) 18%, transparent); }
+.atrium-climate-round:disabled { opacity: .4; cursor: default; }
+.atrium-climate-target { min-width: 64px; text-align: center; font-size: 28px; font-weight: 800; letter-spacing: -.02em; color: var(--c-accent); font-variant-numeric: tabular-nums; }
+.atrium-climate-controls { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; align-items: stretch; }
+.atrium-climate-controls[hidden] { display: none; }
+.atrium-climate-power { flex-shrink: 0; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 12px; background: color-mix(in srgb, var(--a-text) 6%, transparent); color: var(--a-dim); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .2s, color .2s; }
+.atrium-climate-power.on { background: var(--c-accent); color: #1d0f08; }
+.atrium-climate-dd { position: relative; box-sizing: border-box; flex: 1 1 84px; min-width: 0; height: 34px; display: flex; align-items: center; gap: 7px; padding: 0 10px; border-radius: 12px; background: color-mix(in srgb, var(--a-text) 6%, transparent); cursor: pointer; transition: background .15s, opacity .2s; --mdc-icon-size: 16px; }
+.atrium-climate-dd:hover { background: color-mix(in srgb, var(--a-text) 10%, transparent); }
+.atrium-climate-dd:focus-within { box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-accent) 60%, transparent); }
+.atrium-climate-dd ha-icon { flex-shrink: 0; color: var(--a-dim); }
+.atrium-climate-dd-value { min-width: 0; font-size: 14px; font-weight: 600; color: var(--a-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.atrium-climate-dd-select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px; }
+.atrium-climate.off .atrium-climate-dd, .atrium-climate.off .atrium-climate-mid { opacity: .45; }
+.atrium-climate.off .atrium-climate-target { color: var(--a-dim); }
 
 /* Scenes & buttons */
 .atrium-pills { display: flex; flex-wrap: wrap; gap: 8px; }
-.atrium-pill { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 10px 14px; border: 0; border-radius: 999px; background: var(--a-surface); color: color-mix(in srgb, var(--a-text) 90%, transparent); font: inherit; font-size: 13px; font-weight: 700; line-height: 16px; cursor: pointer; transition: background .2s, color .2s, transform .15s; }
+.atrium-pill { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 10px 14px 10px 12px; border: 0; border-radius: 999px; background: var(--pill-bg, var(--a-surface)); color: color-mix(in srgb, var(--a-text) 90%, transparent); font: inherit; font-size: 13px; font-weight: 700; line-height: 16px; cursor: pointer; transition: background .2s, color .2s, transform .15s; }
 .atrium-pill:active { transform: scale(.97); }
 .atrium-pill.flash { background: #34284a; color: #c9a3ff; }
-.atrium-pill-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; background: color-mix(in srgb, var(--a-text) 85%, transparent); }
+.atrium-pill ha-icon { flex-shrink: 0; color: var(--a-dim); transition: color .2s; }
+.atrium-pill.flash ha-icon { color: inherit; }
 .atrium-pill-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Modes (input_select) */
@@ -152,7 +171,7 @@ button.atrium-badge { cursor: pointer; }
 .atrium-reading.t-warn .atrium-reading-value, .atrium-reading.t-warn .atrium-reading-icon { color: #ffb561; }
 .atrium-reading.t-info .atrium-reading-value, .atrium-reading.t-info .atrium-reading-icon { color: #8cc1ff; }
 
-/* Automations & scripts */
+/* Routines (automations & scripts) */
 .atrium-alist { display: flex; flex-direction: column; gap: 6px; }
 .atrium-auto-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 16px; background: var(--a-surface); transition: opacity .2s; }
 .atrium-auto-row.off { opacity: .55; }
@@ -185,13 +204,17 @@ button.atrium-badge { cursor: pointer; }
   .has-sel .atrium-floor-group { gap: 8px; flex-shrink: 0; }
   .has-sel .atrium-floor-group + .atrium-floor-group { padding-left: 14px; border-left: 1px solid color-mix(in srgb, var(--a-text) 10%, transparent); }
   .has-sel .atrium-floor-name { font-size: 10px; letter-spacing: .12em; white-space: nowrap; }
-  .has-sel .atrium-orb-row { display: flex; flex-wrap: nowrap; gap: 10px; }
+  .has-sel .atrium-orb-row { display: flex; flex-wrap: nowrap; gap: 18px; margin-block: 8px; }
   .has-sel .atrium-orb { width: 70px; flex-shrink: 0; gap: 6px; animation-name: atrium-room-in-a; }
-  .has-sel .atrium-orb-photo { width: 64px; height: 64px; }
+  .has-sel .atrium-orb-photo { width: 64px; }
   .has-sel .atrium-orb-name { font-size: 11px; max-width: 70px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .has-sel .atrium-orb-meta { display: none; }
 
   .has-sel .atrium-panel { display: block; flex: 1; min-height: 0; border-radius: 26px 26px 0 0; box-shadow: 0 -12px 40px rgba(0,0,0,.5); animation: atrium-sheet-in .55s var(--a-ease) both; }
+  .atrium-climate-dd { flex-basis: 0; padding: 0 8px; gap: 5px; }
+  .atrium-climate-dd:first-of-type { flex-grow: 1.5; }
+  .atrium-climate-dd-value { font-size: 13px; }
+
   .closing .atrium-panel { animation: atrium-sheet-out .28s cubic-bezier(.4,0,1,1) both; }
 }
 
@@ -205,13 +228,8 @@ button.atrium-badge { cursor: pointer; }
   .has-sel .atrium-rooms-content { padding-inline: 40px; }
   .has-sel.closing .atrium-rooms-content { padding-inline: 80px; }
   .atrium-floor-group { gap: 16px; }
-  .atrium-orb-row { display: flex; flex-wrap: wrap; gap: 40px; transition: gap .55s var(--a-ease); }
-  .has-sel .atrium-orb-row { gap: 24px; }
-  .atrium-orb { width: 164px; gap: 14px; animation: none; transition: width .55s var(--a-ease), gap .55s var(--a-ease); }
-  .has-sel .atrium-orb { width: 124px; gap: 12px; }
-  .atrium-orb-photo { width: 156px; height: 156px; }
-  .has-sel .atrium-orb-photo { width: 116px; height: 116px; }
-  .atrium-orb-art ha-icon { --mdc-icon-size: 48px; }
+  .atrium-orb { gap: 14px; animation: none; transition: gap .55s var(--a-ease); }
+  .has-sel .atrium-orb { gap: 12px; }
   .atrium-orb-badge-lit { left: 4px; top: 8px; padding: 4px 8px 4px 6px; font-size: 12px; }
   .atrium-orb-badge-alert { right: 4px; top: 8px; width: 26px; height: 26px; }
   .atrium-orb-badge-alert ha-icon { --mdc-icon-size: 14px; }
@@ -226,7 +244,7 @@ button.atrium-badge { cursor: pointer; }
   .atrium-panel-inner { width: 580px; gap: 24px; padding: 26px 28px 40px; animation: atrium-pin-in .5s .1s var(--a-ease) both; }
   .closing .atrium-panel-inner { animation: atrium-pin-out .24s ease both; }
   .atrium-panel-hero-photo { width: 72px; height: 72px; }
-  .atrium-panel-hero-photo .atrium-orb-art ha-icon { --mdc-icon-size: 30px; }
+  .atrium-panel-hero-photo .atrium-orb-row .atrium-orb-art ha-icon { --mdc-icon-size: calc(var(--orb-col) * .28); }
   .atrium-panel-hero-name { font-size: 28px; }
 }
 

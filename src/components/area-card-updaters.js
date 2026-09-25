@@ -2,7 +2,7 @@ import { haIcon, tint, vibrate } from "../lib/dom-utils.js";
 import { sensorTone } from "../lib/area-data.js";
 import {
   TONE, ICONS,
-  CLIMATE_ACCENT, CLIMATE_LABELS, CLIMATE_ICONS,
+  CLIMATE_LABELS, CLIMATE_ICONS,
   canDimLight, fmtBrightnessPct, fmtCoverPct, fmtTimeAgoShort, fmtTimeAgoLong,
   fmtSensorValue, iconForSensor,
   lightRgbTriple,
@@ -246,46 +246,79 @@ export function _bindDivaTrack(ref, entityId, kind) {
   });
 }
 
+const WARM_MODES = new Set(["heat", "heat_cool", "auto"]);
+const COOL_MODES = new Set(["cool", "dry"]);
+const TREND_FROM_MODE = { off: "off", cool: "cooling", auto: "auto", dry: "drying", fan_only: "fan" };
+const humanize = (v) => (v ? String(v).charAt(0).toUpperCase() + String(v).slice(1).replace(/_/g, " ") : v);
+
+// What the climate card shows, from the entity's state alone. `lastMode` is
+// the hvac mode it was in before being switched off, so the power button can
+// bring it back.
+export function climateView(st, lastMode) {
+  const attrs = st.attributes || {};
+  const mode = st.state;
+  const off = mode === "off";
+  const hvacModes = Array.isArray(attrs.hvac_modes) ? attrs.hvac_modes : [];
+  const activeModes = hvacModes.filter((m) => m !== "off");
+  const cur = attrs.current_temperature;
+  const tgt = attrs.temperature;
+  const decimals = Number.isInteger(Number(attrs.target_temp_step) || 0.5) ? 0 : 1;
+  const fmt = (v) => String(+(+v).toFixed(decimals));
+  let target = "—";
+  if (tgt != null) target = `${fmt(tgt)}°`;
+  else if (attrs.target_temp_low != null && attrs.target_temp_high != null) target = `${fmt(attrs.target_temp_low)}–${fmt(attrs.target_temp_high)}°`;
+  const trend = attrs.hvac_action || TREND_FROM_MODE[mode] || (cur != null && tgt != null && cur < tgt ? "heating" : "idle");
+  const shownMode = off ? (activeModes.includes(lastMode) ? lastMode : activeModes[0]) : mode;
+  const dropdowns = [
+    { key: "mode", label: "Mode", icon: CLIMATE_ICONS[shownMode] || ICONS.thermo, value: shownMode, options: activeModes, labelFor: (m) => CLIMATE_LABELS[m] || humanize(m) },
+  ];
+  if (Array.isArray(attrs.fan_modes) && attrs.fan_modes.length) dropdowns.push({ key: "fan", label: "Fan mode", icon: ICONS.fan, value: attrs.fan_mode, options: attrs.fan_modes, labelFor: humanize });
+  if (Array.isArray(attrs.swing_modes) && attrs.swing_modes.length) dropdowns.push({ key: "swing", label: "Swing mode", icon: "mdi:arrow-oscillating", value: attrs.swing_mode, options: attrs.swing_modes, labelFor: humanize });
+  return {
+    off,
+    tone: off ? "neutral" : WARM_MODES.has(mode) ? "warm" : COOL_MODES.has(mode) ? "cool" : "neutral",
+    now: cur != null ? `Now ${cur}° · ${humanize(trend).toLowerCase()}` : humanize(trend),
+    target,
+    canAdjust: tgt != null && !off,
+    // Single-mode thermostats show no mode chips or power button.
+    hasControls: hvacModes.length > 1,
+    turnOnMode: shownMode,
+    dropdowns,
+  };
+}
+
 export function _updateClimateRef(ref, entityId) {
   const st = this._hass.states?.[entityId];
   if (!st) return;
-  const mode = st.state;
-  const attrs = st.attributes || {};
-  const accent = CLIMATE_ACCENT[mode] || TONE.cool;
-
-  ref.tile.style.background = tint(accent, 10);
-  ref.tile.style.borderColor = tint(accent, 28);
-  ref.swatch.style.background = accent;
-  ref.swatch.innerHTML = haIcon(CLIMATE_ICONS[mode] || ICONS.thermo, 16);
-
-  const cur = attrs.current_temperature;
-  const tgt = attrs.temperature;
-  const modeLabel = CLIMATE_LABELS[mode] || mode.replace("_", " ");
-  ref.meta.textContent = `${modeLabel}${cur != null ? ` · ${cur}°` : ""}`;
-
-  if (tgt != null && mode !== "off" && mode !== "fan_only") {
-    const decimals = Number.isInteger(Number(attrs.target_temp_step) || 0.5) ? 0 : 1;
-    ref.temp.textContent = `${(+tgt).toFixed(decimals)}°`;
-  } else {
-    ref.temp.textContent = mode === "off" ? "Off" : "—";
-  }
-
-  this._wireClimateMode(ref, entityId, attrs, mode);
-}
-
-// Fan/swing/schedule live behind more-info — the inline row only wires up
-// the hvac-mode quick picker behind the swatch.
-export function _wireClimateMode(ref, entityId, attrs, mode) {
-  const hvacModes = Array.isArray(attrs.hvac_modes) ? attrs.hvac_modes : [];
-  const isMultiMode = hvacModes.length > 1;
-
-  ref.swatch.dataset.menu = isMultiMode ? "mode" : "";
-  if (isMultiMode) {
-    ref.modeMenu.setItems(
-      hvacModes.map((m) => ({ id: m, label: CLIMATE_LABELS[m] || m, icon: CLIMATE_ICONS[m] })),
-      mode,
-      (id) => this._call("climate", "set_hvac_mode", { entity_id: entityId, hvac_mode: id }),
-    );
+  if (st.state !== "off") this._lastClimateMode.set(entityId, st.state);
+  const v = climateView(st, this._lastClimateMode.get(entityId));
+  ref.card.classList.toggle("off", v.off);
+  for (const tone of ["warm", "cool", "neutral"]) ref.card.classList.toggle(`tone-${tone}`, v.tone === tone);
+  ref.now.textContent = v.now;
+  ref.target.textContent = v.target;
+  ref.minus.disabled = ref.plus.disabled = !v.canAdjust;
+  ref.controls.hidden = !v.hasControls;
+  if (!v.hasControls) return;
+  ref.power.classList.toggle("on", !v.off);
+  ref.power.setAttribute("aria-pressed", String(!v.off));
+  ref.power.setAttribute("aria-label", `Turn ${ref.displayName} ${v.off ? "on" : "off"}`);
+  ref.turnOnMode = v.turnOnMode;
+  for (const dd of v.dropdowns) {
+    const slot = ref.dropdowns.get(dd.key);
+    if (!slot) continue;
+    slot.icon.setAttribute("icon", dd.icon);
+    slot.value.textContent = dd.labelFor(dd.value) ?? "—";
+    const optionsKey = dd.options.join("|");
+    if (slot.select.dataset.options !== optionsKey) {
+      slot.select.dataset.options = optionsKey;
+      slot.select.replaceChildren(...dd.options.map((o) => {
+        const opt = document.createElement("option");
+        opt.value = o;
+        opt.textContent = dd.labelFor(o);
+        return opt;
+      }));
+    }
+    slot.select.value = dd.value ?? "";
   }
 }
 

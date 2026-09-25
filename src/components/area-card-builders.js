@@ -1,23 +1,24 @@
-import { openPopover, closePopoverFor, openListPopover } from "../lib/popover.js";
+import { openListPopover } from "../lib/popover.js";
 import { haIcon, bindLongPress, readSceneGradient, writeSceneGradient } from "../lib/dom-utils.js";
 import {
   ICONS,
   nameWithoutAreaPrefix,
   ensurePopoverItemStyle,
   fmtCoverPct,
-  computeSceneGradient,
+  iconForScene,
+  lightsGradient,
 } from "./area-card-shared.js";
 import { FLASH_MS } from "./area-card-updaters.js";
 
 // Panel content for one selected room, in the order the design settled on:
 // climate (own full-width card), scenes/buttons (a pill strip), lights +
 // switches side by side, mode selectors, covers, sensor readings, then
-// automations & scripts last.
+// routines (automations & scripts) last.
 export function _buildRoomSections(area, data) {
   const sections = [];
   if (data.climates.length) sections.push(this._buildClimateSection(area, data.climates));
 
-  if (data.scenes.length || data.buttons.length) sections.push(this._buildPillsSection(area, data.scenes, data.buttons));
+  if (data.scenes.length || data.buttons.length) sections.push(this._buildPillsSection(area, data.scenes, data.buttons, data.lights));
 
   if (data.lights.length || data.switches.length) {
     sections.push(this._buildDeviceGroupsRow(area, data.lights, data.switches, data.deviceSensors));
@@ -51,99 +52,89 @@ export function _buildClimateSection(area, climates) {
   const list = document.createElement("div");
   list.className = "atrium-climate-list";
   for (const climate of climates) list.appendChild(this._buildClimateTile(area, climate));
-  return this._section(null, list);
+  return this._section("Climate", list);
 }
 
 export function _buildClimateTile(area, climate) {
-  const tile = document.createElement("div");
-  tile.className = "atrium-tile wide atrium-climate";
-  tile.dataset.entity = climate.entity_id;
+  const entityId = climate.entity_id;
+  const displayName = nameWithoutAreaPrefix(this._entityName(climate), area);
+  const card = document.createElement("div");
+  card.className = "atrium-climate";
+  card.dataset.entity = entityId;
 
-  const swatch = document.createElement("div");
-  swatch.className = "atrium-climate-swatch";
-  swatch.style.cursor = "pointer";
-  swatch.innerHTML = haIcon(ICONS.thermo, 16);
-
-  const text = document.createElement("div");
-  text.className = "atrium-climate-text";
-  const name = document.createElement("button");
-  name.type = "button";
+  const top = document.createElement("button");
+  top.type = "button";
+  top.className = "atrium-climate-top";
+  top.addEventListener("click", () => this._moreInfo(entityId));
+  const name = document.createElement("span");
   name.className = "atrium-climate-name";
-  name.textContent = nameWithoutAreaPrefix(this._entityName(climate), area);
-  name.addEventListener("click", (e) => {
-    e.stopPropagation();
-    this._moreInfo(climate.entity_id);
-  });
-  const meta = document.createElement("span");
-  meta.className = "atrium-climate-meta";
-  text.append(name, meta);
+  name.textContent = displayName;
+  const now = document.createElement("span");
+  now.className = "atrium-climate-now";
+  top.append(name, now);
+
+  const mid = document.createElement("div");
+  mid.className = "atrium-climate-mid";
+  const stepButton = (label, direction) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "atrium-climate-round";
+    btn.setAttribute("aria-label", label);
+    btn.textContent = direction < 0 ? "−" : "+";
+    btn.addEventListener("click", () => this._adjustClimate(entityId, direction));
+    return btn;
+  };
+  const minus = stepButton("Lower target", -1);
+  const target = document.createElement("span");
+  target.className = "atrium-climate-target";
+  const plus = stepButton("Raise target", 1);
+  mid.append(minus, target, plus);
 
   const controls = document.createElement("div");
   controls.className = "atrium-climate-controls";
-  const minus = document.createElement("button");
-  minus.type = "button";
-  minus.className = "atrium-climate-btn";
-  minus.innerHTML = haIcon(ICONS.minus, 14);
-  minus.addEventListener("click", (e) => { e.stopPropagation(); this._adjustClimate(climate.entity_id, -1); });
-  const temp = document.createElement("div");
-  temp.className = "atrium-climate-num";
-  const plus = document.createElement("button");
-  plus.type = "button";
-  plus.className = "atrium-climate-btn";
-  plus.innerHTML = haIcon(ICONS.plus, 14);
-  plus.addEventListener("click", (e) => { e.stopPropagation(); this._adjustClimate(climate.entity_id, 1); });
-  controls.append(minus, temp, plus);
+  const ref = { card, now, target, minus, plus, controls, displayName, dropdowns: new Map(), turnOnMode: null };
 
-  tile.append(swatch, text, controls);
+  const power = document.createElement("button");
+  power.type = "button";
+  power.className = "atrium-climate-power";
+  power.innerHTML = haIcon(ICONS.power, 16);
+  power.addEventListener("click", () => {
+    const isOff = this._hass.states?.[entityId]?.state === "off";
+    this._call("climate", "set_hvac_mode", { entity_id: entityId, hvac_mode: isOff ? ref.turnOnMode : "off" });
+  });
+  controls.appendChild(power);
+  ref.power = power;
 
-  // The swatch doubles as the mode-picker anchor when the entity exposes
-  // multiple hvac modes; otherwise it opens more-info.
-  let modeItems = [], modeCurrent = null, modeOnPick = () => {};
-  const modeMenu = {
-    setItems: (items, current, onPick) => {
-      modeItems = items;
-      modeCurrent = current;
-      modeOnPick = onPick;
-    },
+  const services = {
+    mode: (v) => this._call("climate", "set_hvac_mode", { entity_id: entityId, hvac_mode: v }),
+    fan: (v) => this._call("climate", "set_fan_mode", { entity_id: entityId, fan_mode: v }),
+    swing: (v) => this._call("climate", "set_swing_mode", { entity_id: entityId, swing_mode: v }),
   };
-
-  swatch.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (swatch.dataset.menu === "mode") {
-      this._openClimateMenu(swatch, modeItems, modeCurrent, modeOnPick);
-    } else {
-      this._moreInfo(climate.entity_id);
-    }
-  });
-
-  const ref = { tile, swatch, name, meta, temp, modeMenu };
-  this._refs.areas.get(area.area_id).climates.set(climate.entity_id, ref);
-  this._updateClimateRef(ref, climate.entity_id);
-  return tile;
-}
-
-export function _openClimateMenu(anchor, items, current, onPick) {
-  ensurePopoverItemStyle();
-  const list = document.createElement("div");
-  list.className = "atrium-pop-menu";
-  for (const it of items) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "atrium-pop-menu-item" + (it.id === current ? " active" : "");
-    b.innerHTML = `${haIcon(it.icon || ICONS.thermo)}<span>${it.label}</span>`;
-    b.addEventListener("click", (e) => {
-      e.stopPropagation();
-      closePopoverFor(anchor);
-      onPick(it.id);
-    });
-    list.appendChild(b);
+  const attrs = this._hass.states?.[entityId]?.attributes || {};
+  const present = { mode: true, fan: !!attrs.fan_modes?.length, swing: !!attrs.swing_modes?.length };
+  const labels = { mode: "Mode", fan: "Fan mode", swing: "Swing mode" };
+  for (const key of ["mode", "fan", "swing"]) {
+    if (!present[key]) continue;
+    // A native <select> stretched invisibly over the pill: the OS picker on
+    // phones, keyboard support everywhere, no custom popover to maintain.
+    const dd = document.createElement("label");
+    dd.className = "atrium-climate-dd";
+    const icon = document.createElement("ha-icon");
+    const value = document.createElement("span");
+    value.className = "atrium-climate-dd-value";
+    const select = document.createElement("select");
+    select.className = "atrium-climate-dd-select";
+    select.setAttribute("aria-label", labels[key]);
+    select.addEventListener("change", () => services[key](select.value));
+    dd.append(icon, value, select);
+    controls.appendChild(dd);
+    ref.dropdowns.set(key, { icon, value, select });
   }
-  this._openAnchors.add(anchor);
-  openPopover({
-    anchor,
-    content: list,
-    onClose: () => this._openAnchors.delete(anchor),
-  });
+
+  card.append(top, mid, controls);
+  this._refs.areas.get(area.area_id).climates.set(entityId, ref);
+  this._updateClimateRef(ref, entityId);
+  return card;
 }
 
 // Lights and switches sit side by side as two independently-headed groups
@@ -364,40 +355,48 @@ export function _buildInputSelectTile(area, entity) {
   return wrap;
 }
 
-// Scenes and buttons share one wrapping row of pills, each marked by a color
-// dot (a scene's last-seen light colors, when known).
-export function _buildPillsSection(area, scenes, buttons) {
+// Scenes and buttons share one wrapping row of icon pills. Firing a scene
+// snapshots the colors the room's lights settle on and keeps them (in
+// localStorage) as that scene's dimmed background — a preview of the scene.
+export function _buildPillsSection(area, scenes, buttons, lights) {
   const wrap = document.createElement("div");
   wrap.className = "atrium-pills";
+  const lightIds = lights.map((l) => l.entity_id);
   for (const scene of scenes) {
-    wrap.appendChild(this._buildPill(area, scene, {
-      dot: readSceneGradient(scene.entity_id) || computeSceneGradient(this._hass, scene.entity_id),
-      onPress: (pill) => {
+    const pill = this._buildPill(area, scene, {
+      icon: (name) => iconForScene(scene, name),
+      onPress: () => {
         this._call("scene", "turn_on", { entity_id: scene.entity_id });
-        this._refreshSceneGradient(scene.entity_id, pill.querySelector(".atrium-pill-dot"));
+        this._captureSceneColors(scene.entity_id, lightIds, pill);
       },
-    }));
+    });
+    const saved = readSceneGradient(scene.entity_id);
+    if (saved) pill.style.setProperty("--pill-bg", saved);
+    wrap.appendChild(pill);
   }
   for (const button of buttons) {
     wrap.appendChild(this._buildPill(area, button, {
+      icon: () => "mdi:gesture-tap-button",
       onPress: () => this._call("button", "press", { entity_id: button.entity_id }),
     }));
   }
   return this._section(null, wrap);
 }
 
-export function _buildPill(area, entity, { dot, onPress }) {
+export function _buildPill(area, entity, { icon, onPress }) {
+  const hass = this._hass;
+  const name = this._entityName(entity);
   const pill = document.createElement("button");
   pill.type = "button";
   pill.className = "atrium-pill";
   pill.dataset.entity = entity.entity_id;
-  pill.innerHTML = `<span class="atrium-pill-dot"></span><span class="atrium-pill-name"></span>`;
-  if (dot) pill.firstChild.style.background = dot;
-  pill.lastChild.textContent = nameWithoutAreaPrefix(this._entityName(entity), area);
+  const iconName = hass.entities?.[entity.entity_id]?.icon ?? hass.states?.[entity.entity_id]?.attributes?.icon ?? icon(name);
+  pill.innerHTML = `${haIcon(iconName, 16)}<span class="atrium-pill-name"></span>`;
+  pill.lastChild.textContent = nameWithoutAreaPrefix(name, area);
   let flashTimer = 0;
   bindLongPress(pill, {
     onTap: () => {
-      onPress(pill);
+      onPress();
       pill.classList.add("flash");
       clearTimeout(flashTimer);
       flashTimer = setTimeout(() => pill.classList.remove("flash"), FLASH_MS);
@@ -407,28 +406,26 @@ export function _buildPill(area, entity, { dot, onPress }) {
   return pill;
 }
 
-export function _refreshSceneGradient(entityId, dot) {
+// Lights fade into a scene over a moment, so the snapshot waits for them.
+const SCENE_SETTLE_MS = 1000;
+
+export function _captureSceneColors(sceneId, lightIds, pill) {
   setTimeout(() => {
-    const gradient = computeSceneGradient(this._hass, entityId);
+    const gradient = lightsGradient(this._hass, lightIds);
     if (!gradient) return;
-    dot.style.background = gradient;
-    writeSceneGradient(entityId, gradient);
-  }, 700);
+    pill.style.setProperty("--pill-bg", gradient);
+    writeSceneGradient(sceneId, gradient);
+  }, SCENE_SETTLE_MS);
 }
 
 export function _buildAutomationsSection(area, automations, scripts) {
   const items = [...automations, ...scripts];
   if (!items.length) return null;
 
-  let title;
-  if (automations.length && scripts.length) title = "Automations & scripts";
-  else if (scripts.length) title = scripts.length > 1 ? "Scripts" : "Script";
-  else title = automations.length > 1 ? "Automations" : "Automation";
-
   const list = document.createElement("div");
   list.className = "atrium-alist";
   for (const item of items) list.appendChild(this._buildAutomationRow(area, item));
-  return this._section(title, list);
+  return this._section("Routines", list);
 }
 
 // Toggle swatch left, name + labels / "On · 42 minutes ago" in the middle,

@@ -33,6 +33,7 @@ class AtriumRooms extends HTMLElement {
     this._selectedAreaId = null;
     this._closing = false;
     this._orbRefs = new Map();
+    this._lastClimateMode = new Map();
   }
 
   setConfig(config) {

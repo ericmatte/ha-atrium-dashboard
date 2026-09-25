@@ -33,7 +33,7 @@ export function injectStyleOnce(id, css) {
 }
 
 // Persists a scene's badge gradient (see area-card-shared.js's
-// computeSceneGradient) across reloads, keyed by entity id. Wrapped in
+// lightsGradient) across reloads, keyed by entity id. Wrapped in
 // try/catch — some HA frontend contexts (kiosk browsers, restricted
 // webviews) block storage entirely, and losing the gradient is harmless.
 const SCENE_GRADIENT_PREFIX = "atrium-scene-gradient:";

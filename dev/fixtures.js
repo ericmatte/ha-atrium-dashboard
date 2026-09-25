@@ -89,8 +89,8 @@ export function buildFixtures() {
   add("cover.living_room_curtain", "living_room", "open", { current_position: 100, device_class: "curtain" });
   add("cover.living_room_blind", "living_room", "open", { current_position: 40, current_tilt_position: 60, device_class: "blind" });
   // entity_id lists the scene's target lights — mock-hass.js's SCENE_TARGETS
-  // applies canned colors to them on scene.turn_on, so the scene-gradient
-  // badge (computeSceneGradient) has something real to sample.
+  // applies canned colors to them on scene.turn_on, so the scene pill
+  // snapshot (lightsGradient) has something real to sample.
   add("scene.living_room_movie_night", "living_room", "2024-01-01T00:00:00+00:00", {
     icon: "mdi:movie-open", entity_id: ["light.living_room_lamp", "light.living_room_accent"],
   });

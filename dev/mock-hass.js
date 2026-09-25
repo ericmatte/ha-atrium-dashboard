@@ -50,7 +50,7 @@ export function createMockHass({ onToast } = {}) {
 
   // Canned target states for the two Living Room scenes that carry an
   // `entity_id` list in their fixtures — just enough of a "scene engine" to
-  // make the badge color-gradient feature (computeSceneGradient) visibly
+  // make the scene pill color snapshot (lightsGradient) visibly
   // do something here, not a real scene-application simulator.
   const SCENE_TARGETS = {
     "scene.living_room_movie_night": [
