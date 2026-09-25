@@ -422,7 +422,7 @@ test("_updateAutomationRef: a script shows when it last ran, with no on/off stat
   const ref = makeAutomationRef(true);
   const ctx = makeContext({ "script.good_night": { state: "off", attributes: {} } });
   _updateAutomationRef.call(ctx, ref, "script.good_night");
-  assert.equal(ref.sub.textContent, "Never run");
+  assert.equal(ref.sub.textContent, "Script · never run");
   assert.equal(ref.row.classList.contains("off"), false);
 });
 

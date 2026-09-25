@@ -430,7 +430,7 @@ export function _updateAutomationRef(ref, entityId) {
   const lastTs = st.attributes?.last_triggered;
   const when = lastTs ? fmtTimeAgoLong(lastTs) : "never";
   if (flashing) ref.sub.textContent = ref.isScript ? "Running…" : "Triggered just now";
-  else if (ref.isScript) ref.sub.textContent = lastTs ? when : "Never run";
+  else if (ref.isScript) ref.sub.textContent = `Script · ${lastTs ? when : "never run"}`;
   else ref.sub.textContent = `${enabled ? "On" : "Off"} · ${when}`;
 
   ref.labels.innerHTML = "";

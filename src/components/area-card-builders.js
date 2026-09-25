@@ -523,10 +523,11 @@ export function _captureSceneColors(sceneId, lightIds, pill) {
   }, SCENE_SETTLE_MS);
 }
 
-// Enabled automations and scripts are listed; switched-off automations and
+// Scripts (things you run) come first, then enabled automations (things that
+// run on their own); switched-off automations and
 // hidden routines each collapse into a drawer badge at the bottom.
 export function _buildAutomationsSection(area, automations, scripts, disabled, hidden) {
-  const items = [...automations, ...scripts];
+  const items = [...scripts, ...automations];
   if (!items.length && !disabled.length && !hidden.length) return null;
 
   const children = [];
@@ -556,7 +557,7 @@ export function _buildAutomationRow(area, item) {
   const displayName = this._entityName(item);
 
   const row = document.createElement("div");
-  row.className = "atrium-auto-row";
+  row.className = "atrium-auto-row" + (isScript ? " is-script" : "");
   row.dataset.entity = item.entity_id;
   if (this._routineArriving === item.entity_id && state?.state !== "off") {
     this._routineArriving = null;

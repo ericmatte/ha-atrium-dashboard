@@ -14,6 +14,9 @@
 .atrium-pop-list-rooms .atrium-auto-swatch { flex-shrink: 0; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: #fff; color: #141414; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.35); }
 .atrium-pop-list-rooms .atrium-auto-swatch.script, .atrium-pop-list-rooms .atrium-auto-row.off .atrium-auto-swatch { background: var(--a-knob); color: var(--a-dim); box-shadow: none; }
 .atrium-pop-list-rooms .atrium-auto-swatch.script { cursor: default; }
+.atrium-pop-list-rooms .atrium-auto-row.is-script .atrium-auto-swatch { border-radius: 11px; background: color-mix(in srgb, #79d99a 16%, transparent); color: #79d99a; box-shadow: none; }
+.atrium-pop-list-rooms .atrium-auto-row.is-script .atrium-auto-play { background: color-mix(in srgb, #79d99a 16%, transparent); color: #79d99a; }
+.atrium-pop-list-rooms .atrium-auto-row.is-script .atrium-auto-play.flash { background: #79d99a; color: #0b2414; }
 .atrium-pop-list-rooms .atrium-auto-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 0; border: 0; border-radius: 8px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .atrium-pop-list-rooms .atrium-auto-title { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
 .atrium-pop-list-rooms .atrium-auto-name { font-size: 14px; font-weight: 700; line-height: 1.25; color: var(--a-text); }

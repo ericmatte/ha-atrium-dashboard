@@ -255,7 +255,8 @@ button.atrium-badge { cursor: pointer; }
 .atrium-reading.t-warn .atrium-reading-value, .atrium-reading.t-warn .atrium-reading-icon { color: #ffb561; }
 .atrium-reading.t-info .atrium-reading-value, .atrium-reading.t-info .atrium-reading-icon { color: #8cc1ff; }
 
-/* Routines (automations & scripts) */
+/* Routines: scripts (rounded-square green swatch, green run button) are told
+   apart from automations (round white toggle, blue trigger). */
 .atrium-alist { display: flex; flex-direction: column; gap: 6px; }
 .atrium-auto-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 16px; background: var(--a-surface); transition: opacity .2s; }
 .atrium-auto-row.off { opacity: .55; }
@@ -274,6 +275,9 @@ button.atrium-badge { cursor: pointer; }
 .atrium-auto-play.disabled { background: var(--a-knob); color: color-mix(in srgb, var(--a-dim) 75%, transparent); cursor: not-allowed; }
 .atrium-auto-play.flash { background: #8cc1ff; color: #0c1a2b; }
 
+.atrium-auto-row.is-script .atrium-auto-swatch { border-radius: 11px; background: color-mix(in srgb, #79d99a 16%, transparent); color: #79d99a; box-shadow: none; }
+.atrium-auto-row.is-script .atrium-auto-play { background: color-mix(in srgb, #79d99a 16%, transparent); color: #79d99a; }
+.atrium-auto-row.is-script .atrium-auto-play.flash { background: #79d99a; color: #0b2414; }
 .atrium-routine-drawers { display: flex; flex-wrap: wrap; gap: 8px; }
 .atrium-auto-row.arriving { animation: atrium-row-arrive .7s var(--a-ease) both; }
 @keyframes atrium-row-arrive {
