@@ -713,8 +713,8 @@ export function _buildAutomationRow(area, item) {
   titleLine.append(name);
   const sub = document.createElement("span");
   sub.className = "atrium-auto-last";
-  // Labels get their own line, above the name.
-  body.append(labels, titleLine, sub);
+  // Labels get their own line, under the name.
+  body.append(titleLine, labels, sub);
 
   // For a script, ▶ is only a visual cue: clicks pass through to the row.
   const play = document.createElement(isScript ? "span" : "button");
