@@ -386,6 +386,7 @@ class AtriumRooms extends HTMLElement {
     }
     const alert = areaAlert(this._hass, data);
     ref.alertBadge.hidden = !alert;
+    ref.alertBadge.classList.toggle("warn", alert?.tone === "warn");
     if (alert && ref.alertBadge.dataset.icon !== alert.icon) {
       ref.alertBadge.dataset.icon = alert.icon;
       ref.alertBadge.innerHTML = haIcon(alert.icon);

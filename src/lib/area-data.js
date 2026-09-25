@@ -124,19 +124,20 @@ export function classifyAreaEntities(hass, area, entities) {
 // active leak or "problem" binary_sensor, an unavailable entity in a domain
 // where that's actually meaningful (mirrors the header's own
 // PROBLEM_UNAVAILABLE_DOMAINS notion of "worth flagging"), or an open door.
-// Returns the most serious one as { icon, label }, or null.
+// Returns the most serious one as { icon, label, tone }, or null — tone
+// "alert" (red) for things that are wrong, "warn" (orange) for an opening.
 const ALERT_UNAVAILABLE_DOMAINS = new Set(["light", "switch", "cover", "climate", "vacuum"]);
 const OPEN_LABEL = { window: "Window open", garage_door: "Garage open" };
 export function areaAlert(hass, data) {
   const st = (e) => hass.states?.[e.entity_id];
   const isOn = (e) => st(e)?.state === "on";
-  if (data.sensors.leak.some(isOn)) return { icon: "mdi:water-alert", label: "Leak!" };
+  if (data.sensors.leak.some(isOn)) return { icon: "mdi:water-alert", label: "Leak!", tone: "alert" };
   const problemLike = [...data.sensors.other, ...data.doors];
-  if (problemLike.some((e) => isOn(e) && st(e).attributes?.device_class === "problem")) return { icon: "mdi:alert", label: "Problem" };
+  if (problemLike.some((e) => isOn(e) && st(e).attributes?.device_class === "problem")) return { icon: "mdi:alert", label: "Problem", tone: "alert" };
   const controllable = [...data.lights, ...data.switches, ...data.covers, ...data.climates, ...data.vacuums];
-  if (controllable.some((e) => ALERT_UNAVAILABLE_DOMAINS.has(e.entity_id.split(".")[0]) && st(e)?.state === "unavailable")) return { icon: "mdi:alert", label: "Unavailable" };
+  if (controllable.some((e) => ALERT_UNAVAILABLE_DOMAINS.has(e.entity_id.split(".")[0]) && st(e)?.state === "unavailable")) return { icon: "mdi:alert", label: "Unavailable", tone: "alert" };
   const open = data.doors.find(isOn);
-  if (open) return { icon: "mdi:door-open", label: OPEN_LABEL[st(open).attributes?.device_class] || "Door open" };
+  if (open) return { icon: "mdi:door-open", label: OPEN_LABEL[st(open).attributes?.device_class] || "Door open", tone: "warn" };
   return null;
 }
 

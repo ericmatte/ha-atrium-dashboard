@@ -164,7 +164,7 @@ test("areaAlert: names what's wrong for the text under the tile", () => {
   const data = emptyAreaData();
   data.doors.push({ entity_id: "binary_sensor.patio" });
   const hass = { states: { "binary_sensor.patio": { state: "on", attributes: { device_class: "window" } } } };
-  assert.deepEqual(areaAlert(hass, data), { icon: "mdi:door-open", label: "Window open" });
+  assert.deepEqual(areaAlert(hass, data), { icon: "mdi:door-open", label: "Window open", tone: "warn" });
   hass.states["binary_sensor.patio"].attributes.device_class = "door";
   assert.equal(areaAlert(hass, data).label, "Door open");
 });
@@ -175,4 +175,11 @@ test("areaMetaLine: temperature · humidity normally; an alert takes humidity's 
   assert.equal(areaMetaLine({ alert: "Door open" }), "Door open");
   assert.equal(areaMetaLine({ humid: 68 }), "68%");
   assert.equal(areaMetaLine({}), "");
+});
+
+test("areaAlert: a leak is red (alert), an open door orange (warn)", () => {
+  const data = emptyAreaData();
+  data.sensors.leak.push({ entity_id: "binary_sensor.leak" });
+  const hass = { states: { "binary_sensor.leak": { state: "on", attributes: { device_class: "moisture" } } } };
+  assert.equal(areaAlert(hass, data).tone, "alert");
 });
