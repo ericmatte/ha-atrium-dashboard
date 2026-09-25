@@ -346,7 +346,7 @@ export function _buildDivaTile(area, entity, { kind, icon, refKey }, deviceSenso
 
   const name = document.createElement("div");
   name.className = "atrium-diva-name";
-  name.textContent = nameWithoutAreaPrefix(this._entityName(entity), area);
+  name.textContent = nameWithoutAreaPrefix(this._entityName(entity), area, entity.entity_id);
   const ago = document.createElement("div");
   ago.className = "atrium-diva-ago";
 

@@ -71,3 +71,14 @@ test("labelDescriptor: a label with a custom icon keeps it", () => {
   const desc = labelDescriptor(hass, "important");
   assert.equal(desc.icon, "mdi:star");
 });
+
+test("nameWithoutAreaPrefix: drops the word \"mode\" from a toggle helper's name, not from other entities", () => {
+  const area = { name: "Outside" };
+  assert.equal(nameWithoutAreaPrefix("Summer mode", area, "input_boolean.summer"), "Summer");
+  assert.equal(nameWithoutAreaPrefix("Guest Mode", area, "input_boolean.guest"), "Guest");
+  assert.equal(nameWithoutAreaPrefix("Mode vacances", area, "input_boolean.v"), "Vacances");
+  assert.equal(nameWithoutAreaPrefix("Mode", area, "input_boolean.m"), "Mode");
+  assert.equal(nameWithoutAreaPrefix("Outside party mode", area, "input_boolean.p"), "Party");
+  assert.equal(nameWithoutAreaPrefix("Kitchen mode", area, "input_select.k"), "Kitchen mode");
+  assert.equal(nameWithoutAreaPrefix("Model train", area, "input_boolean.t"), "Model train");
+});

@@ -17,9 +17,13 @@ export const capitalize = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s
 
 // Case-insensitive: a humanized fallback name (no friendly_name set) is all
 // lower-case, but the area name it's prefixed with isn't.
-export function nameWithoutAreaPrefix(name, area) {
+// Pass the entity id to apply per-domain cleanups: a toggle helper's
+// "… mode" is implied by the Toggles tile it sits on ("Guest mode" → "Guest").
+export function nameWithoutAreaPrefix(name, area, entityId) {
   const escaped = (area.name || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return capitalize((name || "").replace(new RegExp(`^${escaped} `, "i"), "").trim());
+  let clean = (name || "").replace(new RegExp(`^${escaped} `, "i"), "").trim();
+  if (entityId?.startsWith("input_boolean.")) clean = clean.replace(/\s*\bmode\b\s*/gi, " ").trim() || clean;
+  return capitalize(clean);
 }
 
 export function nameWithoutStairs(name) {
