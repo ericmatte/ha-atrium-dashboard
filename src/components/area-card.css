@@ -85,15 +85,17 @@
 .atrium-orb-badge-status.is-presence ha-icon { animation: atrium-walk .9s ease-in-out infinite alternate; }
 .atrium-orb-badge-status.is-presence::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: .12em solid #8cc1ff; pointer-events: none; animation: atrium-ping 1.8s cubic-bezier(0,0,.2,1) infinite; }
 .atrium-orb-badge-activity.is-vacuum ha-icon { animation: atrium-spin 6s linear infinite; }
-.atrium-orb-badge-activity.is-media::before, .atrium-orb-badge-activity.is-media::after { content: "\266A"; --dx: .9em; position: absolute; left: 50%; top: -.6em; font-size: 1.5em; font-weight: 800; line-height: 1; color: #fff; text-shadow: 0 0 .15em rgba(0,0,0,.9), 0 1px 2px rgba(0,0,0,.8); opacity: 0; pointer-events: none; animation: atrium-note 2.4s ease-out infinite; }
-.atrium-orb-badge-activity.is-media::after { content: "\266B"; --dx: -.7em; animation-delay: 1.2s; }
+/* The notes are the MDI music-note / music glyphs drawn through a mask, so
+   they keep their real proportions (a text ♪ comes out tall and thin). */
+.atrium-orb-badge-activity.is-media::before, .atrium-orb-badge-activity.is-media::after { content: ""; --dx: .9em; position: absolute; left: 50%; top: -.5em; width: 1.15em; height: 1.15em; background: #fff; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z'/%3E%3C/svg%3E") center / contain no-repeat; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.85)); opacity: 0; pointer-events: none; animation: atrium-note 2.4s ease-out infinite; }
+.atrium-orb-badge-activity.is-media::after { --dx: -.7em; -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M21 3v12.5a3.5 3.5 0 1 1-2-3.16V6.47L9 8.6v8.9a3.5 3.5 0 1 1-2-3.16V6l14-3z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M21 3v12.5a3.5 3.5 0 1 1-2-3.16V6.47L9 8.6v8.9a3.5 3.5 0 1 1-2-3.16V6l14-3z'/%3E%3C/svg%3E"); animation-delay: 1.2s; }
 @keyframes atrium-walk { from { transform: translateX(-.08em) rotate(-8deg); } to { transform: translateX(.08em) rotate(8deg); } }
 @keyframes atrium-ping { from { transform: scale(1); opacity: .8; } to { transform: scale(1.45); opacity: 0; } }
 @keyframes atrium-spin { to { transform: rotate(360deg); } }
 @keyframes atrium-note {
-  0% { transform: translate(-50%, 0) scale(.66, .5); opacity: 0; }
+  0% { transform: translate(-50%, 0) scale(.6); opacity: 0; }
   15% { opacity: 1; }
-  100% { transform: translate(calc(-50% + var(--dx)), -1.4em) rotate(12deg) scale(1.1, .82); opacity: 0; }
+  100% { transform: translate(calc(-50% + var(--dx)), -1.4em) rotate(12deg) scale(1); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .atrium-orb-badge ha-icon, .atrium-orb-badge::before, .atrium-orb-badge::after { animation: none; }
