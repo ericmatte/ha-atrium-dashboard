@@ -1,5 +1,6 @@
 import { haIcon, setIcon, tint, vibrate } from "../lib/dom-utils.js";
 import { sensorTone } from "../lib/area-data.js";
+import { tempColor, humidityColor, toCelsius } from "../lib/comfort-colors.js";
 import {
   TONE, ICONS,
   CLIMATE_LABELS, CLIMATE_ICONS,
@@ -477,6 +478,12 @@ export function _updateSensorRef(ref) {
   setIcon(ref.icon, iconForSensor(st));
   const tone = sensorTone(st);
   for (const t of ["alert", "warn", "info"]) ref.tile.classList.toggle(`t-${t}`, tone === t);
+  // Temperature / humidity readings take their comfort color.
+  const dc = st?.attributes?.device_class;
+  const v = parseFloat(st?.state);
+  const comfort = !Number.isFinite(v) ? "" : dc === "temperature" ? tempColor(toCelsius(v, st.attributes?.unit_of_measurement)) : dc === "humidity" ? humidityColor(v) : "";
+  ref.value.style.color = comfort;
+  ref.icon.style.color = comfort;
 }
 
 export function _updateAutomationRef(ref, entityId) {

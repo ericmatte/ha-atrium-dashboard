@@ -18,7 +18,7 @@ import {
   areaPresence,
   areaActivity,
   areaStatusDot,
-  areaMetaLine,
+  areaMetaParts,
   lightsSummary,
   levelTone,
   areaPanelSignature,
@@ -27,6 +27,7 @@ import * as buildersMod from "./area-card-builders.js";
 import * as updatersMod from "./area-card-updaters.js";
 import { subscribeLabelsLoaded } from "../lib/label-registry.js";
 import { orbGrid, orbBadgeFont } from "../lib/orb-grid.js";
+import { tempColor, humidityColor, toCelsius } from "../lib/comfort-colors.js";
 
 // Matches the panel's exit (desktop slide / phone sheet-out, .26s in
 // area-card.css) so the selection is only dropped once it has played.
@@ -38,7 +39,7 @@ const SWIPE_SLOP = 6;
 const SWIPE_CLOSE_AT = 0.25;
 const SWIPE_FLICK_SPEED = 0.6; // px/ms
 
-const heroBadgesKey = (els) => els.map((b) => `${b.className}|${b.textContent}|${b.querySelector("ha-icon")?.getAttribute("icon")}`).join(";");
+const heroBadgesKey = (els) => els.map((b) => `${b.className}|${b.textContent}|${b.style.color}|${b.querySelector("ha-icon")?.getAttribute("icon")}`).join(";");
 
 // Screen-reader label of the bottom-right "what's running" badge, by kind.
 const ACTIVITY_LABEL = {
@@ -584,7 +585,7 @@ class AtriumRooms extends HTMLElement {
     this._setDotBadge(ref.activityBadge, activity, activity && ACTIVITY_LABEL[activity.kind](nameWithoutAreaPrefix(this._entityName(hass.entities?.[activity.entityId] || { entity_id: activity.entityId }), area)));
     for (const kind of Object.keys(ACTIVITY_LABEL)) ref.activityBadge.classList.toggle(`is-${kind}`, activity?.kind === kind);
 
-    ref.meta.textContent = this._areaMeta(area, data, alert) || " ";
+    this._renderAreaMeta(ref.meta, area, data, alert);
   }
 
   _setDotBadge(el, info, label) {
@@ -597,14 +598,37 @@ class AtriumRooms extends HTMLElement {
     el.setAttribute("aria-label", label);
   }
 
-  _areaMeta(area, data, alert) {
-    const tempSt = data.sensors.temp && this._hass.states?.[data.sensors.temp.entity_id];
-    const climate = data.climates[0] && this._hass.states?.[data.climates[0].entity_id];
-    const temp = tempSt && tempSt.state !== "unavailable" ? parseFloat(tempSt.state) : climate?.attributes?.current_temperature;
-    const humidSt = data.sensors.humid && this._hass.states?.[data.sensors.humid.entity_id];
+  // The line under a tile: temperature · humidity (or the alert), the
+  // readings colored by comfort (see comfort-colors.js).
+  _renderAreaMeta(el, area, data, alert) {
+    const hass = this._hass;
+    const tempSt = data.sensors.temp && hass.states?.[data.sensors.temp.entity_id];
+    const climate = data.climates[0] && hass.states?.[data.climates[0].entity_id];
+    const fromSensor = tempSt && tempSt.state !== "unavailable";
+    const temp = fromSensor ? parseFloat(tempSt.state) : climate?.attributes?.current_temperature;
+    const tempUnit = fromSensor ? tempSt.attributes?.unit_of_measurement : hass.config?.unit_system?.temperature;
+    const humidSt = data.sensors.humid && hass.states?.[data.sensors.humid.entity_id];
     const humid = humidSt && humidSt.state !== "unavailable" ? Math.round(parseFloat(humidSt.state)) : null;
-    return areaMetaLine({ temp: Number.isFinite(temp) ? temp : null, humid: Number.isFinite(humid) ? humid : null, alert: alert?.label });
+    const parts = areaMetaParts({ temp: Number.isFinite(temp) ? temp : null, humid: Number.isFinite(humid) ? humid : null, alert: alert?.label });
+    const key = parts.map((p) => p.text).join(" · ");
+    if (el.dataset.key === key && el.childNodes.length) return;
+    el.dataset.key = key;
+    if (!parts.length) {
+      el.textContent = "\u00a0";
+      return;
+    }
+    const nodes = [];
+    parts.forEach((p, i) => {
+      if (i) nodes.push(document.createTextNode(" · "));
+      const span = document.createElement("span");
+      span.textContent = p.text;
+      if (p.kind === "temp") span.style.color = tempColor(toCelsius(p.value, tempUnit));
+      else if (p.kind === "humid") span.style.color = humidityColor(p.value);
+      nodes.push(span);
+    });
+    el.replaceChildren(...nodes);
   }
+
 
   _buildHero(area, data) {
     const hero = document.createElement("div");
@@ -654,10 +678,14 @@ class AtriumRooms extends HTMLElement {
   _buildHeroBadges(area, data) {
     const hass = this._hass;
     const badges = [];
-    const add = (icon, text, tone, entityId) => {
+    const add = (icon, text, tone, entityId, color) => {
       const el = document.createElement(entityId ? "button" : "span");
       if (entityId) el.type = "button";
       el.className = "atrium-badge" + (tone ? ` is-${tone}` : "");
+      if (color) {
+        el.style.color = color;
+        el.style.background = `color-mix(in srgb, ${color} 14%, transparent)`;
+      }
       el.innerHTML = `${haIcon(icon, 13)}<span></span>`;
       el.querySelector("span").textContent = text;
       if (entityId) el.addEventListener("click", () => this._moreInfo(entityId));
@@ -666,11 +694,13 @@ class AtriumRooms extends HTMLElement {
 
     if (data.sensors.temp) {
       const st = hass.states?.[data.sensors.temp.entity_id];
-      if (st && st.state !== "unavailable") add("mdi:thermometer", `${parseFloat(st.state).toFixed(1)}°`, null, data.sensors.temp.entity_id);
+      const v = parseFloat(st?.state);
+      if (st && st.state !== "unavailable" && Number.isFinite(v)) add("mdi:thermometer", `${v.toFixed(1)}°`, null, data.sensors.temp.entity_id, tempColor(toCelsius(v, st.attributes?.unit_of_measurement)));
     }
     if (data.sensors.humid) {
       const st = hass.states?.[data.sensors.humid.entity_id];
-      if (st && st.state !== "unavailable") add("mdi:water-percent", `${Math.round(parseFloat(st.state))}%`, null, data.sensors.humid.entity_id);
+      const v = Math.round(parseFloat(st?.state));
+      if (st && st.state !== "unavailable" && Number.isFinite(v)) add("mdi:water-percent", `${v}%`, null, data.sensors.humid.entity_id, humidityColor(v));
     }
     // Soil moisture and tank levels, as the pre-redesign area chips showed
     // them: a plant in green, a propane tank colored by how full it is.
