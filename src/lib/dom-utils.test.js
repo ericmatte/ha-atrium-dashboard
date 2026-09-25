@@ -33,3 +33,11 @@ test("setIcon: only touches the attribute when the icon changes", async () => {
   setIcon(el, "mdi:pause");
   assert.equal(writes, 2);
 });
+
+test("automationEditorPath: the editor for admins when the automation has an id, else null", async () => {
+  const { automationEditorPath } = await import("./dom-utils.js");
+  const hass = (isAdmin, id) => ({ user: { is_admin: isAdmin }, states: { "automation.a": { attributes: id == null ? {} : { id } } } });
+  assert.equal(automationEditorPath(hass(true, "1690000000000"), "automation.a"), "/config/automation/edit/1690000000000");
+  assert.equal(automationEditorPath(hass(false, "1690000000000"), "automation.a"), null);
+  assert.equal(automationEditorPath(hass(true, null), "automation.a"), null);
+});

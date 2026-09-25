@@ -1,5 +1,5 @@
 import { openPopover, closePopoverFor, openListPopover } from "../lib/popover.js";
-import { haIcon, bindLongPress, readSceneGradient, writeSceneGradient } from "../lib/dom-utils.js";
+import { haIcon, bindLongPress, readSceneGradient, writeSceneGradient, navigateTo, automationEditorPath } from "../lib/dom-utils.js";
 import {
   ICONS,
   nameWithoutAreaPrefix,
@@ -697,9 +697,16 @@ export function _buildAutomationRow(area, item) {
   body.type = "button";
   body.className = "atrium-auto-body";
   // A script's whole row (▶ included) opens its details — HA's own way to run
-  // it, with its fields if it has any. An automation's name does the same.
+  // it, with its fields if it has any.
   if (isScript) row.addEventListener("click", () => this._moreInfo(item.entity_id));
-  else body.addEventListener("click", () => this._moreInfo(item.entity_id));
+  else {
+    // An automation's name opens its editor (falls back to its details).
+    body.addEventListener("click", () => {
+      const path = automationEditorPath(this._hass, item.entity_id);
+      if (path) navigateTo(path);
+      else this._moreInfo(item.entity_id);
+    });
+  }
   const titleLine = document.createElement("span");
   titleLine.className = "atrium-auto-title";
   const name = document.createElement("span");

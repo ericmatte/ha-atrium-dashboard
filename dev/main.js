@@ -32,6 +32,13 @@ window.addEventListener("hass-more-info", (e) => {
   }
 });
 
+// Navigations the real frontend would route (e.g. an automation's editor)
+// land nowhere here: show where they'd go, and put the URL back.
+window.addEventListener("location-changed", () => {
+  showToast(`navigate → ${location.pathname}`);
+  history.back();
+});
+
 const mounted = [];
 function mount(tag, config, host) {
   const el = document.createElement(tag);

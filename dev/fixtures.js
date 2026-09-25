@@ -98,7 +98,7 @@ export function buildFixtures() {
     entity_id: ["light.living_room_main", "light.living_room_lamp"],
   });
   add("button.living_room_scene_replay", "living_room", "unknown", { icon: "mdi:replay" });
-  add("automation.living_room_evening_lights", "living_room", "on", { last_triggered: isoMinutesAgo(42), friendly_name: "Evening lights" }, { labels: ["important"] });
+  add("automation.living_room_evening_lights", "living_room", "on", { id: "1690000000001", last_triggered: isoMinutesAgo(42), friendly_name: "Evening lights" }, { labels: ["important"] });
   add("automation.living_room_motion_alert", "living_room", "off", { friendly_name: "Motion alert" });
   add("automation.living_room_sync_with_dining", "living_room", "on", { icon: "mdi:sync", last_triggered: isoMinutesAgo(96), friendly_name: "Sync with dining room" });
   add("automation.living_room_no_ac_when_window_open", "living_room", "off", { icon: "mdi:window-open-variant", last_triggered: isoDaysAgo(48), friendly_name: "No AC when window is open" });
@@ -271,7 +271,7 @@ export function buildFixtures() {
     important: { name: "Important", icon: "mdi:star", color: "amber" },
   };
 
-  const user = { name: "Eric Matte" };
+  const user = { name: "Eric Matte", is_admin: true };
 
   return { floors, areas, devices, entities, states, labels, user };
 }

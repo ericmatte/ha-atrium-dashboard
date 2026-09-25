@@ -60,6 +60,21 @@ export function writeSceneGradient(entityId, gradient) {
   }
 }
 
+// Move the HA frontend to another panel/page the way its own links do
+// (history entry + the "location-changed" event its router listens to).
+export function navigateTo(path) {
+  history.pushState(null, "", path);
+  window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
+}
+
+// Where an automation's editor lives, or null when it can't be opened there
+// (the user isn't an admin, or a YAML automation has no `id` to edit by).
+export function automationEditorPath(hass, entityId) {
+  const id = hass?.states?.[entityId]?.attributes?.id;
+  if (!hass?.user?.is_admin || id == null || id === "") return null;
+  return `/config/automation/edit/${encodeURIComponent(id)}`;
+}
+
 // Open Home Assistant's more-info dialog for an entity.
 export function fireMoreInfo(target, entityId) {
   target.dispatchEvent(
