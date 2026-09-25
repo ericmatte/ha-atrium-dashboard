@@ -91,9 +91,9 @@
 @keyframes atrium-ping { from { transform: scale(1); opacity: .8; } to { transform: scale(1.45); opacity: 0; } }
 @keyframes atrium-spin { to { transform: rotate(360deg); } }
 @keyframes atrium-note {
-  0% { transform: translate(-50%, 0) scale(.6); opacity: 0; }
+  0% { transform: translate(-50%, 0) scale(.66, .5); opacity: 0; }
   15% { opacity: 1; }
-  100% { transform: translate(calc(-50% + var(--dx)), -1.4em) rotate(12deg) scale(1); opacity: 0; }
+  100% { transform: translate(calc(-50% + var(--dx)), -1.4em) rotate(12deg) scale(1.1, .82); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .atrium-orb-badge ha-icon, .atrium-orb-badge::before, .atrium-orb-badge::after { animation: none; }
