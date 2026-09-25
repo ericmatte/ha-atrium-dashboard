@@ -609,8 +609,18 @@ class AtriumRooms extends HTMLElement {
     const hero = document.createElement("div");
     hero.className = "atrium-panel-hero";
 
-    const photo = document.createElement("span");
+    // With lights in the room, the photo is a button that turns them all on.
+    const hasLights = data.lights.length > 0;
+    const photo = document.createElement(hasLights ? "button" : "span");
     photo.className = "atrium-panel-hero-photo" + (this._allLightsOff(data) ? " gray" : "");
+    if (hasLights) {
+      photo.type = "button";
+      photo.setAttribute("aria-label", `Turn on all lights in ${area.name}`);
+      photo.addEventListener("click", () => {
+        const ids = this._dataForArea(area).lights.map((l) => l.entity_id).filter((id) => this._hass.states?.[id]?.state !== "unavailable");
+        if (ids.length) this._call("light", "turn_on", { entity_id: ids });
+      });
+    }
     const art = document.createElement("span");
     art.className = "atrium-orb-art" + (area.picture ? " has-img" : "");
     if (area.picture) art.style.backgroundImage = `url("${area.picture}")`;
