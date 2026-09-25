@@ -369,7 +369,7 @@ export function _buildDeviceSensorCaret(area, entity, sensors) {
   const caret = document.createElement("button");
   caret.type = "button";
   caret.className = "atrium-diva-caret";
-  caret.setAttribute("aria-label", `${this._entityName(entity)} sensors`);
+  caret.setAttribute("aria-label", `${nameWithoutAreaPrefix(this._entityName(entity), area)} sensors`);
   caret.innerHTML = haIcon("mdi:menu-down");
   caret.addEventListener("pointerdown", (e) => e.stopPropagation());
 
@@ -381,7 +381,7 @@ export function _buildDeviceSensorCaret(area, entity, sensors) {
     this._openAnchors.add(caret);
     openListPopover({
       anchor: caret,
-      title: this._entityName(entity),
+      title: nameWithoutAreaPrefix(this._entityName(entity), area),
       countLabel: String(sensors.length),
       items: rows,
       buildItem: (row) => row,
@@ -556,7 +556,7 @@ export function _buildAutomationRow(area, item) {
   const state = hass.states?.[item.entity_id];
   const isScript = item.entity_id.startsWith("script.");
   const customIcon = hass.entities?.[item.entity_id]?.icon ?? state?.attributes?.icon ?? null;
-  const displayName = this._entityName(item);
+  const displayName = nameWithoutAreaPrefix(this._entityName(item), area);
 
   const row = document.createElement("div");
   row.className = "atrium-auto-row" + (isScript ? " is-script" : "");

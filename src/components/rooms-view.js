@@ -8,7 +8,7 @@ import { closePopoverFor } from "../lib/popover.js";
 import { sameRegistries, unchangedStates, areaIdForEntity, entityDisplayName } from "../lib/hass-utils.js";
 import { fireMoreInfo, haIcon } from "../lib/dom-utils.js";
 import { callService, toggleLights } from "../lib/ha-actions.js";
-import { STYLE, ICONS, iconForArea, fmtCoverPct } from "./area-card-shared.js";
+import { STYLE, ICONS, iconForArea, fmtCoverPct, nameWithoutAreaPrefix } from "./area-card-shared.js";
 import {
   entitiesForArea,
   hiddenRoutinesForArea,
@@ -470,7 +470,7 @@ class AtriumRooms extends HTMLElement {
 
     const activity = areaActivity(hass, data);
     ref.activity = activity;
-    this._setDotBadge(ref.activityBadge, activity, activity && ACTIVITY_LABEL[activity.kind](this._entityName(hass.entities?.[activity.entityId] || { entity_id: activity.entityId })));
+    this._setDotBadge(ref.activityBadge, activity, activity && ACTIVITY_LABEL[activity.kind](nameWithoutAreaPrefix(this._entityName(hass.entities?.[activity.entityId] || { entity_id: activity.entityId }), area)));
     for (const kind of Object.keys(ACTIVITY_LABEL)) ref.activityBadge.classList.toggle(`is-${kind}`, activity?.kind === kind);
 
     ref.meta.textContent = this._areaMeta(area, data, alert) || " ";
@@ -571,16 +571,16 @@ class AtriumRooms extends HTMLElement {
     if (activeLeak) add("mdi:water-alert", "Leak!", "alert", activeLeak.entity_id);
     for (const d of data.doors) {
       const st = hass.states?.[d.entity_id];
-      if (st?.state === "on") add("mdi:door-open", this._entityName(d), "warn", d.entity_id);
+      if (st?.state === "on") add("mdi:door-open", nameWithoutAreaPrefix(this._entityName(d), area), "warn", d.entity_id);
     }
     for (const s of [...data.sensors.other]) {
       const st = hass.states?.[s.entity_id];
-      if (st?.attributes?.device_class === "problem" && st.state === "on") add("mdi:alert-circle", this._entityName(s), "alert", s.entity_id);
+      if (st?.attributes?.device_class === "problem" && st.state === "on") add("mdi:alert-circle", nameWithoutAreaPrefix(this._entityName(s), area), "alert", s.entity_id);
     }
     for (const v of data.vacuums) {
       const st = hass.states?.[v.entity_id];
       // Green like the tile's spinning vacuum badge.
-      if (st?.state === "cleaning" || st?.state === "returning") add("mdi:robot-vacuum", this._entityName(v), "good", v.entity_id);
+      if (st?.state === "cleaning" || st?.state === "returning") add("mdi:robot-vacuum", nameWithoutAreaPrefix(this._entityName(v), area), "good", v.entity_id);
     }
     return badges;
   }
