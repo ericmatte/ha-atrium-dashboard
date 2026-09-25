@@ -250,6 +250,29 @@ const COOL_MODES = new Set(["cool", "dry"]);
 const TREND_FROM_MODE = { off: "off", cool: "cooling", auto: "auto", dry: "drying", fan_only: "fan" };
 const humanize = (v) => (v ? String(v).charAt(0).toUpperCase() + String(v).slice(1).replace(/_/g, " ") : v);
 
+// Icons for the free-form fan/swing mode names integrations report
+// ("med", "quiet", "static", …); anything unknown gets the generic one.
+const FAN_MODE_ICONS = [
+  [/^(auto|automatic)/, "mdi:fan-auto"],
+  [/^(off)$/, "mdi:fan-off"],
+  [/^(quiet|silent|sleep|night)/, "mdi:weather-night"],
+  [/^(low|min)/, "mdi:fan-speed-1"],
+  [/^(med|mid)/, "mdi:fan-speed-2"],
+  [/^(high|max|turbo|strong)/, "mdi:fan-speed-3"],
+];
+export function fanModeIcon(mode) {
+  const m = String(mode ?? "").toLowerCase();
+  return FAN_MODE_ICONS.find(([re]) => re.test(m))?.[1] || "mdi:fan";
+}
+
+export function swingModeIcon(mode) {
+  const m = String(mode ?? "").toLowerCase();
+  if (/^(off|static|stop|stopped|fixed|none)$/.test(m)) return "mdi:arrow-oscillating-off";
+  if (m === "vertical") return "mdi:arrow-up-down";
+  if (m === "horizontal") return "mdi:arrow-left-right";
+  return "mdi:arrow-oscillating";
+}
+
 // What the climate card shows, from the entity's state alone. `lastMode` is
 // the hvac mode it was in before being switched off, so the power button can
 // bring it back.
@@ -268,11 +291,12 @@ export function climateView(st, lastMode) {
   else if (attrs.target_temp_low != null && attrs.target_temp_high != null) target = `${fmt(attrs.target_temp_low)}–${fmt(attrs.target_temp_high)}°`;
   const trend = attrs.hvac_action || TREND_FROM_MODE[mode] || (cur != null && tgt != null && cur < tgt ? "heating" : "idle");
   const shownMode = off ? (activeModes.includes(lastMode) ? lastMode : activeModes[0]) : mode;
+  const modeIcon = (m) => CLIMATE_ICONS[m] || ICONS.thermo;
   const dropdowns = [
-    { key: "mode", label: "Mode", icon: CLIMATE_ICONS[shownMode] || ICONS.thermo, value: shownMode, options: activeModes, labelFor: (m) => CLIMATE_LABELS[m] || humanize(m) },
+    { key: "mode", label: "Mode", icon: modeIcon(shownMode), value: shownMode, options: activeModes, labelFor: (m) => CLIMATE_LABELS[m] || humanize(m), iconFor: modeIcon },
   ];
-  if (Array.isArray(attrs.fan_modes) && attrs.fan_modes.length) dropdowns.push({ key: "fan", label: "Fan mode", icon: ICONS.fan, value: attrs.fan_mode, options: attrs.fan_modes, labelFor: humanize });
-  if (Array.isArray(attrs.swing_modes) && attrs.swing_modes.length) dropdowns.push({ key: "swing", label: "Swing mode", icon: "mdi:arrow-oscillating", value: attrs.swing_mode, options: attrs.swing_modes, labelFor: humanize });
+  if (Array.isArray(attrs.fan_modes) && attrs.fan_modes.length) dropdowns.push({ key: "fan", label: "Fan mode", icon: fanModeIcon(attrs.fan_mode), value: attrs.fan_mode, options: attrs.fan_modes, labelFor: humanize, iconFor: fanModeIcon });
+  if (Array.isArray(attrs.swing_modes) && attrs.swing_modes.length) dropdowns.push({ key: "swing", label: "Swing mode", icon: swingModeIcon(attrs.swing_mode), value: attrs.swing_mode, options: attrs.swing_modes, labelFor: humanize, iconFor: swingModeIcon });
   return {
     off,
     tone: off ? "neutral" : WARM_MODES.has(mode) ? "warm" : COOL_MODES.has(mode) ? "cool" : "neutral",
@@ -311,6 +335,7 @@ export function _updateClimateRef(ref, entityId) {
     slot.options = dd.options;
     slot.current = dd.value;
     slot.labelFor = dd.labelFor;
+    slot.iconFor = dd.iconFor;
   }
 }
 

@@ -70,8 +70,8 @@ export function _openOptionMenu(anchor, title, slot, onPick) {
     item.className = "atrium-pop-menu-item" + (option === slot.current ? " active" : "");
     item.setAttribute("role", "menuitemradio");
     item.setAttribute("aria-checked", String(option === slot.current));
-    item.innerHTML = `<span class="atrium-pop-menu-label"></span>${haIcon("mdi:check", 16)}`;
-    item.firstChild.textContent = slot.labelFor(option);
+    item.innerHTML = `${slot.iconFor ? haIcon(slot.iconFor(option), 18) : ""}<span class="atrium-pop-menu-label"></span><span class="atrium-pop-menu-check">${haIcon("mdi:check", 16)}</span>`;
+    item.querySelector(".atrium-pop-menu-label").textContent = slot.labelFor(option);
     item.addEventListener("click", () => {
       closePopoverFor(anchor);
       if (option !== slot.current) onPick(option);
@@ -157,7 +157,7 @@ export function _buildClimateTile(area, climate) {
     const value = document.createElement("span");
     value.className = "atrium-climate-dd-value";
     btn.append(icon, value);
-    const slot = { btn, icon, value, options: [], current: null, labelFor: (v) => v };
+    const slot = { btn, icon, value, options: [], current: null, labelFor: (v) => v, iconFor: null };
     btn.addEventListener("click", () => this._openOptionMenu(btn, labels[key], slot, services[key]));
     controls.appendChild(btn);
     ref.dropdowns.set(key, slot);

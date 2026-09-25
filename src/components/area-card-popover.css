@@ -41,7 +41,9 @@
 .atrium-pop-menu-item:hover { background: color-mix(in srgb, var(--primary-text-color, #ececef) 6%, transparent); }
 .atrium-pop-menu-item.active { background: color-mix(in srgb, var(--primary-text-color, #ececef) 9%, transparent); }
 .atrium-pop-menu-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.atrium-pop-menu-item ha-icon { flex-shrink: 0; visibility: hidden; color: var(--primary-text-color, #ececef); }
-.atrium-pop-menu-item.active ha-icon { visibility: visible; }
+.atrium-pop-menu-item > ha-icon { flex-shrink: 0; color: var(--secondary-text-color, #8b8c94); }
+.atrium-pop-menu-item.active > ha-icon { color: var(--primary-text-color, #ececef); }
+.atrium-pop-menu-check { display: inline-flex; flex-shrink: 0; visibility: hidden; color: var(--primary-text-color, #ececef); }
+.atrium-pop-menu-item.active .atrium-pop-menu-check { visibility: visible; }
 .atrium-pop-menu-item:focus { outline: none; }
 .atrium-pop-menu-item:focus-visible { outline: 2px solid color-mix(in srgb, var(--primary-text-color, #ececef) 60%, transparent); outline-offset: -2px; }

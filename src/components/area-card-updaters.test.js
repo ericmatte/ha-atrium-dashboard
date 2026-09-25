@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "../../tools/register.mjs";
 
-const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _updateAutomationRef, divaVisual, climateView, mediaView } = await import("./area-card-updaters.js");
+const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _updateAutomationRef, divaVisual, climateView, mediaView, fanModeIcon, swingModeIcon } = await import("./area-card-updaters.js");
 
 // Minimal fakes for the DOM surface _bindDivaTrack/_updateDivaRef touch.
 // Pointer event listeners are captured directly so tests can invoke them
@@ -455,4 +455,26 @@ test("mediaView: idle with nothing loaded shows its state as the title", () => {
   const v = mediaView({ state: "idle", attributes: {} });
   assert.equal(v.title, "Idle");
   assert.equal(v.subtitle, null);
+});
+
+test("fanModeIcon / swingModeIcon: map the names integrations report, with a generic fallback", () => {
+  assert.equal(fanModeIcon("auto"), "mdi:fan-auto");
+  assert.equal(fanModeIcon("Low"), "mdi:fan-speed-1");
+  assert.equal(fanModeIcon("med"), "mdi:fan-speed-2");
+  assert.equal(fanModeIcon("medium"), "mdi:fan-speed-2");
+  assert.equal(fanModeIcon("high"), "mdi:fan-speed-3");
+  assert.equal(fanModeIcon("quiet"), "mdi:weather-night");
+  assert.equal(fanModeIcon("diffuse"), "mdi:fan");
+  assert.equal(swingModeIcon("swing"), "mdi:arrow-oscillating");
+  assert.equal(swingModeIcon("static"), "mdi:arrow-oscillating-off");
+  assert.equal(swingModeIcon("off"), "mdi:arrow-oscillating-off");
+  assert.equal(swingModeIcon("vertical"), "mdi:arrow-up-down");
+});
+
+test("climateView: each dropdown knows the icon of every option and of its current value", () => {
+  const v = climateView({ state: "cool", attributes: { hvac_modes: ["off", "heat", "cool"], fan_mode: "low", fan_modes: ["auto", "low"], swing_mode: "static", swing_modes: ["swing", "static"] } });
+  const [mode, fan, swing] = v.dropdowns;
+  assert.equal(mode.iconFor("heat"), "mdi:fire");
+  assert.equal(fan.icon, "mdi:fan-speed-1");
+  assert.equal(swing.icon, "mdi:arrow-oscillating-off");
 });
