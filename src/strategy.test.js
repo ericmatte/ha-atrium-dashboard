@@ -86,3 +86,12 @@ test("generate: a custom tab's entities card uses entities_title, falling back t
   assert.equal(maintenanceEntitiesCard.title, "System");
   assert.equal(energyEntitiesCard.title, "Energy");
 });
+
+test("generate: a custom tab's cards sit in a padded stack under the header, aligned with it", async () => {
+  const cfg = { tabs: [{ title: "Energy", entities: ["sensor.power"], cards: [{ type: "markdown", content: "hi" }] }] };
+  const result = await AtriumStrategy.generate(cfg, hass);
+  const [header, body] = result.views.at(-1).cards[0].cards;
+  assert.equal(header.type, "custom:atrium-header");
+  assert.equal(body.type, "custom:atrium-padded-stack");
+  assert.deepEqual(body.cards.map((c) => c.type), ["entities", "markdown"]);
+});
