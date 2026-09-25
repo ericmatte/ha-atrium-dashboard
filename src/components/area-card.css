@@ -68,7 +68,7 @@
 .atrium-orb-badge.br { left: 85.4%; top: 85.4%; }
 .atrium-orb-badge.dot { width: 2.167em; height: 2.167em; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 .atrium-orb-badge.dot ha-icon { --mdc-icon-size: 1.167em; }
-.atrium-orb-badge-lit { box-sizing: border-box; height: 1.75em; display: inline-flex; align-items: center; gap: .167em; padding: 0 .667em 0 .5em; border-radius: 999px; background: #f6c14b; color: #1b1506; font-size: 1em; font-weight: 800; line-height: 1; white-space: nowrap; }
+.atrium-orb-badge-lit { box-sizing: border-box; height: 1.75em; display: inline-flex; align-items: center; gap: .167em; padding: 0 .667em 0 .5em; border-radius: 999px; background: #f6c14b; color: #1b1506; font-size: 1em; font-weight: 400; line-height: 1; white-space: nowrap; }
 .atrium-orb-badge-lit ha-icon { --mdc-icon-size: 1.083em; }
 /* Top-right status dot: motion (blue) takes priority over an alert (red, or
    orange for an opening) — see areaStatusDot. */
