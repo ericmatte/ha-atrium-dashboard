@@ -526,58 +526,68 @@ export function _captureSceneColors(sceneId, lightIds, pill) {
   }, SCENE_SETTLE_MS);
 }
 
-// Scripts first, then automations (see routineRows). The "N disabled" /
-// "N hidden" badges under the list are toggles: open, their routines are
-// listed inline in place — no popover. Their open state is kept per room
-// while the panel stays open.
+// Scripts first, then automations (see routineRows). The "N off" badge
+// under the list is a toggle: open, the switched-off automations are listed
+// inline — no popover. Its open state is kept per room while the panel
+// stays open. Routines hidden in HA are listed like any other.
 export function _buildAutomationsSection(area, data) {
-  const disabledCount = data.disabledAutomations.length;
-  const hiddenCount = (data.hiddenRoutines || []).length;
   const shown = data.scripts.length + data.automations.length;
-  if (!shown && !disabledCount && !hiddenCount) return null;
+  if (!shown && !data.disabledAutomations.length) return null;
 
-  const open = { showDisabled: false, showHidden: false, ...this._routineDrawers.get(area.area_id) };
+  const open = { showDisabled: false, ...this._routineDrawers.get(area.area_id) };
   const section = this._section("Routines", []);
   const list = document.createElement("div");
   list.className = "atrium-alist";
   const rows = routineRows(data, open);
-  for (const { entity, hidden } of rows) list.appendChild(this._buildAutomationRow(area, entity, { hidden }));
+  for (const { entity } of rows) list.appendChild(this._buildAutomationRow(area, entity));
   list.hidden = !rows.length;
-  section.appendChild(list);
 
-  if (disabledCount || hiddenCount) {
-    const drawers = document.createElement("div");
-    drawers.className = "atrium-routine-drawers";
-    const toggle = (key, count, icon, label) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "atrium-autos-trigger" + (open[key] ? " open" : "");
-      btn.setAttribute("aria-pressed", String(open[key]));
-      btn.innerHTML = `<span class="atrium-autos-trigger-iconwrap">${haIcon(icon, 20)}</span><span class="atrium-autos-trigger-label">${count} ${label}</span>`;
-      btn.addEventListener("click", () => {
-        open[key] = !open[key];
-        this._routineDrawers.set(area.area_id, { ...open });
-        btn.classList.toggle("open", open[key]);
-        btn.setAttribute("aria-pressed", String(open[key]));
-        this._syncRoutineRows(area, list, routineRows(this._dataForArea(area), open));
-        // The rows open at the very end of the panel: follow them down, once
-        // they've grown to full height.
-        if (open[key]) setTimeout(() => this._pin?.scrollTo({ top: this._pin.scrollHeight, behavior: "smooth" }), ROW_MOTION.duration);
-      });
-      drawers.appendChild(btn);
-    };
-    if (disabledCount) toggle("showDisabled", disabledCount, "mdi:pause-circle-outline", "disabled");
-    if (hiddenCount) toggle("showHidden", hiddenCount, "mdi:eye-off-outline", "hidden");
-    section.appendChild(drawers);
-  }
+  const drawers = document.createElement("div");
+  drawers.className = "atrium-routine-drawers";
+  const badge = document.createElement("button");
+  badge.type = "button";
+  badge.className = "atrium-autos-trigger";
+  badge.innerHTML = `<span class="atrium-autos-trigger-iconwrap">${haIcon("mdi:pause-circle-outline", 20)}</span><span class="atrium-autos-trigger-label"></span>`;
+  badge.addEventListener("click", () => {
+    open.showDisabled = !open.showDisabled;
+    this._routineDrawers.set(area.area_id, { ...open });
+    this._refreshRoutines(this._dataForArea(area));
+    // The rows open at the very end of the panel: follow them down, once
+    // they've grown to full height.
+    if (open.showDisabled) setTimeout(() => this._pin?.scrollTo({ top: this._pin.scrollHeight, behavior: "smooth" }), ROW_MOTION.duration);
+  });
+  drawers.appendChild(badge);
+  section.append(list, drawers);
+
+  this._routinesUI = { area, list, badge, drawers, open };
+  this._updateRoutinesBadge(data);
   return section;
+}
+
+export function _updateRoutinesBadge(data) {
+  const { badge, drawers, open } = this._routinesUI;
+  const count = data.disabledAutomations.length;
+  drawers.hidden = !count;
+  badge.lastChild.textContent = `${count} off · click to ${open.showDisabled ? "hide" : "show"}`;
+  badge.classList.toggle("open", open.showDisabled);
+  badge.setAttribute("aria-pressed", String(open.showDisabled));
+}
+
+// Brings the Routines list in line with the current states without a
+// rebuild: after the badge toggle, or when an automation is switched on/off.
+export function _refreshRoutines(data) {
+  const ui = this._routinesUI;
+  if (!ui?.list.isConnected) return;
+  this._updateRoutinesBadge(data);
+  this._syncRoutineRows(ui.area, ui.list, routineRows(data, ui.open));
 }
 
 const ROW_MOTION = { duration: 320, easing: "cubic-bezier(.32,.72,0,1)" };
 
-// After a badge toggle: rows that stay are left exactly as they are (same
-// elements, nothing re-rendered); rows that appear are inserted in place and
-// grow open; rows that go away shrink closed, then are removed.
+// Rows that stay are left exactly as they are (same elements, nothing
+// re-rendered); rows that move (switched on/off) slide into their new spot;
+// rows that appear are inserted in place and grow open; rows that go away
+// shrink closed, then are removed.
 export function _syncRoutineRows(area, list, rows) {
   const refs = this._refs.areas.get(area.area_id).automations;
   const wanted = new Set(rows.map((r) => r.entity.entity_id));
@@ -590,15 +600,18 @@ export function _syncRoutineRows(area, list, rows) {
 
   let cursor = list.firstElementChild;
   const skipLeaving = () => { while (cursor?.classList.contains("leaving")) cursor = cursor.nextElementSibling; };
-  for (const { entity, hidden } of rows) {
+  for (const { entity } of rows) {
     skipLeaving();
     const existing = refs.get(entity.entity_id)?.row;
     if (existing && existing.parentElement === list) {
       if (existing === cursor) cursor = cursor.nextElementSibling;
-      else list.insertBefore(existing, cursor);
+      else {
+        list.insertBefore(existing, cursor);
+        existing.animate([{ opacity: 0, transform: "translateY(10px) scale(.97)" }, { opacity: getComputedStyle(existing).opacity, transform: "none" }], ROW_MOTION);
+      }
       continue;
     }
-    const row = this._buildAutomationRow(area, entity, { hidden });
+    const row = this._buildAutomationRow(area, entity);
     list.insertBefore(row, cursor);
     expandRow(row);
   }
@@ -627,7 +640,7 @@ function collapseRow(row) {
 
 // Toggle swatch left, name + labels / "On · 42 minutes ago" in the middle,
 // run button right. Tapping the name opens more-info.
-export function _buildAutomationRow(area, item, { hidden = false } = {}) {
+export function _buildAutomationRow(area, item) {
   const hass = this._hass;
   const state = hass.states?.[item.entity_id];
   const isScript = item.entity_id.startsWith("script.");
@@ -635,12 +648,8 @@ export function _buildAutomationRow(area, item, { hidden = false } = {}) {
   const displayName = nameWithoutAreaPrefix(this._entityName(item), area);
 
   const row = document.createElement("div");
-  row.className = "atrium-auto-row" + (isScript ? " is-script" : "") + (hidden ? " is-hidden" : "");
+  row.className = "atrium-auto-row" + (isScript ? " is-script" : "");
   row.dataset.entity = item.entity_id;
-  if (this._routineArriving === item.entity_id && state?.state !== "off") {
-    this._routineArriving = null;
-    row.classList.add("arriving");
-  }
 
   const swatch = document.createElement(isScript ? "span" : "button");
   swatch.className = "atrium-auto-swatch" + (isScript ? " script" : "");
@@ -651,9 +660,6 @@ export function _buildAutomationRow(area, item, { hidden = false } = {}) {
     swatch.addEventListener("click", (e) => {
       e.stopPropagation();
       const isOn = this._hass.states?.[item.entity_id]?.state !== "off";
-      // Re-enabling moves it from the drawer back into the list; the rebuilt
-      // row plays an arrival animation (see _buildAutomationRow).
-      if (!isOn) this._routineArriving = item.entity_id;
       this._call("automation", isOn ? "turn_off" : "turn_on", { entity_id: item.entity_id });
     });
   }

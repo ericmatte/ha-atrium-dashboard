@@ -30,26 +30,16 @@ export function emptyAreaData() {
   };
 }
 
-export function entitiesForArea(hass, area) {
-  return Object.values(hass.entities).filter((e) => {
-    if (e.hidden) return false;
-    return areaIdForEntity(hass, e) === area.area_id;
-  });
+// Whether the dashboard shows an entity at all. Hidden entities are left
+// out — except automations and scripts: whether a routine was hidden in HA
+// doesn't matter here, it's listed like any other.
+const ALWAYS_SHOWN_DOMAINS = new Set(["automation", "script"]);
+export function isShownEntity(e) {
+  return !e.hidden || ALWAYS_SHOWN_DOMAINS.has(e.entity_id.split(".")[0]);
 }
 
-// Automations/scripts hidden from view but still worth surfacing now that
-// there's no separate Routines tab to relegate them to — shown as a
-// collapsed "N hidden" affordance in the automations section instead of
-// mixed in with the visible ones.
-export function hiddenRoutinesForArea(hass, area) {
-  return Object.values(hass.entities)
-    .filter((e) => {
-      if (!e.hidden) return false;
-      const domain = e.entity_id.split(".")[0];
-      if (domain !== "automation" && domain !== "script") return false;
-      return areaIdForEntity(hass, e) === area.area_id;
-    })
-    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+export function entitiesForArea(hass, area) {
+  return Object.values(hass.entities).filter((e) => isShownEntity(e) && areaIdForEntity(hass, e) === area.area_id);
 }
 
 export function classifyAreaEntities(hass, area, entities) {
@@ -73,7 +63,7 @@ export function classifyAreaEntities(hass, area, entities) {
     else if (domain === "button") { if (!e.entity_category) out.buttons.push(e); }
     else if (domain === "input_select") out.inputSelects.push(e);
     else if (domain === "input_boolean") out.inputBooleans.push(e);
-    // A switched-off automation leaves the routines list for its "N disabled"
+    // A switched-off automation leaves the routines list for its "N off"
     // drawer until it's turned back on.
     else if (domain === "automation") (st?.state === "off" ? out.disabledAutomations : out.automations).push(e);
     else if (domain === "script") out.scripts.push(e);
@@ -218,23 +208,12 @@ export function levelTone(pct) {
   return "good";
 }
 
-// The Routines list, in order: scripts (things you run), hidden scripts
-// when that badge is open, automations (things that run on their own), then
-// — when their badges are open — disabled and hidden automations. Scripts
-// can't be switched off in HA, so only automations are ever "disabled".
-export function routineRows(data, { showDisabled = false, showHidden = false } = {}) {
-  const hidden = data.hiddenRoutines || [];
-  const isScript = (e) => e.entity_id.startsWith("script.");
-  const rows = [];
-  const push = (list, flags = {}) => list.forEach((entity) => rows.push({ entity, ...flags }));
-  for (const [enabled, disabled, hiddenOnes] of [
-    [data.scripts, [], hidden.filter(isScript)],
-    [data.automations, data.disabledAutomations, hidden.filter((e) => !isScript(e))],
-  ]) {
-    push(enabled);
-    if (showDisabled) push(disabled, { disabled: true });
-    if (showHidden) push(hiddenOnes, { hidden: true });
-  }
+// The Routines list, in order: scripts (things you run), automations (things
+// that run on their own), then — when their badge is open — the switched-off
+// automations. Scripts can't be switched off in HA.
+export function routineRows(data, { showDisabled = false } = {}) {
+  const rows = [...data.scripts, ...data.automations].map((entity) => ({ entity }));
+  if (showDisabled) for (const entity of data.disabledAutomations) rows.push({ entity, disabled: true });
   return rows;
 }
 
@@ -271,7 +250,9 @@ export function areaPanelSignature(area, data) {
   const ids = [
     ...data.climates, ...data.mediaPlayers, ...data.scenes, ...data.buttons, ...data.lights, ...data.switches,
     ...data.inputSelects, ...data.inputBooleans, ...data.covers, ...data.sensors.extras, ...data.sensors.other,
-    ...data.automations, ...data.scripts, "disabled:", ...data.disabledAutomations, "hidden:", ...(data.hiddenRoutines || []),
+    // Switching an automation on/off moves it within Routines, which updates
+    // in place — so the signature only sees the set of automations.
+    ...data.scripts, ...[...data.automations, ...data.disabledAutomations].sort((x, y) => x.entity_id.localeCompare(y.entity_id)),
   ].map((e) => (typeof e === "string" ? e : e.entity_id));
   for (const [target, sensors] of data.deviceSensors) ids.push(`${target}>${sensors.map((s) => s.entity_id).join(",")}`);
   return [area.area_id, area.name, area.picture || "", ...ids].join("|");

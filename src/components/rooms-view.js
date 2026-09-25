@@ -11,7 +11,7 @@ import { callService, toggleLights } from "../lib/ha-actions.js";
 import { STYLE, ICONS, iconForArea, fmtCoverPct, nameWithoutAreaPrefix } from "./area-card-shared.js";
 import {
   entitiesForArea,
-  hiddenRoutinesForArea,
+  isShownEntity,
   classifyAreaEntities,
   areaIsEmpty,
   areaAlert,
@@ -98,7 +98,7 @@ class AtriumRooms extends HTMLElement {
     const hass = this._hass;
     const ids = [];
     for (const ent of Object.values(hass.entities)) {
-      if (ent.hidden) continue;
+      if (!isShownEntity(ent)) continue;
       const areaId = areaIdForEntity(hass, ent);
       if (areaId != null && hass.areas?.[areaId]) ids.push(ent.entity_id);
     }
@@ -112,9 +112,7 @@ class AtriumRooms extends HTMLElement {
   _dataForArea(area) {
     const hass = this._hass;
     const entities = entitiesForArea(hass, area);
-    const data = classifyAreaEntities(hass, area, entities);
-    data.hiddenRoutines = hiddenRoutinesForArea(hass, area);
-    return data;
+    return classifyAreaEntities(hass, area, entities);
   }
 
   _call(domain, service, data) {
@@ -375,6 +373,7 @@ class AtriumRooms extends HTMLElement {
     for (const [entityId, ref] of refs.climates) this._updateClimateRef(ref, entityId);
     for (const [entityId, ref] of refs.media) this._updateMediaRef(ref, entityId);
     for (const [entityId, ref] of refs.automations) this._updateAutomationRef(ref, entityId);
+    this._refreshRoutines(data);
     for (const [entityId, ref] of refs.inputSelects) this._updateInputSelectRef(ref, entityId);
     for (const ref of refs.sensors.values()) this._updateSensorRef(ref);
     for (const { btn, label } of this._refs.bulk) btn.textContent = label();

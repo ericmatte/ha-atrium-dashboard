@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import {
   emptyAreaData,
   entitiesForArea,
-  hiddenRoutinesForArea,
   classifyAreaEntities,
   areaIsEmpty,
   areaHasAlert,
@@ -20,32 +19,19 @@ import {
   areaPanelSignature,
 } from "./area-data.js";
 
-test("entitiesForArea: drops hidden entities and ones outside the area", () => {
+test("entitiesForArea: drops hidden entities and ones outside the area — but keeps hidden routines", () => {
   const hass = {
     entities: {
       "light.a": { entity_id: "light.a", area_id: "kitchen", hidden: false },
       "light.b": { entity_id: "light.b", area_id: "kitchen", hidden: true },
       "light.c": { entity_id: "light.c", area_id: "hall", hidden: false },
+      "automation.secret": { entity_id: "automation.secret", area_id: "kitchen", hidden: true },
+      "script.secret": { entity_id: "script.secret", area_id: "kitchen", hidden: true },
     },
     devices: {},
   };
   const out = entitiesForArea(hass, { area_id: "kitchen" });
-  assert.deepEqual(out.map((e) => e.entity_id), ["light.a"]);
-});
-
-test("hiddenRoutinesForArea: only hidden automation/script entities in the area, sorted by name", () => {
-  const hass = {
-    entities: {
-      "automation.b": { entity_id: "automation.b", area_id: "kitchen", hidden: true, name: "B" },
-      "automation.a": { entity_id: "automation.a", area_id: "kitchen", hidden: true, name: "A" },
-      "script.hidden": { entity_id: "script.hidden", area_id: "kitchen", hidden: true, name: "Z" },
-      "light.hidden": { entity_id: "light.hidden", area_id: "kitchen", hidden: true, name: "L" },
-      "automation.visible": { entity_id: "automation.visible", area_id: "kitchen", hidden: false, name: "V" },
-    },
-    devices: {},
-  };
-  const out = hiddenRoutinesForArea(hass, { area_id: "kitchen" });
-  assert.deepEqual(out.map((e) => e.entity_id), ["automation.a", "automation.b", "script.hidden"]);
+  assert.deepEqual(out.map((e) => e.entity_id), ["light.a", "automation.secret", "script.secret"]);
 });
 
 test("classifyAreaEntities: a binary_sensor with no motion/leak/door device_class and no shared device lands in sensors.other", () => {
@@ -262,14 +248,17 @@ test("classifyAreaEntities: a switched-off automation goes to disabledAutomation
   assert.deepEqual(out.disabledAutomations.map((e) => e.entity_id), ["automation.off"]);
 });
 
-test("areaPanelSignature: moving an automation between enabled and disabled changes it", () => {
+test("areaPanelSignature: switching an automation on/off doesn't change it (Routines update in place)", () => {
   const area = { area_id: "k", name: "K" };
   const a = emptyAreaData();
   a.automations.push({ entity_id: "automation.x" });
   const b = emptyAreaData();
   b.disabledAutomations.push({ entity_id: "automation.x" });
+  assert.equal(areaPanelSignature(area, a), areaPanelSignature(area, b));
+  b.automations.push({ entity_id: "automation.y" });
   assert.notEqual(areaPanelSignature(area, a), areaPanelSignature(area, b));
 });
+
 
 test("classifyAreaEntities: a soil probe's moisture is the soil level; its air humidity is just a reading", () => {
   const hass = {
@@ -299,18 +288,14 @@ test("classifyAreaEntities: input_boolean helpers are collected for the panel", 
   assert.equal(areaIsEmpty(out), false);
 });
 
-test("routineRows: scripts before automations; disabled/hidden only when their badge is open", () => {
+test("routineRows: scripts before automations; switched-off automations only when that badge is open", () => {
   const data = emptyAreaData();
   const e = (id) => ({ entity_id: id });
   data.scripts = [e("script.run")];
   data.automations = [e("automation.on")];
   data.disabledAutomations = [e("automation.off")];
-  data.hiddenRoutines = [e("automation.secret"), e("script.secret")];
-  const ids = (opts) => routineRows(data, opts).map((r) => r.entity.entity_id + (r.disabled ? "(d)" : "") + (r.hidden ? "(h)" : ""));
+  const ids = (opts) => routineRows(data, opts).map((r) => r.entity.entity_id + (r.disabled ? "(d)" : ""));
   assert.deepEqual(ids(), ["script.run", "automation.on"]);
-  assert.deepEqual(ids({ showDisabled: true, showHidden: true }), [
-    "script.run", "script.secret(h)",
-    "automation.on", "automation.off(d)", "automation.secret(h)",
-  ]);
-  assert.deepEqual(ids({ showHidden: true }), ["script.run", "script.secret(h)", "automation.on", "automation.secret(h)"]);
+  assert.deepEqual(ids({ showDisabled: true }), ["script.run", "automation.on", "automation.off(d)"]);
 });
+
