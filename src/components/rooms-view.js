@@ -52,6 +52,13 @@ class AtriumRooms extends HTMLElement {
     this._orbRefs = new Map();
     this._lastClimateMode = new Map();
     this._routineDrawers = new Map();
+    // Escape closes the details panel — unless a menu/popover is open, in
+    // which case that Escape is the popover's (it closes itself first).
+    this._onKeydown = (e) => {
+      if (e.key !== "Escape" || e.defaultPrevented || !this._selectedAreaId) return;
+      if (document.querySelector(".atrium-pop")) return;
+      this._select(null);
+    };
   }
 
   setConfig(config) {
@@ -63,6 +70,7 @@ class AtriumRooms extends HTMLElement {
 
   connectedCallback() {
     this.style.display = "block";
+    document.addEventListener("keydown", this._onKeydown);
     if (this._content && !this._resizeObserver) {
       this._resizeObserver = new ResizeObserver(() => this._sizeOrbs());
       this._resizeObserver.observe(this._content);
@@ -75,6 +83,7 @@ class AtriumRooms extends HTMLElement {
   }
 
   disconnectedCallback() {
+    document.removeEventListener("keydown", this._onKeydown);
     this._closeOpenPopovers();
     document.documentElement.style.removeProperty("--atrium-panel-open");
     this._unsubLabels?.();
