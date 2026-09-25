@@ -343,16 +343,13 @@ export function _buildDivaTile(area, entity, { kind, icon, refKey }, deviceSenso
   const customIcon = this._hass.entities?.[entity.entity_id]?.icon ?? this._hass.states?.[entity.entity_id]?.attributes?.icon;
   thumb.innerHTML = haIcon(customIcon || icon, 17);
   track.append(fill, pctTop, pctBottom, thumb);
-  // Covers draw a shade instead: a handle bar on its edge and a label strip.
+  // Covers draw a shade instead, with a handle bar on its edge.
   let bar = null;
-  let coverLabel = null;
   if (kind === "cover") {
     track.classList.add("cover");
     bar = document.createElement("span");
     bar.className = "atrium-diva-bar";
-    coverLabel = document.createElement("span");
-    coverLabel.className = "atrium-diva-cover-label";
-    track.append(bar, coverLabel);
+    track.append(bar);
   }
 
   // The track toggles/drags; the name opens the entity's details.
@@ -366,7 +363,7 @@ export function _buildDivaTile(area, entity, { kind, icon, refKey }, deviceSenso
 
   wrap.append(track, name, ago);
 
-  const ref = { wrap, track, fill, pctTop, pctBottom, thumb, bar, coverLabel, name, ago, kind };
+  const ref = { wrap, track, fill, pctTop, pctBottom, thumb, bar, name, ago, kind };
   this._refs.areas.get(area.area_id)[refKey].set(entity.entity_id, ref);
   this._bindDivaTrack(ref, entity.entity_id, kind);
   this._updateDivaRef(ref, entity.entity_id, kind);

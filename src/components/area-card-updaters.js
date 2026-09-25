@@ -124,23 +124,27 @@ export function divaVisual({ kind, on, level, dimmable, thumbFrac, color }) {
 }
 
 // A cover tile draws the shade itself: purple coming down from the top as
-// the cover closes, a white handle bar on its lower edge, and a label in a
-// strip at the bottom the shade never covers — "Closed", or the open %.
-export const COVER_LABEL_ZONE = 20;
+// the cover closes (all the way when closed), a white handle bar on its
+// lower edge, and the label — "Closed" or the open % — on whichever side is
+// roomier: under the shade while it's mostly open, on the shade once it's
+// mostly closed, cross-fading in between (like the lights' label).
 const COVER_BAR_INSET = 6;
 export function coverVisual(level) {
-  const closed = clamp01(1 - level / 100).toFixed(3);
+  const closed = clamp01(1 - level / 100);
+  const onShade = clamp01((closed * 100 - PCT_SWAP_FROM) / (PCT_SWAP_TO - PCT_SWAP_FROM));
   return {
-    shadeHeight: `calc((100% - ${COVER_LABEL_ZONE}px) * ${closed})`,
-    barTop: `max(${COVER_BAR_INSET}px, calc((100% - ${COVER_LABEL_ZONE}px) * ${closed} - ${COVER_BAR_INSET}px))`,
+    shadeHeight: `${(closed * 100).toFixed(1)}%`,
+    barTop: `max(${COVER_BAR_INSET}px, calc(${(closed * 100).toFixed(1)}% - ${COVER_BAR_INSET}px))`,
     label: level <= 0 ? "Closed" : `${level}%`,
+    topOpacity: onShade.toFixed(2),
+    bottomOpacity: (1 - onShade).toFixed(2),
   };
 }
 
 // Pointer height on a cover tile → open %: the top of the track is fully
-// open, the top of the label strip fully closed.
+// open, the bottom fully closed.
 export function coverLevelFromPointer(clientY, rect) {
-  return Math.round((1 - clamp01((clientY - rect.top) / (rect.height - COVER_LABEL_ZONE))) * 100);
+  return Math.round((1 - clamp01((clientY - rect.top) / rect.height)) * 100);
 }
 
 export function _toggleEntity(entityId, kind, wantOn) {
@@ -183,16 +187,19 @@ export function _updateDivaRef(ref, entityId, kind, override) {
     ref.fill.style.height = c.shadeHeight;
     ref.fill.style.background = v.fillBackground;
     ref.bar.style.top = c.barTop;
-    ref.coverLabel.textContent = unavailable ? "" : c.label;
+    ref.pctTop.style.display = ref.pctBottom.style.display = unavailable ? "none" : "";
+    ref.pctTop.textContent = ref.pctBottom.textContent = c.label;
+    ref.pctTop.style.opacity = c.topOpacity;
+    ref.pctBottom.style.opacity = c.bottomOpacity;
   } else {
     ref.fill.style.height = v.fillHeight;
     ref.fill.style.background = v.fillBackground;
     ref.thumb.style.bottom = v.thumbBottom;
+    ref.pctTop.style.display = ref.pctBottom.style.display = v.showPct ? "" : "none";
+    ref.pctTop.textContent = ref.pctBottom.textContent = v.pctLabel;
+    ref.pctTop.style.opacity = v.pctTopOpacity;
+    ref.pctBottom.style.opacity = v.pctBottomOpacity;
   }
-  ref.pctTop.style.display = ref.pctBottom.style.display = v.showPct ? "" : "none";
-  ref.pctTop.textContent = ref.pctBottom.textContent = v.pctLabel;
-  ref.pctTop.style.opacity = v.pctTopOpacity;
-  ref.pctBottom.style.opacity = v.pctBottomOpacity;
 
   ref.ago.classList.toggle("unavailable", unavailable);
   if (unavailable) {

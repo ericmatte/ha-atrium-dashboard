@@ -46,7 +46,6 @@ function makeDivaRef() {
     pctBottom: makeStyleEl(),
     thumb: { style: {}, classList: makeClassList() },
     bar: makeStyleEl(),
-    coverLabel: makeStyleEl(),
     name: { textContent: "Fan" },
     ago: { textContent: "", innerHTML: "", classList: makeClassList(), querySelector() { return this.innerHTML.includes("ha-icon") ? {} : null; } },
   };
@@ -594,21 +593,27 @@ test("climateView: the status shown is the device's hvac_action, when it reports
   assert.equal(climateView({ state: "off", attributes: { current_temperature: 20, hvac_modes: ["off", "heat"] } }).now, "Now 20°");
 });
 
-test("coverVisual: the shade comes down as the cover closes; the label says Closed or the open %", () => {
-  assert.deepEqual(coverVisual(0), { shadeHeight: "calc((100% - 20px) * 1.000)", barTop: "max(6px, calc((100% - 20px) * 1.000 - 6px))", label: "Closed" });
-  assert.equal(coverVisual(40).shadeHeight, "calc((100% - 20px) * 0.600)");
+test("coverVisual: the shade comes down all the way; the label swaps onto the shade between 40 and 60% closed", () => {
+  const closed = coverVisual(0);
+  assert.equal(closed.shadeHeight, "100.0%");
+  assert.equal(closed.label, "Closed");
+  assert.deepEqual([closed.topOpacity, closed.bottomOpacity], ["1.00", "0.00"]);
+  const open = coverVisual(100);
+  assert.equal(open.shadeHeight, "0.0%");
+  assert.equal(open.label, "100%");
+  assert.deepEqual([open.topOpacity, open.bottomOpacity], ["0.00", "1.00"]);
+  assert.deepEqual([coverVisual(50).topOpacity, coverVisual(50).bottomOpacity], ["0.50", "0.50"]);
   assert.equal(coverVisual(40).label, "40%");
-  assert.equal(coverVisual(100).shadeHeight, "calc((100% - 20px) * 0.000)");
-  assert.equal(coverVisual(100).label, "100%");
 });
 
-test("coverLevelFromPointer: top of the track = open, top of the label strip = closed", () => {
+test("coverLevelFromPointer: top of the track = open, bottom = closed", () => {
   const rect = { top: 0, height: 120 };
   assert.equal(coverLevelFromPointer(0, rect), 100);
-  assert.equal(coverLevelFromPointer(50, rect), 50);
-  assert.equal(coverLevelFromPointer(100, rect), 0);
-  assert.equal(coverLevelFromPointer(118, rect), 0);
+  assert.equal(coverLevelFromPointer(60, rect), 50);
+  assert.equal(coverLevelFromPointer(120, rect), 0);
+  assert.equal(coverLevelFromPointer(200, rect), 0);
 });
+
 
 test("cover track: pulling the bar down past the middle sets a partial position", () => {
   withWindow((win) => {
@@ -616,8 +621,8 @@ test("cover track: pulling the bar down past the middle sets a partial position"
     const ctx = makeContext({ "cover.blind": { state: "open", attributes: { current_position: 100 } } });
     _bindDivaTrack.call(ctx, ref, "cover.blind", "cover");
     ref.track.handlers.pointerdown({ clientY: 10, pointerId: 1 });
-    win.listeners.pointermove({ clientY: 63, pointerId: 1 }); // half of the 126px travel
-    win.listeners.pointerup({ clientY: 63, pointerId: 1 });
+    win.listeners.pointermove({ clientY: 73, pointerId: 1 }); // half of the 146px track
+    win.listeners.pointerup({ clientY: 73, pointerId: 1 });
     assert.deepEqual(ctx.calls, [["cover", "set_cover_position", { entity_id: "cover.blind", position: 50 }]]);
   });
 });
