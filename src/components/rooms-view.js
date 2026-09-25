@@ -31,6 +31,7 @@ import { orbGrid, orbBadgeFont } from "../lib/orb-grid.js";
 // Matches the design's exit animations (pinOut .24s / sheetOut .28s) so the
 // selection is only dropped once they've played.
 const CLOSE_MS = 280;
+const PANEL_HISTORY_KEY = "atriumPanel";
 
 const heroBadgesKey = (els) => els.map((b) => `${b.className}|${b.textContent}|${b.querySelector("ha-icon")?.getAttribute("icon")}`).join(";");
 
@@ -54,6 +55,16 @@ class AtriumRooms extends HTMLElement {
     this._routineDrawers = new Map();
     // Escape closes the details panel — unless a menu/popover is open, in
     // which case that Escape is the popover's (it closes itself first).
+    // Back button: the panel's history entry was popped. (A dialog opened
+    // over the panel — e.g. more-info — pops its own entry first and lands
+    // back on ours, which keeps the panel open.)
+    this._onPopState = () => {
+      if (this._ignoreNextPop) {
+        this._ignoreNextPop = false;
+        return;
+      }
+      if (this._selectedAreaId && !history.state?.[PANEL_HISTORY_KEY]) this._closePanel({ fromHistory: true });
+    };
     this._onKeydown = (e) => {
       if (e.key !== "Escape" || e.defaultPrevented || !this._selectedAreaId) return;
       if (document.querySelector(".atrium-pop")) return;
@@ -71,6 +82,7 @@ class AtriumRooms extends HTMLElement {
   connectedCallback() {
     this.style.display = "block";
     document.addEventListener("keydown", this._onKeydown);
+    window.addEventListener("popstate", this._onPopState);
     if (this._content && !this._resizeObserver) {
       this._resizeObserver = new ResizeObserver(() => this._sizeOrbs());
       this._resizeObserver.observe(this._content);
@@ -84,6 +96,7 @@ class AtriumRooms extends HTMLElement {
 
   disconnectedCallback() {
     document.removeEventListener("keydown", this._onKeydown);
+    window.removeEventListener("popstate", this._onPopState);
     this._closeOpenPopovers();
     document.documentElement.style.removeProperty("--atrium-panel-open");
     this._unsubLabels?.();
@@ -176,23 +189,43 @@ class AtriumRooms extends HTMLElement {
     const reopening = !this._selectedAreaId || this._closing;
     this._closing = false;
     this._selectedAreaId = areaId;
+    if (reopening) this._pushPanelHistory();
     this._renderPanel({ replayPanelIn: reopening });
     this._syncLayout();
   }
 
   // The panel plays its exit animation first; only then is the selection
   // dropped, so the side column / sheet collapses with its content still in it.
-  _closePanel() {
+  // `fromHistory`: the Back button already popped the panel's history entry.
+  // `animated: false`: the sheet was already swiped off-screen.
+  _closePanel({ fromHistory = false, animated = true } = {}) {
     if (!this._selectedAreaId || this._closing) return;
+    if (!fromHistory) this._popPanelHistory();
     this._closing = true;
     this._syncLayout();
     clearTimeout(this._closeTimer);
-    this._closeTimer = setTimeout(() => {
+    const done = () => {
       this._closing = false;
       this._selectedAreaId = null;
       this._renderPanel();
       this._syncLayout();
-    }, CLOSE_MS);
+    };
+    if (animated) this._closeTimer = setTimeout(done, CLOSE_MS);
+    else done();
+  }
+
+  // Opening the panel adds a history entry (same URL), so the phone's Back
+  // button closes the panel instead of leaving the dashboard. Closing it any
+  // other way removes that entry again.
+  _pushPanelHistory() {
+    if (history.state?.[PANEL_HISTORY_KEY]) return;
+    history.pushState({ ...history.state, [PANEL_HISTORY_KEY]: true }, "");
+  }
+
+  _popPanelHistory() {
+    if (!history.state?.[PANEL_HISTORY_KEY]) return;
+    this._ignoreNextPop = true;
+    history.back();
   }
 
   _syncLayout() {
