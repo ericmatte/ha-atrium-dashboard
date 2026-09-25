@@ -185,8 +185,8 @@ export function buildFixtures() {
   // ---- Media Room (basement) -------------------------------------------------
   // Media players feed the tiles' bottom-right "what's running" badge:
   // the TV is playing (tap = pause), the living room speaker is paused.
-  add("media_player.media_room_tv", "media_room", "playing", { device_class: "tv", media_title: "Dune: Part Two", friendly_name: "TV" });
-  add("media_player.living_room_sonos", "living_room", "paused", { device_class: "speaker", friendly_name: "Sonos" });
+  add("media_player.media_room_tv", "media_room", "playing", { device_class: "tv", media_title: "Dune: Part Two", app_name: "Netflix", volume_level: 0.4, is_volume_muted: false, supported_features: 21437, friendly_name: "TV" });
+  add("media_player.living_room_sonos", "living_room", "paused", { device_class: "speaker", media_title: "Midnight City", media_artist: "M83", media_album_name: "Hurry Up, We're Dreaming", volume_level: 0.35, is_volume_muted: false, friendly_name: "Sonos" });
   add("light.media_room_main", "media_room", "off", { supported_color_modes: ["brightness"], color_mode: "brightness" });
   add("light.media_room_accent", "media_room", "on", { supported_color_modes: ["rgb"], color_mode: "rgb", rgb_color: [90, 140, 255], brightness: 77 }, { icon: "mdi:led-strip-variant" });
   add("switch.media_room_projector", "media_room", "off", {});

@@ -11,12 +11,13 @@ import {
 import { FLASH_MS } from "./area-card-updaters.js";
 
 // Panel content for one selected room, in the order the design settled on:
-// climate (own full-width card), scenes/buttons (a pill strip), lights,
+// climate and media (own full-width cards), scenes/buttons (a pill strip), lights,
 // switches and covers side by side, mode selectors, sensor readings, then
 // routines (automations & scripts) last.
 export function _buildRoomSections(area, data) {
   const sections = [];
   if (data.climates.length) sections.push(this._buildClimateSection(area, data.climates));
+  if (data.mediaPlayers.length) sections.push(this._buildMediaSection(area, data.mediaPlayers));
 
   if (data.scenes.length || data.buttons.length) sections.push(this._buildPillsSection(area, data.scenes, data.buttons, data.lights));
 
@@ -165,6 +166,90 @@ export function _buildClimateTile(area, climate) {
   card.append(top, mid, controls);
   this._refs.areas.get(area.area_id).climates.set(entityId, ref);
   this._updateClimateRef(ref, entityId);
+  return card;
+}
+
+// One card per media player: artwork, what's playing, transport controls
+// and volume. Which controls show follows the player's supported_features.
+export function _buildMediaSection(area, players) {
+  const list = document.createElement("div");
+  list.className = "atrium-media-list";
+  for (const player of players) list.appendChild(this._buildMediaCard(area, player));
+  return this._section(null, list);
+}
+
+export function _buildMediaCard(area, player) {
+  const entityId = player.entity_id;
+  const displayName = nameWithoutAreaPrefix(this._entityName(player), area);
+  const call = (service, data = {}) => this._call("media_player", service, { entity_id: entityId, ...data });
+  const iconButton = (cls, icon, onClick) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = cls;
+    if (icon) b.innerHTML = haIcon(icon, 20);
+    b.addEventListener("click", onClick);
+    return b;
+  };
+
+  const card = document.createElement("div");
+  card.className = "atrium-media";
+  card.dataset.entity = entityId;
+
+  const art = document.createElement("span");
+  art.className = "atrium-media-art";
+  art.innerHTML = haIcon(this._hass.entities?.[entityId]?.icon || (this._hass.states?.[entityId]?.attributes?.device_class === "tv" ? "mdi:television" : "mdi:speaker"), 24);
+
+  const info = document.createElement("button");
+  info.type = "button";
+  info.className = "atrium-media-info";
+  info.addEventListener("click", () => this._moreInfo(entityId));
+  const name = document.createElement("span");
+  name.className = "atrium-media-name";
+  name.textContent = displayName;
+  const title = document.createElement("span");
+  title.className = "atrium-media-title";
+  const subtitle = document.createElement("span");
+  subtitle.className = "atrium-media-sub";
+  info.append(name, title, subtitle);
+
+  const isOff = () => ["off", "standby"].includes(this._hass.states?.[entityId]?.state);
+  const power = iconButton("atrium-media-power", "mdi:power", () => call(isOff() ? "turn_on" : "turn_off"));
+
+  const controls = document.createElement("div");
+  controls.className = "atrium-media-controls";
+  const prev = iconButton("atrium-media-btn", "mdi:skip-previous", () => call("media_previous_track"));
+  prev.setAttribute("aria-label", "Previous");
+  const playPause = iconButton("atrium-media-btn play", null, () => call("media_play_pause"));
+  const next = iconButton("atrium-media-btn", "mdi:skip-next", () => call("media_next_track"));
+  next.setAttribute("aria-label", "Next");
+  controls.append(prev, playPause, next);
+
+  const volumeRow = document.createElement("div");
+  volumeRow.className = "atrium-media-volume";
+  const mute = iconButton("atrium-media-mute", null, () => call("volume_mute", { is_volume_muted: !this._hass.states?.[entityId]?.attributes?.is_volume_muted }));
+  mute.setAttribute("aria-label", `Mute ${displayName}`);
+  const volume = document.createElement("input");
+  volume.type = "range";
+  volume.min = "0";
+  volume.max = "100";
+  volume.className = "atrium-media-slider";
+  volume.setAttribute("aria-label", `${displayName} volume`);
+  volumeRow.append(mute, volume);
+
+  card.append(art, info, power, controls, volumeRow);
+
+  const ref = { card, art, title, subtitle, power, prev, next, playPause, volumeRow, mute, volume, displayName, artworkUrl: undefined, volumeDragging: false };
+  volume.addEventListener("input", () => {
+    ref.volumeDragging = true;
+    volume.style.setProperty("--v", `${volume.value}%`);
+  });
+  volume.addEventListener("change", () => {
+    ref.volumeDragging = false;
+    call("volume_set", { volume_level: Number(volume.value) / 100 });
+  });
+
+  this._refs.areas.get(area.area_id).media.set(entityId, ref);
+  this._updateMediaRef(ref, entityId);
   return card;
 }
 

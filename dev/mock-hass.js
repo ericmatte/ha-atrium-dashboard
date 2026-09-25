@@ -137,6 +137,22 @@ export function createMockHass({ onToast } = {}) {
         case "media_player.media_play_pause":
           patchState(id, { state: hass.states[id]?.state === "playing" ? "paused" : "playing" });
           break;
+        case "media_player.volume_set":
+          patchState(id, { attributes: { volume_level: data.volume_level } });
+          break;
+        case "media_player.volume_mute":
+          patchState(id, { attributes: { is_volume_muted: data.is_volume_muted } });
+          break;
+        case "media_player.turn_on":
+          patchState(id, { state: "idle" });
+          break;
+        case "media_player.turn_off":
+          patchState(id, { state: "off" });
+          break;
+        case "media_player.media_next_track":
+        case "media_player.media_previous_track":
+          onToast?.(`${service} → ${id}`);
+          break;
         case "vacuum.start":
           patchState(id, { state: "cleaning" });
           break;

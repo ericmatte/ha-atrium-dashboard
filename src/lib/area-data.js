@@ -225,7 +225,7 @@ export function sensorTone(state) {
 // rather than a rebuild.
 export function areaPanelSignature(area, data) {
   const ids = [
-    ...data.climates, ...data.scenes, ...data.buttons, ...data.lights, ...data.switches,
+    ...data.climates, ...data.mediaPlayers, ...data.scenes, ...data.buttons, ...data.lights, ...data.switches,
     ...data.inputSelects, ...data.covers, ...data.sensors.extras, ...data.sensors.other,
     ...data.automations, ...data.scripts, ...(data.hiddenRoutines || []),
   ].map((e) => e.entity_id);

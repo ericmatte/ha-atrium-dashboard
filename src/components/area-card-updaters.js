@@ -324,6 +324,68 @@ export function _updateInputSelectRef(ref, entityId) {
   }
 }
 
+// media_player supported_features bits (homeassistant.components.media_player).
+const MP = { PAUSE: 1, VOLUME_SET: 4, VOLUME_MUTE: 8, PREVIOUS: 16, NEXT: 32, TURN_ON: 128, TURN_OFF: 256, PLAY: 16384 };
+const MEDIA_STATE_LABEL = { playing: "Playing", paused: "Paused", idle: "Idle", on: "On", off: "Off", standby: "Standby", buffering: "Buffering", unavailable: "Unavailable" };
+
+// What the media card shows, from the player's state alone. An entity that
+// doesn't report supported_features (some dev/test fixtures) gets every control.
+export function mediaView(st) {
+  const a = st.attributes || {};
+  const f = a.supported_features;
+  const has = (bit) => f == null || (Number(f) & bit) === bit;
+  const off = st.state === "off" || st.state === "standby" || st.state === "unavailable";
+  const playing = st.state === "playing" || st.state === "buffering";
+  const title = a.media_title || (off ? null : a.app_name || a.source) || null;
+  const subtitle = [a.media_artist || a.media_series_title, a.media_album_name].filter(Boolean).join(" · ") || null;
+  return {
+    off,
+    playing,
+    title: title || MEDIA_STATE_LABEL[st.state] || st.state,
+    subtitle: title ? subtitle || MEDIA_STATE_LABEL[st.state] || null : null,
+    artwork: off ? null : a.entity_picture || null,
+    canPower: off ? has(MP.TURN_ON) && st.state !== "unavailable" : f != null && has(MP.TURN_OFF),
+    canPlayPause: !off && (has(MP.PAUSE) || has(MP.PLAY)),
+    canPrev: !off && has(MP.PREVIOUS),
+    canNext: !off && has(MP.NEXT),
+    canVolume: !off && has(MP.VOLUME_SET) && a.volume_level != null,
+    canMute: !off && has(MP.VOLUME_MUTE),
+    volume: Math.round((Number(a.volume_level) || 0) * 100),
+    muted: !!a.is_volume_muted,
+  };
+}
+
+export function _updateMediaRef(ref, entityId) {
+  const st = this._hass.states?.[entityId];
+  if (!st) return;
+  const v = mediaView(st);
+  ref.card.classList.toggle("off", v.off);
+  ref.card.classList.toggle("playing", v.playing);
+  ref.title.textContent = v.title;
+  ref.subtitle.textContent = v.subtitle || "";
+  ref.subtitle.hidden = !v.subtitle;
+  if (ref.artworkUrl !== v.artwork) {
+    ref.artworkUrl = v.artwork;
+    ref.art.style.backgroundImage = v.artwork ? `url("${v.artwork}")` : "";
+    ref.art.classList.toggle("has-img", !!v.artwork);
+  }
+  ref.power.hidden = !v.canPower;
+  ref.power.setAttribute("aria-label", `Turn ${ref.displayName} ${v.off ? "on" : "off"}`);
+  ref.prev.hidden = !v.canPrev;
+  ref.next.hidden = !v.canNext;
+  ref.playPause.hidden = !v.canPlayPause;
+  ref.playPause.innerHTML = haIcon(v.playing ? "mdi:pause" : "mdi:play", 22);
+  ref.playPause.setAttribute("aria-label", `${v.playing ? "Pause" : "Play"} ${ref.displayName}`);
+  ref.volumeRow.hidden = !v.canVolume && !v.canMute;
+  ref.mute.hidden = !v.canMute;
+  ref.mute.innerHTML = haIcon(v.muted ? "mdi:volume-off" : "mdi:volume-high", 18);
+  ref.mute.setAttribute("aria-pressed", String(v.muted));
+  ref.volume.hidden = !v.canVolume;
+  // Leave the slider alone while it's being dragged; HA's echo catches up after.
+  if (!ref.volumeDragging) ref.volume.value = String(v.volume);
+  ref.volume.style.setProperty("--v", `${v.volume}%`);
+}
+
 export function _updateSensorRef(ref) {
   const st = this._hass.states?.[ref.entityId];
   ref.value.textContent = fmtSensorValue(st);

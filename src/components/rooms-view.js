@@ -350,7 +350,7 @@ class AtriumRooms extends HTMLElement {
     this._panel.setAttribute("aria-label", area.name);
     this._refs = {
       areas: new Map([[area.area_id, {
-        lights: new Map(), switches: new Map(), covers: new Map(),
+        lights: new Map(), switches: new Map(), covers: new Map(), media: new Map(),
         climates: new Map(), automations: new Map(), inputSelects: new Map(), sensors: new Map(),
       }]]),
       bulk: [],
@@ -369,6 +369,7 @@ class AtriumRooms extends HTMLElement {
       }
     }
     for (const [entityId, ref] of refs.climates) this._updateClimateRef(ref, entityId);
+    for (const [entityId, ref] of refs.media) this._updateMediaRef(ref, entityId);
     for (const [entityId, ref] of refs.automations) this._updateAutomationRef(ref, entityId);
     for (const [entityId, ref] of refs.inputSelects) this._updateInputSelectRef(ref, entityId);
     for (const ref of refs.sensors.values()) this._updateSensorRef(ref);

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "../../tools/register.mjs";
 
-const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _updateAutomationRef, divaVisual, climateView } = await import("./area-card-updaters.js");
+const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _updateAutomationRef, divaVisual, climateView, mediaView } = await import("./area-card-updaters.js");
 
 // Minimal fakes for the DOM surface _bindDivaTrack/_updateDivaRef touch.
 // Pointer event listeners are captured directly so tests can invoke them
@@ -424,4 +424,35 @@ test("_updateAutomationRef: a script shows when it last ran, with no on/off stat
   _updateAutomationRef.call(ctx, ref, "script.good_night");
   assert.equal(ref.sub.textContent, "Never run");
   assert.equal(ref.row.classList.contains("off"), false);
+});
+
+test("mediaView: a playing speaker shows title, artist · album and every control it supports", () => {
+  const v = mediaView({ state: "playing", attributes: { media_title: "Midnight City", media_artist: "M83", media_album_name: "Hurry Up", volume_level: 0.35, supported_features: 16 | 32 | 1 | 4 | 8 } });
+  assert.equal(v.title, "Midnight City");
+  assert.equal(v.subtitle, "M83 · Hurry Up");
+  assert.equal(v.playing, true);
+  assert.equal(v.volume, 35);
+  assert.deepEqual([v.canPrev, v.canNext, v.canPlayPause, v.canVolume, v.canMute], [true, true, true, true, true]);
+  assert.equal(v.canPower, false);
+});
+
+test("mediaView: controls the player doesn't support are left out", () => {
+  const v = mediaView({ state: "paused", attributes: { media_title: "News", volume_level: 0.2, supported_features: 1 } });
+  assert.deepEqual([v.canPrev, v.canNext, v.canPlayPause, v.canVolume, v.canMute], [false, false, true, false, false]);
+});
+
+test("mediaView: an off TV shows 'Off' with only a power button, no artwork", () => {
+  const v = mediaView({ state: "off", attributes: { entity_picture: "/art.jpg", supported_features: 128 | 256 } });
+  assert.equal(v.off, true);
+  assert.equal(v.title, "Off");
+  assert.equal(v.subtitle, null);
+  assert.equal(v.artwork, null);
+  assert.equal(v.canPower, true);
+  assert.equal(v.canPlayPause, false);
+});
+
+test("mediaView: idle with nothing loaded shows its state as the title", () => {
+  const v = mediaView({ state: "idle", attributes: {} });
+  assert.equal(v.title, "Idle");
+  assert.equal(v.subtitle, null);
 });
