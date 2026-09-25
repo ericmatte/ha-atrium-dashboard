@@ -9,6 +9,7 @@ import {
   lightsGradient,
 } from "./area-card-shared.js";
 import { routineRows } from "../lib/area-data.js";
+import { settleStep } from "../lib/settle.js";
 import { FLASH_MS } from "./area-card-updaters.js";
 
 // Panel content for one selected room, in the order the design settled on:
@@ -473,10 +474,7 @@ export function _buildPillsSection(area, scenes, buttons, lights) {
   for (const scene of scenes) {
     const pill = this._buildPill(area, scene, {
       icon: (name) => iconForScene(scene, name),
-      onPress: () => {
-        this._call("scene", "turn_on", { entity_id: scene.entity_id });
-        this._captureSceneColors(scene.entity_id, lightIds, pill);
-      },
+      onPress: () => this._captureSceneColors(scene.entity_id, lightIds, pill, () => this._call("scene", "turn_on", { entity_id: scene.entity_id })),
     });
     const saved = readSceneGradient(scene.entity_id);
     if (saved) pill.style.setProperty("--pill-bg", saved);
@@ -514,16 +512,34 @@ export function _buildPill(area, entity, { icon, onPress }) {
   return pill;
 }
 
-// Lights fade into a scene over a moment, so the snapshot waits for them.
-const SCENE_SETTLE_MS = 1000;
+// Lights fade into a scene over a moment (and a slow bulb or a busy
+// integration can take a few seconds), so rather than a fixed delay the
+// snapshot polls the room's lights and waits until they've changed and then
+// held still — see settleStep.
+const SCENE_POLL_MS = 250;
+const SCENE_SETTLE = { stableMs: 800, maxMs: 8000 };
 
-export function _captureSceneColors(sceneId, lightIds, pill) {
-  setTimeout(() => {
+// `fire` applies the scene; the lights' "before" is read first, so even an
+// instant state change counts as a change.
+export function _captureSceneColors(sceneId, lightIds, pill, fire) {
+  clearInterval(pill._sceneWatch);
+  const sample = () => lightIds.map((id) => {
+    const st = this._hass.states?.[id];
+    const a = st?.attributes || {};
+    return `${st?.state}|${a.brightness}|${a.rgb_color}|${a.color_temp_kelvin ?? a.color_temp}`;
+  }).join(";");
+  let state = settleStep(null, sample(), Date.now(), SCENE_SETTLE).state;
+  fire();
+  pill._sceneWatch = setInterval(() => {
+    const step = settleStep(state, sample(), Date.now(), SCENE_SETTLE);
+    state = step.state;
+    if (!step.done) return;
+    clearInterval(pill._sceneWatch);
     const gradient = lightsGradient(this._hass, lightIds);
     if (!gradient) return;
     pill.style.setProperty("--pill-bg", gradient);
     writeSceneGradient(sceneId, gradient);
-  }, SCENE_SETTLE_MS);
+  }, SCENE_POLL_MS);
 }
 
 // Scripts first, then automations (see routineRows). The "N off" badge

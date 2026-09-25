@@ -6,14 +6,19 @@ import "../../tools/register.mjs";
 
 const { shellWeatherIcon, shellWeatherColor, shellPickWeatherEntity, shellWeatherSummary, shellGreeting } = await import("./shell.js");
 
-test("shellGreeting: morning before noon, afternoon until 6pm, evening after", () => {
-  assert.equal(shellGreeting(0), "Good morning");
+test("shellGreeting: night 10pm–4am, morning until noon, afternoon until 6pm, evening until 10pm", () => {
+  assert.equal(shellGreeting(0), "Good night");
+  assert.equal(shellGreeting(3), "Good night");
+  assert.equal(shellGreeting(4), "Good morning");
   assert.equal(shellGreeting(11), "Good morning");
   assert.equal(shellGreeting(12), "Good afternoon");
   assert.equal(shellGreeting(17), "Good afternoon");
   assert.equal(shellGreeting(18), "Good evening");
-  assert.equal(shellGreeting(23), "Good evening");
+  assert.equal(shellGreeting(21), "Good evening");
+  assert.equal(shellGreeting(22), "Good night");
+  assert.equal(shellGreeting(23), "Good night");
 });
+
 
 function weatherState(entityId, state, attributes = {}) {
   return { entity_id: entityId, state, attributes };

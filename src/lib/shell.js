@@ -106,9 +106,10 @@ export function shellProblemIcon(st) {
 
 export const ALL_FLOOR_KEY = "__all__";
 
-// Home tab greeting: morning before noon, evening from 6pm on, afternoon
-// in between.
+// Home tab greeting: night from 10pm to 4am, morning until noon, afternoon
+// until 6pm, evening until 10pm.
 export function shellGreeting(hour) {
+  if (hour >= 22 || hour < 4) return "Good night";
   if (hour < 12) return "Good morning";
   if (hour < 18) return "Good afternoon";
   return "Good evening";

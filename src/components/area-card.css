@@ -36,7 +36,7 @@
 .atrium-floor-group { display: flex; flex-direction: column; gap: 12px; }
 .atrium-floor-label { display: flex; align-items: center; gap: 10px; min-height: 28px; color: color-mix(in srgb, var(--a-dim) 85%, transparent); }
 .atrium-floor-label > ha-icon { --mdc-icon-size: 20px; flex-shrink: 0; }
-.atrium-floor-name { font-size: 15px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
+.atrium-floor-name { font-size: 15px; font-weight: 800; letter-spacing: .01em; text-transform: capitalize; white-space: nowrap; }
 .atrium-floor-count { font-size: 13px; font-weight: 700; letter-spacing: 0; font-variant-numeric: tabular-nums; }
 .atrium-floor-toggle { flex-shrink: 0; height: 28px; gap: 5px; padding: 0 10px 0 8px; border: 0; border-radius: 999px; font: inherit; background: var(--a-surface); color: color-mix(in srgb, var(--a-dim) 75%, transparent); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: background .25s, color .25s; --mdc-icon-size: 16px; }
 .atrium-floor-toggle.on { background: color-mix(in srgb, #f6c14b 16%, transparent); color: #f6c14b; }
@@ -52,7 +52,7 @@
 .atrium-orb-art { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--a-text) 22%, transparent) 0%, color-mix(in srgb, var(--a-text) 7%, transparent) 70%); color: color-mix(in srgb, var(--a-text) 40%, transparent); transition: filter .5s ease; }
 .atrium-orb-art.has-img { background-size: cover; background-position: center; }
 .atrium-orb-row .atrium-orb-art ha-icon { --mdc-icon-size: calc(var(--orb-size, 100px) * .28); }
-.atrium-orb.gray .atrium-orb-art, .atrium-panel-hero-photo.gray .atrium-orb-art { filter: grayscale(1) brightness(.42); }
+.atrium-orb.gray .atrium-orb-art, .atrium-panel-hero-photo.gray .atrium-orb-art { filter: grayscale(.8) brightness(.65); }
 
 /* The light count and alert dot sit ON the photo's circle — centred on it at
    10 and 2 o'clock (50% ± 50%·cos 45°) — at every tile size. rooms-view.js
@@ -306,7 +306,7 @@ button.atrium-badge { cursor: pointer; }
   .has-sel .atrium-floor-group + .atrium-floor-group { padding-left: 14px; border-left: 1px solid color-mix(in srgb, var(--a-text) 10%, transparent); }
   .has-sel .atrium-floor-label { min-height: 0; gap: 6px; }
   .has-sel .atrium-floor-label > ha-icon { --mdc-icon-size: 13px; }
-  .has-sel .atrium-floor-name { font-size: 10px; letter-spacing: .12em; }
+  .has-sel .atrium-floor-name { font-size: 11px; }
   .has-sel .atrium-floor-toggle { display: none; }
   .has-sel .atrium-orb-row { display: flex; flex-wrap: nowrap; gap: 24px; margin-block: 8px; }
   .has-sel .atrium-orb { width: 70px; flex-shrink: 0; gap: 6px; animation-name: atrium-room-in-a; }
