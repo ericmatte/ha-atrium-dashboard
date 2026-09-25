@@ -50,7 +50,7 @@ export function createMockHass({ onToast } = {}) {
 
   // Canned target states for the two Living Room scenes that carry an
   // `entity_id` list in their fixtures — just enough of a "scene engine" to
-  // make the badge color-gradient feature (computeSceneGradient) visibly
+  // make the scene pill color snapshot (lightsGradient) visibly
   // do something here, not a real scene-application simulator.
   const SCENE_TARGETS = {
     "scene.living_room_movie_night": [
@@ -83,6 +83,12 @@ export function createMockHass({ onToast } = {}) {
         }
         case "light.turn_off":
         case "switch.turn_off":
+          patchState(id, { state: "off" });
+          break;
+        case "input_boolean.turn_on":
+          patchState(id, { state: "on" });
+          break;
+        case "input_boolean.turn_off":
           patchState(id, { state: "off" });
           break;
         case "switch.turn_on":
@@ -118,6 +124,7 @@ export function createMockHass({ onToast } = {}) {
           }
           toast(`Scene activated · ${id}`);
           break;
+        case "input_button.press":
         case "button.press":
           toast(`Button pressed · ${id}`);
           break;
@@ -133,6 +140,25 @@ export function createMockHass({ onToast } = {}) {
         case "automation.trigger":
           patchState(id, { attributes: { last_triggered: new Date().toISOString() } });
           toast(`Automation triggered · ${id}`);
+          break;
+        case "media_player.media_play_pause":
+          patchState(id, { state: hass.states[id]?.state === "playing" ? "paused" : "playing" });
+          break;
+        case "media_player.volume_set":
+          patchState(id, { attributes: { volume_level: data.volume_level } });
+          break;
+        case "media_player.volume_mute":
+          patchState(id, { attributes: { is_volume_muted: data.is_volume_muted } });
+          break;
+        case "media_player.turn_on":
+          patchState(id, { state: "idle" });
+          break;
+        case "media_player.turn_off":
+          patchState(id, { state: "off" });
+          break;
+        case "media_player.media_next_track":
+        case "media_player.media_previous_track":
+          onToast?.(`${service} → ${id}`);
           break;
         case "vacuum.start":
           patchState(id, { state: "cleaning" });

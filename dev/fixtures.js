@@ -40,21 +40,24 @@ export function buildFixtures() {
     showcase: { floor_id: "showcase", name: "Showcase", icon: "mdi:flask", level: 100 },
   };
 
+  // Real area photos in HA come from /api/image/serve/…; the demo uses Unsplash
+  // stock photos so the round tiles show what a configured home looks like.
+  const stockPhoto = (id) => `https://images.unsplash.com/photo-${id}?w=512&h=512&fit=crop&q=70`;
   const areas = {
-    living_room: { area_id: "living_room", floor_id: "ground", name: "Living Room", icon: "mdi:sofa", picture: null, temperature_entity_id: "sensor.living_room_temperature", humidity_entity_id: "sensor.living_room_humidity" },
-    kitchen: { area_id: "kitchen", floor_id: "ground", name: "Kitchen", icon: "mdi:countertop", picture: null, temperature_entity_id: "sensor.kitchen_temperature", humidity_entity_id: null },
-    entrance: { area_id: "entrance", floor_id: "ground", name: "Entrance", icon: "mdi:door", picture: null, temperature_entity_id: null, humidity_entity_id: null },
-    bathroom: { area_id: "bathroom", floor_id: "ground", name: "Bathroom", icon: "mdi:bathtub", picture: null, temperature_entity_id: null, humidity_entity_id: "sensor.bathroom_humidity" },
+    living_room: { area_id: "living_room", floor_id: "ground", name: "Living Room", icon: "mdi:sofa", picture: stockPhoto("1600210492486-724fe5c67fb0"), temperature_entity_id: "sensor.living_room_temperature", humidity_entity_id: "sensor.living_room_humidity" },
+    kitchen: { area_id: "kitchen", floor_id: "ground", name: "Kitchen", icon: "mdi:countertop", picture: stockPhoto("1556911220-bff31c812dba"), temperature_entity_id: "sensor.kitchen_temperature", humidity_entity_id: null },
+    entrance: { area_id: "entrance", floor_id: "ground", name: "Entrance", icon: "mdi:door", picture: stockPhoto("1502005229762-cf1b2da7c5d6"), temperature_entity_id: null, humidity_entity_id: null },
+    bathroom: { area_id: "bathroom", floor_id: "ground", name: "Bathroom", icon: "mdi:bathtub", picture: stockPhoto("1552321554-5fefe8c9ef14"), temperature_entity_id: null, humidity_entity_id: "sensor.bathroom_humidity" },
 
-    workshop: { area_id: "workshop", floor_id: "basement", name: "Workshop", icon: "mdi:wrench", picture: null, temperature_entity_id: null, humidity_entity_id: "sensor.workshop_humidity" },
-    media_room: { area_id: "media_room", floor_id: "basement", name: "Media Room", icon: "mdi:television-classic", picture: null, temperature_entity_id: null, humidity_entity_id: null },
+    workshop: { area_id: "workshop", floor_id: "basement", name: "Workshop", icon: "mdi:wrench", picture: stockPhoto("1581783898377-1c85bf937427"), temperature_entity_id: null, humidity_entity_id: "sensor.workshop_humidity" },
+    media_room: { area_id: "media_room", floor_id: "basement", name: "Media Room", icon: "mdi:television-classic", picture: stockPhoto("1478720568477-152d9b164e26"), temperature_entity_id: null, humidity_entity_id: null },
 
     // Orphan areas (no floor_id) surface under the strategy's virtual "Other"
     // floor — here they just live outside every real floor id.
-    garden: { area_id: "garden", floor_id: null, name: "Garden", icon: "mdi:flower", picture: null, temperature_entity_id: "sensor.garden_temperature", humidity_entity_id: null },
-    garage: { area_id: "garage", floor_id: null, name: "Garage", icon: "mdi:garage", picture: null, temperature_entity_id: null, humidity_entity_id: null },
+    garden: { area_id: "garden", floor_id: null, name: "Garden", icon: "mdi:flower", picture: stockPhoto("1585320806297-9794b3e4eeae"), temperature_entity_id: "sensor.garden_temperature", humidity_entity_id: null },
+    garage: { area_id: "garage", floor_id: null, name: "Garage", icon: "mdi:garage", picture: stockPhoto("1600566753190-17f0baa2a6c3"), temperature_entity_id: null, humidity_entity_id: null },
 
-    showcase_room: { area_id: "showcase_room", floor_id: "showcase", name: "Showcase Room", icon: "mdi:flask", picture: null, temperature_entity_id: "sensor.showcase_temperature", humidity_entity_id: "sensor.showcase_humidity" },
+    showcase_room: { area_id: "showcase_room", floor_id: "showcase", name: "Showcase Room", icon: "mdi:flask", picture: stockPhoto("1586023492125-27b2c045efd7"), temperature_entity_id: "sensor.showcase_temperature", humidity_entity_id: "sensor.showcase_humidity" },
   };
 
   const devices = {
@@ -86,8 +89,8 @@ export function buildFixtures() {
   add("cover.living_room_curtain", "living_room", "open", { current_position: 100, device_class: "curtain" });
   add("cover.living_room_blind", "living_room", "open", { current_position: 40, current_tilt_position: 60, device_class: "blind" });
   // entity_id lists the scene's target lights — mock-hass.js's SCENE_TARGETS
-  // applies canned colors to them on scene.turn_on, so the scene-gradient
-  // badge (computeSceneGradient) has something real to sample.
+  // applies canned colors to them on scene.turn_on, so the scene pill
+  // snapshot (lightsGradient) has something real to sample.
   add("scene.living_room_movie_night", "living_room", "2024-01-01T00:00:00+00:00", {
     icon: "mdi:movie-open", entity_id: ["light.living_room_lamp", "light.living_room_accent"],
   });
@@ -108,6 +111,7 @@ export function buildFixtures() {
   add("climate.living_room_heat_pump", "living_room", "heat_cool", {
     current_temperature: 21.4, temperature: 22, target_temp_step: 0.5, min_temp: 10, max_temp: 30,
     hvac_modes: ["off", "heat", "cool", "heat_cool", "auto"], fan_mode: "auto", fan_modes: ["auto", "low", "medium", "high"],
+    swing_mode: "swing", swing_modes: ["swing", "static"],
     friendly_name: "Heat pump",
   });
   add("automation.living_room_climate_controller", "living_room", "on", { icon: "mdi:thermostat-auto", last_triggered: isoMinutesAgo(60 * 4), friendly_name: "Smart climate controller" });
@@ -157,7 +161,7 @@ export function buildFixtures() {
   // temperature. Unlike the heat pump, its swatch has no mode dropdown.
   add("climate.bathroom_thermostat", "bathroom", "heat", {
     current_temperature: 19.8, temperature: 21, target_temp_step: 0.5, min_temp: 10, max_temp: 30,
-    hvac_modes: ["heat"],
+    hvac_modes: ["heat"], hvac_action: "heating",
     friendly_name: "Thermostat",
   });
 
@@ -174,11 +178,17 @@ export function buildFixtures() {
   // bathroom's — no mode dropdown, just a target temperature.
   add("climate.workshop_thermostat", "workshop", "heat", {
     current_temperature: 15.5, temperature: 18, target_temp_step: 1, min_temp: 5, max_temp: 25,
-    hvac_modes: ["heat"],
+    hvac_modes: ["heat"], hvac_action: "idle",
     friendly_name: "Thermostat",
   });
 
   // ---- Media Room (basement) -------------------------------------------------
+  // Media players feed the tiles' bottom-right "what's running" badge:
+  // the TV is playing (tap = pause), the living room speaker is paused.
+  // supported_features mirror real devices: the TV can be powered on/off,
+  // a Sonos can't (so its card has no power button).
+  add("media_player.media_room_tv", "media_room", "playing", { device_class: "tv", media_title: "Dune: Part Two", app_name: "Netflix", volume_level: 0.4, is_volume_muted: false, supported_features: 21437, friendly_name: "TV" });
+  add("media_player.living_room_sonos", "living_room", "paused", { device_class: "speaker", media_title: "Midnight City", media_artist: "M83", media_album_name: "Hurry Up, We're Dreaming", volume_level: 0.35, is_volume_muted: false, supported_features: 8321599, friendly_name: "Sonos" });
   add("light.media_room_main", "media_room", "off", { supported_color_modes: ["brightness"], color_mode: "brightness" });
   add("light.media_room_accent", "media_room", "on", { supported_color_modes: ["rgb"], color_mode: "rgb", rgb_color: [90, 140, 255], brightness: 77 }, { icon: "mdi:led-strip-variant" });
   add("switch.media_room_projector", "media_room", "off", {});
@@ -196,6 +206,10 @@ export function buildFixtures() {
   add("automation.garden_sunset_lights", "garden", "on", { icon: "mdi:weather-sunset", last_triggered: isoMinutesAgo(60 * 6), friendly_name: "Sunset lights" });
   add("automation.garden_sprinkler_schedule", "garden", "off", { icon: "mdi:sprinkler", last_triggered: isoDaysAgo(3), friendly_name: "Sprinkler schedule" });
   add("sensor.garden_temperature", "garden", "15.2", { device_class: "temperature", unit_of_measurement: "°C", friendly_name: "Temperature" });
+  // Toggle helpers assigned to an area show as on/off tiles in its panel.
+  add("input_button.garden_ring_bell", "garden", "unknown", { icon: "mdi:bell-ring", friendly_name: "Ring bell" });
+  add("input_boolean.garden_summer_mode", "garden", "off", { icon: "mdi:weather-sunny", friendly_name: "Summer mode" });
+  add("input_boolean.garden_guest_mode", "garden", "on", { icon: "mdi:account-multiple", friendly_name: "Guest mode" });
   add("sensor.garden_soil_moisture", "garden", "38", { device_class: "moisture", unit_of_measurement: "%", friendly_name: "Basil soil moisture" });
 
   // ---- Garage (orphan / "Other") -----------------------------------------

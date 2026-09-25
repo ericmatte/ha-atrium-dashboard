@@ -1,4 +1,7 @@
-.atrium-shell-root { display: block; max-width: 1800px; }
+.atrium-shell-root { display: block; max-width: 1800px; --atrium-focus: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 60%, transparent); }
+/* Same focus ring as the rooms view: follows each control's radius. */
+.atrium-shell-root button:focus { outline: none; }
+.atrium-shell-root button:focus-visible { outline: 2px solid var(--atrium-focus); outline-offset: 2px; }
 /* z-index stays at 2 so HA's native toolbar (on its own higher-z layer)
    wins when they overlap. */
 .atrium-shell-header {
@@ -27,7 +30,7 @@
   width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
 }
 .atrium-shell-weather-icon ha-icon { --mdc-icon-size: 18px; }
-.atrium-shell-welcome { font-size: 27px; font-weight: 700; letter-spacing: -.4px; color: var(--primary-text-color, #e8e9ec); }
+.atrium-shell-welcome { font-size: 27px; font-weight: 700; letter-spacing: -.4px; color: var(--primary-text-color, #e8e9ec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .atrium-shell-pills { display: flex; gap: 6px; padding: 4px 12px; overflow-x: auto; scrollbar-width: none; }
 .atrium-shell-pills::-webkit-scrollbar { display: none; }
@@ -62,49 +65,27 @@
   background-size: cover; background-position: center;
   position: relative; flex-shrink: 0;
 }
+/* Presence dot: one size, green when home, gray otherwise (away or in
+   another zone — the tooltip/more-info says where). */
 .atrium-shell-person .atrium-shell-avatar-dot {
-  position: absolute; right: -3px; bottom: -3px;
-  width: 11px; height: 11px; border-radius: 50%;
+  position: absolute; right: -2px; bottom: -2px;
+  width: 12px; height: 12px; border-radius: 50%;
   border: 2px solid var(--primary-background-color, #0e0f12);
-  background: color-mix(in srgb, var(--secondary-text-color, #9aa0aa) 70%, transparent);
+  background: color-mix(in srgb, var(--secondary-text-color, #9aa0aa) 70%, var(--primary-background-color, #0e0f12));
   box-sizing: content-box;
-  display: inline-flex; align-items: center; justify-content: center; color: #fff;
 }
-.atrium-shell-person .atrium-shell-avatar-dot ha-icon {
-  display: none;
-  --mdc-icon-size: 12px;
-}
-.atrium-shell-person.is-home .atrium-shell-avatar-dot {
-  width: 16px; height: 16px;
-  background: var(--success-color, #7dc97a);
-}
-.atrium-shell-person.is-home .atrium-shell-avatar-dot ha-icon { display: inline-flex; }
-.atrium-shell-person.is-away .atrium-shell-avatar-dot { background: color-mix(in srgb, var(--secondary-text-color, #9aa0aa) 70%, transparent); }
-.atrium-shell-person.is-zone .atrium-shell-avatar-dot { background: var(--state-climate-cool-color, #5cc6ff); }
+.atrium-shell-person.is-home .atrium-shell-avatar-dot { background: var(--success-color, #7dc97a); }
 
-.atrium-shell-floor-label {
-  display: flex; align-items: center; gap: 10px; padding: 0 4px 8px;
-  font-size: 14px; line-height: 14px; color: var(--secondary-text-color, #9aa0aa);
-  letter-spacing: .6px; text-transform: uppercase; font-weight: 600;
-  max-width: 1800px; min-height: 24px;
+/* Desktop, Home tab: line the greeting up with the room grid's gutter (80px, 40px
+   while a room is open) and keep it clear of the rooms view's fixed side
+   panel. atrium-rooms sets --atrium-panel-open on <html> (it inherits into
+   every card's shadow root) — see _syncLayout in rooms-view.js. */
+@media (min-width: 861px) {
+  .atrium-shell-root.is-home .atrium-shell-header {
+    --atrium-open: var(--atrium-panel-open, 0);
+    padding-left: calc(62px - 40px * var(--atrium-open));
+    padding-right: calc(62px - 40px * var(--atrium-open) + 580px * var(--atrium-open));
+    transition: padding .55s cubic-bezier(.32,.72,0,1);
+  }
+  .atrium-shell-root.is-home .atrium-shell-pills { padding-inline: 18px; }
 }
-.atrium-shell-floor-label .atrium-shell-fl-icon { --mdc-icon-size: 17px; flex-shrink: 0; color: var(--secondary-text-color, #9aa0aa); }
-.atrium-shell-floor-label .atrium-shell-fl-name { white-space: nowrap; flex-shrink: 0; line-height: 14px; }
-.atrium-shell-floor-label .atrium-shell-fl-line { flex: 1; height: 1px; background: var(--divider-color, rgba(127,127,127,0.18)); }
-.atrium-shell-floor-label .atrium-shell-fl-controls {
-  display: flex; align-items: center; gap: 10px;
-  margin-left: auto; flex-shrink: 0;
-}
-.atrium-shell-floor-label .atrium-shell-fl-count {
-  font-size: 13px; line-height: 14px; color: color-mix(in srgb, var(--secondary-text-color, #9aa0aa) 70%, transparent);
-  font-variant-numeric: tabular-nums; font-weight: 500;
-  letter-spacing: .3px;
-}
-.atrium-shell-floor-label .atrium-shell-fl-bulb {
-  width: 30px; height: 24px; border-radius: 7px; padding: 0;
-  border: none; cursor: pointer; flex-shrink: 0;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-family: inherit;
-  transition: background .25s ease, color .25s ease;
-}
-.atrium-shell-floor-label .atrium-shell-fl-bulb ha-icon { --mdc-icon-size: 14px; }

@@ -1,420 +1,467 @@
-import { unchangedState, unchangedStates } from "../lib/hass-utils.js";
-import { haIcon, tint, vibrate, pctFromPointerX, DRAG_THRESHOLD_PX, LONG_PRESS_MS } from "../lib/dom-utils.js";
+import { haIcon, setIcon, tint, vibrate } from "../lib/dom-utils.js";
+import { sensorTone } from "../lib/area-data.js";
 import {
   TONE, ICONS,
-  CLIMATE_ACCENT, CLIMATE_LABELS, CLIMATE_ICONS,
-  canDimLight, fmtBrightnessPct, fmtCoverPct, fmtSensorValue, fmtTimeAgoShort, fmtTimeAgoLong,
-  levelColor, lightRgbTriple,
+  CLIMATE_LABELS, CLIMATE_ICONS,
+  canDimLight, fmtBrightnessPct, fmtCoverPct, fmtTimeAgoShort, fmtTimeAgoLong,
+  fmtSensorValue, iconForSensor,
+  lightRgbTriple,
   labelDescriptor,
 } from "./area-card-shared.js";
 
-export function _updateChips(ar) {
-  const hass = this._hass;
-  const data = ar.data;
+// Diva track geometry (px), matching the approved design: a 58×108 track
+// around a round 34px icon thumb, 6px of padding top/bottom.
+const THUMB = 34;
+const PAD = 6;
+// A light's fill fades out across the icon: solid up to 1/3 of its height,
+// transparent at 2/3, so the fill reads as glowing from under the icon.
+const FADE_START = Math.round(THUMB / 3);
+const FADE_END = Math.round((THUMB * 2) / 3);
+// Over the last 10 %, the fill grows to the top of the track and its fade
+// turns solid, so 99 % → 100 % has no visible jump; mirrored under 10 % so
+// 1 % → 0 % has none either.
+const TOP_BLEND_FROM = 0.9;
+const BOTTOM_BLEND_TO = 0.1;
+// Slop before a press counts as a drag rather than a tap.
+const DRAG_SLOP = 3;
+// On/off tiles have two notches (closed/open); a press stretches the thumb
+// a little toward the other end, then flicks once pulled 80% of the way.
+const NOTCH_STRETCH = 0.1;
+const NOTCH_STIFFNESS = 2.5;
+const NOTCH_FLICK_AT = 0.8;
+const FLICK_MS = 450;
+// The live "NN%" label sits above the thumb at low levels, below it at high
+// levels, crossfading in between so it's never covered by the icon.
+const PCT_SWAP_FROM = 40;
+const PCT_SWAP_TO = 60;
+// Kept in sync with the `.flash` state in area-card.css.
+export const FLASH_MS = 1400;
 
-  // The set of entity ids whose state can affect this card's chips is fixed
-  // at build time; cache it on the area ref so unchangedStates can early-out
-  // on identity equality when none of those states moved.
-  if (!ar._chipIds) {
-    const ids = [];
-    for (const s of data.sensors.motion) ids.push(s.entity_id);
-    if (data.sensors.temp) ids.push(data.sensors.temp.entity_id);
-    if (data.sensors.humid) ids.push(data.sensors.humid.entity_id);
-    for (const s of data.sensors.soil) ids.push(s.entity_id);
-    for (const s of data.sensors.leak) ids.push(s.entity_id);
-    for (const d of data.doors) ids.push(d.entity_id);
-    for (const p of data.sensors.propane) ids.push(p.entity_id);
-    for (const v of data.vacuums) ids.push(v.entity_id);
-    ar._chipIds = ids;
-  }
-  if (unchangedStates(ar, "_chipStates", hass, ar._chipIds)) return;
+const SWITCH_COLOR = "#79d99a";
 
-  const activeMotion = data.sensors.motion.find((s) => hass.states?.[s.entity_id]?.state === "on") || data.sensors.motion[0];
-  const motionOn = !!activeMotion && hass.states?.[activeMotion.entity_id]?.state === "on";
-  ar.motionPill.style.display = motionOn ? "inline-flex" : "none";
-  ar.motionPill.onclick = activeMotion
-    ? (e) => { e.stopPropagation(); this._moreInfo(activeMotion.entity_id); }
-    : null;
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const alpha = (color, pct) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
-  const chips = ar.chips;
-  chips.innerHTML = "";
-
-  const addSpan = (icon, color, text, opts = {}) => {
-    const span = document.createElement("span");
-    span.className = "atrium-chip" + (opts.bg ? " has-bg" : "") + (opts.pulse ? " pulse" : "") + (opts.entityId ? " clickable" : "");
-    if (opts.bg) span.style.background = opts.bg;
-    span.style.color = color;
-    span.innerHTML = `${haIcon(icon)}<span>${text}</span>`;
-    if (opts.entityId) {
-      span.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this._moreInfo(opts.entityId);
-      });
-    }
-    chips.appendChild(span);
-  };
-
-  if (data.sensors.temp) {
-    const st = hass.states?.[data.sensors.temp.entity_id];
-    if (st && st.state !== "unavailable") addSpan(ICONS.thermo, TONE.textDim, `${parseFloat(st.state).toFixed(1)}°`, { entityId: data.sensors.temp.entity_id });
-  }
-  if (data.sensors.humid) {
-    const st = hass.states?.[data.sensors.humid.entity_id];
-    if (st && st.state !== "unavailable") addSpan(ICONS.drop, TONE.textDim, `${Math.round(parseFloat(st.state))}%`, { entityId: data.sensors.humid.entity_id });
-  }
-  for (const s of data.sensors.soil) {
-    const st = hass.states?.[s.entity_id];
-    if (st && st.state !== "unavailable") addSpan(ICONS.plant, TONE.good, `${Math.round(parseFloat(st.state))}%`, { entityId: s.entity_id });
-  }
-  if (data.sensors.leak.length) {
-    const leaky = data.sensors.leak.find((s) => hass.states?.[s.entity_id]?.state === "on");
-    if (leaky) {
-      // Solid fill + dark glyph, not just a tinted pill — an active leak is
-      // the one thing on this card that should win the eye immediately.
-      addSpan(ICONS.leak, "var(--ha-card-background, var(--card-background-color, #16181d))", "Leak!", { bg: TONE.danger, pulse: true, entityId: leaky.entity_id });
-    } else {
-      addSpan(ICONS.leak, TONE.textDim, "Dry", { entityId: data.sensors.leak[0].entity_id });
-    }
-  }
-  for (const d of data.doors) {
-    const isOpen = hass.states?.[d.entity_id]?.state === "on";
-    const span = document.createElement("span");
-    span.className = "atrium-chip clickable" + (isOpen ? " has-bg" : "");
-    if (isOpen) span.style.background = tint(TONE.heat, 16);
-    span.style.color = isOpen ? TONE.heat : TONE.textDim;
-    span.title = this._entityName(d);
-    span.innerHTML = haIcon(isOpen ? ICONS.door_open : ICONS.door_closed);
-    span.addEventListener("click", (e) => {
-      e.stopPropagation();
-      this._moreInfo(d.entity_id);
-    });
-    chips.appendChild(span);
-  }
-  for (const p of data.sensors.propane) {
-    const st = hass.states?.[p.entity_id];
-    if (st && st.state !== "unavailable") {
-      const pct = Math.round(parseFloat(st.state));
-      const c = levelColor(pct);
-      addSpan(ICONS.propane, c, `${pct}%`, { bg: tint(c), entityId: p.entity_id });
-    }
-  }
-  const VACUUM_CHIP_COLOR = {
-    docked: TONE.textDim, idle: TONE.textDim,
-    cleaning: TONE.good, returning: TONE.cool,
-    paused: TONE.light, error: TONE.danger,
-  };
-  for (const v of data.vacuums) {
-    const st = hass.states?.[v.entity_id];
-    if (!st || st.state === "unavailable") continue;
-    const color = VACUUM_CHIP_COLOR[st.state] || TONE.textDim;
-    const active = st.state === "cleaning" || st.state === "returning";
-    const span = document.createElement("span");
-    span.className = "atrium-chip clickable" + (active ? " has-bg" : "") + (st.state === "error" ? " pulse" : "");
-    if (active) span.style.background = tint(color, 16);
-    span.style.color = color;
-    span.title = this._entityName(v);
-    span.innerHTML = haIcon(ICONS.vacuum);
-    span.addEventListener("click", (e) => {
-      e.stopPropagation();
-      this._moreInfo(v.entity_id);
-    });
-    chips.appendChild(span);
-  }
+function isDimmableFor(kind, st) {
+  return kind === "cover" || (kind === "light" && canDimLight(st));
 }
 
-export function _updateQuickButtons(ar) {
-  const hass = this._hass;
-  const data = ar.data;
-  const onCount = data.lights.filter((l) => hass.states?.[l.entity_id]?.state === "on").length;
-  const openCount = data.covers.filter((c) => fmtCoverPct(hass.states?.[c.entity_id] || { attributes: {} }) > 5).length;
-  ar.icon.classList.toggle("on", onCount > 0);
-  ar.card.classList.toggle("lights-on", onCount > 0);
-  ar.bulbBtn.classList.toggle("on-light", onCount > 0);
-  if (ar.bulbCountEl) {
-    ar.bulbCountEl.style.display = onCount > 0 ? "inline" : "none";
-    ar.bulbCountEl.textContent = onCount;
-  }
-  ar.coverBtn.classList.toggle("on-cover", openCount > 0);
+function accentFor(kind, st) {
+  if (kind === "cover") return TONE.curtain;
+  if (kind === "switch" || kind === "input_boolean") return SWITCH_COLOR;
+  const rgb = lightRgbTriple(st);
+  return rgb ? `rgb(${rgb[0]},${rgb[1]},${rgb[2]})` : TONE.light;
 }
 
-// Shared on/off tile updater for lights and switches — mirrors the
-// `_buildToggleTile` unification on the builder side. `canDim` says whether
-// this kind can ever dim (only lights); `icon` is the swatch fallback when
-// neither the entity registry nor the state carry one.
-export function _updateToggleRef(ref, entityId, { canDim: supportsDim, icon: defaultIcon }) {
-  const hass = this._hass;
-  const st = hass.states?.[entityId];
-  if (!st) return;
-  if (supportsDim && this._dragState.has(entityId)) return; // pointer event owns the visuals
-  if (unchangedState(ref, "_lastState", st)) return;
-
-  const icon = hass.entities?.[entityId]?.icon ?? st.attributes?.icon ?? defaultIcon;
-  if (icon !== ref._icon) {
-    ref._icon = icon;
-    ref.iconEl.setAttribute("icon", icon);
+function onOffAndLevel(kind, st) {
+  const dimmable = isDimmableFor(kind, st);
+  if (kind === "cover") {
+    const level = fmtCoverPct(st);
+    return { on: level > 0, level, dimmable };
   }
-  const unavailable = st.state === "unavailable";
-  ref.tile.classList.toggle("unavailable", unavailable);
   const on = st.state === "on";
-  const canDim = supportsDim && canDimLight(st);
-  const pct = canDim ? fmtBrightnessPct(st) : 0;
-  ref.tile.classList.toggle("no-dim", !canDim);
-  ref.fill.style.width = on ? `${canDim ? pct : 100}%` : "0%";
-  ref.thumb.style.left = `calc(${pct}% - 2px)`;
-  ref.thumb.style.display = on && canDim ? "block" : "none";
-  ref.thumb.style.opacity = "0.55";
-  ref.tile.classList.toggle("on", on && !unavailable);
-  ref.swatch.classList.toggle("on-light", on && !unavailable);
-  ref.state.classList.toggle("on-light", on && !unavailable);
-  const stateText = unavailable ? "Unavailable" : on ? (canDim ? `${pct}%` : "On") : "Off";
-  ref.state.textContent = st.last_updated ? `${stateText} - ${fmtTimeAgoShort(st.last_updated)}` : stateText;
+  const level = dimmable ? fmtBrightnessPct(st) : on ? 100 : 0;
+  return { on, level, dimmable };
+}
 
-  // True color modes get the bulb's live rgb_color; white-temperature modes
-  // fall back to the default yellow tint via the CSS var defaults. Switches
-  // never carry a color_mode attribute, so this is a no-op for them.
-  const rgb = on && !unavailable ? lightRgbTriple(st) : null;
-  if (rgb) {
-    const [r, g, b] = rgb;
-    ref.tile.style.setProperty("--tile-accent", `rgb(${r},${g},${b})`);
-    ref.tile.style.setProperty("--tile-fill", `linear-gradient(90deg, rgba(${r},${g},${b},0.16) 0%, rgba(${r},${g},${b},0.3) 100%)`);
-    ref.tile.style.setProperty("--tile-fill-pressed", `linear-gradient(90deg, rgba(${r},${g},${b},0.3) 0%, rgba(${r},${g},${b},0.44) 100%)`);
-  } else {
-    ref.tile.style.removeProperty("--tile-accent");
-    ref.tile.style.removeProperty("--tile-fill");
-    ref.tile.style.removeProperty("--tile-fill-pressed");
+// Everything a Diva track draws, from its state alone — a port of the
+// design's divaVM. `thumbFrac` is where the icon rides (the rubber-banded
+// drag position for on/off tiles); the fill of an on/off tile only ever
+// snaps between empty and full.
+export function divaVisual({ kind, on, level, dimmable, thumbFrac, color }) {
+  const frac = on ? (dimmable ? level / 100 : 1) : 0;
+  const thumb = thumbFrac ?? frac;
+  const solid = kind === "cover" || !dimmable;
+  const fillTop = solid ? THUMB / 2 : FADE_END;
+  const topBlend = clamp01((frac - TOP_BLEND_FROM) / (1 - TOP_BLEND_FROM));
+  const bottomBlend = clamp01(frac / BOTTOM_BLEND_TO);
+  const travel = THUMB + PAD * 2;
+
+  let fillHeight;
+  if (!dimmable) fillHeight = on ? "100%" : "0%";
+  else if (!on) fillHeight = "0px";
+  else {
+    const extra = (PAD + fillTop + topBlend * (PAD + THUMB - fillTop)) * bottomBlend;
+    fillHeight = `calc((100% - ${travel}px) * ${frac.toFixed(3)} * ${bottomBlend.toFixed(3)} + ${extra.toFixed(1)}px)`;
+  }
+  const fillBackground = solid
+    ? alpha(color, 90)
+    : `linear-gradient(to top, ${alpha(color, 90)} 0, ${alpha(color, 90)} calc(100% - ${((FADE_END - FADE_START) * (1 - topBlend)).toFixed(1)}px), ${alpha(color, +(90 * topBlend).toFixed(1))} 100%)`;
+
+  const showPct = on && dimmable;
+  const pctBelow = clamp01((level - PCT_SWAP_FROM) / (PCT_SWAP_TO - PCT_SWAP_FROM));
+  return {
+    on,
+    thumbBottom: `calc((100% - ${travel}px) * ${clamp01(thumb).toFixed(3)} + ${PAD}px)`,
+    fillHeight,
+    fillBackground,
+    showPct,
+    pctLabel: showPct ? `${level}%` : "",
+    pctTopOpacity: (1 - pctBelow).toFixed(2),
+    pctBottomOpacity: pctBelow.toFixed(2),
+  };
+}
+
+export function _toggleEntity(entityId, kind, wantOn) {
+  if (kind === "light") {
+    if (!wantOn) this._call("light", "turn_off", { entity_id: entityId });
+    else if (canDimLight(this._hass.states?.[entityId])) this._call("light", "turn_on", { entity_id: entityId, brightness_pct: 100 });
+    else this._call("light", "turn_on", { entity_id: entityId });
+  } else if (kind === "switch" || kind === "input_boolean") {
+    this._call(kind, wantOn ? "turn_on" : "turn_off", { entity_id: entityId });
+  } else if (kind === "cover") {
+    this._call("cover", wantOn ? "open_cover" : "close_cover", { entity_id: entityId });
   }
 }
 
-export function _updateLightRef(ref, entityId) {
-  this._updateToggleRef(ref, entityId, { canDim: true, icon: ICONS.bulb });
-}
-
-export function _updateSwitchRef(ref, entityId) {
-  this._updateToggleRef(ref, entityId, { canDim: false, icon: ICONS.toggle });
-}
-
-export function _updateSensorRef(ref, entityId) {
-  if (!ref.value) return;
-  ref.value.textContent = fmtSensorValue(this._hass.states?.[entityId]);
-}
-
-export function _updateInputSelectRef(ref, entityId) {
+// Renders a Diva track from the entity's real current state, or from the
+// live drag preview in `override` ({ on, level, thumbFrac }) while a pointer
+// owns it.
+export function _updateDivaRef(ref, entityId, kind, override) {
   const st = this._hass.states?.[entityId];
   if (!st) return;
-  if (unchangedState(ref, "_lastState", st)) return;
-  const options = Array.isArray(st.attributes?.options) ? st.attributes.options : [];
-  const unavailable = st.state === "unavailable" || st.state === "unknown";
-  const current = unavailable ? null : st.state;
-  ref.value.textContent = unavailable ? "—" : st.state;
-  ref.setItems(
-    options.map((opt) => ({
-      id: opt,
-      label: opt,
-      icon: opt === current ? "mdi:check" : "mdi:circle-small",
-    })),
-    current,
+  const unavailable = st.state === "unavailable";
+  const real = onOffAndLevel(kind, unavailable ? { ...st, state: "off" } : st);
+  const { on, level } = override ?? real;
+  const v = divaVisual({ kind, on, level, dimmable: real.dimmable, thumbFrac: override?.thumbFrac, color: accentFor(kind, st) });
+
+  ref.track.classList.toggle("un", unavailable);
+  ref.track.classList.toggle("dim", real.dimmable);
+  ref.track.classList.toggle("onoff", !real.dimmable);
+  ref.track.classList.toggle("on", v.on);
+  ref.track.disabled = unavailable;
+  ref.track.setAttribute(
+    "aria-label",
+    kind === "cover"
+      ? `${ref.name.textContent}, ${level === 0 ? "closed" : level + "% open"}. Drag to set position, tap to open or close.`
+      : `${ref.name.textContent}, ${unavailable ? "unavailable" : on ? (real.dimmable ? level + "%" : "on") : "off"}.` + (real.dimmable ? " Drag to dim, tap to toggle." : " Tap to toggle.")
   );
+
+  ref.fill.style.height = v.fillHeight;
+  ref.fill.style.background = v.fillBackground;
+  ref.thumb.style.bottom = v.thumbBottom;
+  ref.pctTop.style.display = ref.pctBottom.style.display = v.showPct ? "" : "none";
+  ref.pctTop.textContent = ref.pctBottom.textContent = v.pctLabel;
+  ref.pctTop.style.opacity = v.pctTopOpacity;
+  ref.pctBottom.style.opacity = v.pctBottomOpacity;
+
+  if (unavailable) ref.ago.textContent = "Unavailable";
+  else {
+    const since = fmtTimeAgoShort(st.last_changed || st.last_updated);
+    ref.ago.textContent = since === "now" ? "Just now" : `${since} ago`;
+  }
+}
+
+// Pointer physics for one Diva track. Dimmable entities (lights with
+// brightness, covers) drop anywhere along the track; on/off-only entities
+// (switches, non-dimmable lights) rubber-band toward whichever end the press
+// started nearer, and flick to the other end only once pulled 80% of the way
+// there (hysteresis both ways).
+export function _bindDivaTrack(ref, entityId, kind) {
+  const { track } = ref;
+
+  // Keyboard: Enter/Space fire a click with no pointer behind it (detail 0),
+  // which toggles like a tap. Pointer taps are handled below instead.
+  track.addEventListener("click", (e) => {
+    if (e.detail !== 0) return;
+    const st = this._hass.states?.[entityId];
+    if (!st || st.state === "unavailable") return;
+    this._toggleEntity(entityId, kind, !onOffAndLevel(kind, st).on);
+  });
+
+  track.addEventListener("pointerdown", (e) => {
+    // A tap or drag shouldn't leave the tile focused (and ringed like a
+    // keyboard focus); Tab still reaches it.
+    e.preventDefault?.();
+    const st = this._hass.states?.[entityId];
+    if (!st || st.state === "unavailable") return;
+    const { on, level, dimmable } = onOffAndLevel(kind, st);
+    const startFrac = on ? (dimmable ? level / 100 : 1) : 0;
+    const rect = track.getBoundingClientRect();
+    try { track.setPointerCapture(e.pointerId); } catch (_) {}
+
+    const drag = { pointerId: e.pointerId, y: e.clientY, startFrac, dimmable, held: false, notch: null, rect, flickTimer: 0 };
+    const usable = rect.height - THUMB - PAD * 2;
+    const fracFromPointer = (clientY) => clamp01((rect.bottom - clientY - PAD - THUMB / 2) / usable);
+
+    const onMove = (ev) => {
+      if (ev.pointerId !== drag.pointerId) return;
+      if (!drag.held) {
+        if (Math.abs(ev.clientY - drag.y) <= DRAG_SLOP) return;
+        drag.held = true;
+        this._dragState.set(entityId, drag);
+        track.classList.add("dragging");
+      }
+      if (drag.dimmable) {
+        drag.finalLevel = Math.round(fracFromPointer(ev.clientY) * 100);
+        this._updateDivaRef(ref, entityId, kind, { on: drag.finalLevel > 0, level: drag.finalLevel, thumbFrac: drag.finalLevel / 100 });
+        return;
+      }
+      // Measured from where the press started, so pressing anywhere on the
+      // track never flips it by itself.
+      const rel = clamp01(drag.startFrac + (drag.y - ev.clientY) / usable);
+      const prevNotch = drag.notch == null ? Math.round(drag.startFrac) : drag.notch;
+      drag.notch = prevNotch === 1 ? (rel <= 1 - NOTCH_FLICK_AT ? 0 : 1) : rel >= NOTCH_FLICK_AT ? 1 : 0;
+      if (drag.notch !== prevNotch) {
+        vibrate(8);
+        track.classList.add("flick");
+        clearTimeout(drag.flickTimer);
+        drag.flickTimer = setTimeout(() => track.classList.remove("flick"), FLICK_MS);
+      }
+      const pull = rel - drag.notch;
+      const stretchedFrac = drag.notch + Math.sign(pull) * NOTCH_STRETCH * (1 - Math.exp(-Math.abs(pull) * NOTCH_STIFFNESS));
+      this._updateDivaRef(ref, entityId, kind, { on: drag.notch === 1, level: drag.notch === 1 ? 100 : 0, thumbFrac: stretchedFrac });
+    };
+
+    const finish = (ev, commit) => {
+      if (ev.pointerId !== drag.pointerId) return;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      try { track.releasePointerCapture(drag.pointerId); } catch (_) {}
+      clearTimeout(drag.flickTimer);
+      track.classList.remove("flick", "dragging");
+      this._dragState.delete(entityId);
+
+      if (commit && drag.held && drag.dimmable) {
+        const pct = drag.finalLevel;
+        if (kind === "cover") {
+          if (pct <= 0) this._call("cover", "close_cover", { entity_id: entityId });
+          else if (pct >= 100) this._call("cover", "open_cover", { entity_id: entityId });
+          else this._call("cover", "set_cover_position", { entity_id: entityId, position: pct });
+        } else if (pct <= 0) this._call("light", "turn_off", { entity_id: entityId });
+        else this._call("light", "turn_on", { entity_id: entityId, brightness_pct: pct });
+        return;
+      }
+      if (commit && drag.held && drag.notch != null) {
+        // The thumb settles on its notch right away; HA's state change then
+        // confirms it (or snaps it back if the call fails).
+        const wantOn = drag.notch === 1;
+        this._updateDivaRef(ref, entityId, kind, { on: wantOn, level: wantOn ? 100 : 0 });
+        if (wantOn !== on) this._toggleEntity(entityId, kind, wantOn);
+        return;
+      }
+      if (commit && !drag.held) {
+        vibrate(8);
+        this._toggleEntity(entityId, kind, !on);
+        return;
+      }
+      this._updateDivaRef(ref, entityId, kind);
+    };
+    const onUp = (ev) => finish(ev, true);
+    const onCancel = (ev) => finish(ev, false);
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+  });
+}
+
+const WARM_MODES = new Set(["heat", "heat_cool", "auto"]);
+const COOL_MODES = new Set(["cool", "dry"]);
+const TREND_FROM_MODE = { off: "off", cool: "cooling", auto: "auto", dry: "drying", fan_only: "fan" };
+const humanize = (v) => (v ? String(v).charAt(0).toUpperCase() + String(v).slice(1).replace(/_/g, " ") : v);
+
+// Icons for the free-form fan/swing mode names integrations report
+// ("med", "quiet", "static", …); anything unknown gets the generic one.
+const FAN_MODE_ICONS = [
+  [/^(auto|automatic)/, "mdi:fan-auto"],
+  [/^(off)$/, "mdi:fan-off"],
+  [/^(quiet|silent|sleep|night)/, "mdi:weather-night"],
+  [/^(low|min)/, "mdi:fan-speed-1"],
+  [/^(med|mid)/, "mdi:fan-speed-2"],
+  [/^(high|max|turbo|strong)/, "mdi:fan-speed-3"],
+];
+export function fanModeIcon(mode) {
+  const m = String(mode ?? "").toLowerCase();
+  return FAN_MODE_ICONS.find(([re]) => re.test(m))?.[1] || "mdi:fan";
+}
+
+export function swingModeIcon(mode) {
+  const m = String(mode ?? "").toLowerCase();
+  if (/^(off|static|stop|stopped|fixed|none)$/.test(m)) return "mdi:arrow-oscillating-off";
+  if (m === "vertical") return "mdi:arrow-up-down";
+  if (m === "horizontal") return "mdi:arrow-left-right";
+  return "mdi:arrow-oscillating";
+}
+
+// What the climate card shows, from the entity's state alone. `lastMode` is
+// the hvac mode it was in before being switched off, so the power button can
+// bring it back.
+export function climateView(st, lastMode) {
+  const attrs = st.attributes || {};
+  const mode = st.state;
+  const off = mode === "off";
+  const hvacModes = Array.isArray(attrs.hvac_modes) ? attrs.hvac_modes : [];
+  const activeModes = hvacModes.filter((m) => m !== "off");
+  const cur = attrs.current_temperature;
+  const tgt = attrs.temperature;
+  const decimals = Number.isInteger(Number(attrs.target_temp_step) || 0.5) ? 0 : 1;
+  const fmt = (v) => String(+(+v).toFixed(decimals));
+  let target = "—";
+  if (tgt != null) target = `${fmt(tgt)}°`;
+  else if (attrs.target_temp_low != null && attrs.target_temp_high != null) target = `${fmt(attrs.target_temp_low)}–${fmt(attrs.target_temp_high)}°`;
+  const trend = attrs.hvac_action || TREND_FROM_MODE[mode] || (cur != null && tgt != null && cur < tgt ? "heating" : "idle");
+  const shownMode = off ? (activeModes.includes(lastMode) ? lastMode : activeModes[0]) : mode;
+  const modeIcon = (m) => CLIMATE_ICONS[m] || ICONS.thermo;
+  const dropdowns = [
+    { key: "mode", label: "Mode", icon: modeIcon(shownMode), value: shownMode, options: activeModes, labelFor: (m) => CLIMATE_LABELS[m] || humanize(m), iconFor: modeIcon },
+  ];
+  if (Array.isArray(attrs.fan_modes) && attrs.fan_modes.length) dropdowns.push({ key: "fan", label: "Fan mode", icon: fanModeIcon(attrs.fan_mode), value: attrs.fan_mode, options: attrs.fan_modes, labelFor: humanize, iconFor: fanModeIcon });
+  if (Array.isArray(attrs.swing_modes) && attrs.swing_modes.length) dropdowns.push({ key: "swing", label: "Swing mode", icon: swingModeIcon(attrs.swing_mode), value: attrs.swing_mode, options: attrs.swing_modes, labelFor: humanize, iconFor: swingModeIcon });
+  return {
+    off,
+    tone: off ? "neutral" : WARM_MODES.has(mode) ? "warm" : COOL_MODES.has(mode) ? "cool" : "neutral",
+    now: cur != null ? `Now ${cur}° · ${humanize(trend).toLowerCase()}` : humanize(trend),
+    target,
+    canAdjust: tgt != null && !off,
+    // Single-mode thermostats show no mode chips or power button.
+    hasControls: hvacModes.length > 1,
+    turnOnMode: shownMode,
+    dropdowns,
+  };
 }
 
 export function _updateClimateRef(ref, entityId) {
   const st = this._hass.states?.[entityId];
   if (!st) return;
-  if (unchangedState(ref, "_lastState", st)) return;
-  const mode = st.state;
-  const attrs = st.attributes || {};
-  const accent = CLIMATE_ACCENT[mode] || TONE.cool;
-
-  ref.tile.style.background = tint(accent, 10);
-  ref.tile.style.borderColor = tint(accent, 28);
-  ref.swatch.style.background = accent;
-  ref.swatch.innerHTML = haIcon(CLIMATE_ICONS[mode] || ICONS.thermo, 16);
-
-  const cur = attrs.current_temperature;
-  const tgt = attrs.temperature;
-  const modeLabel = CLIMATE_LABELS[mode] || mode.replace("_", " ");
-  ref.meta.textContent = `${modeLabel}${cur != null ? ` · ${cur}°` : ""}`;
-
-  if (tgt != null && mode !== "off" && mode !== "fan_only") {
-    const decimals = Number.isInteger(Number(attrs.target_temp_step) || 0.5) ? 0 : 1;
-    ref.temp.textContent = `${(+tgt).toFixed(decimals)}°`;
-  } else {
-    ref.temp.textContent = mode === "off" ? "Off" : "—";
+  if (st.state !== "off") this._lastClimateMode.set(entityId, st.state);
+  const v = climateView(st, this._lastClimateMode.get(entityId));
+  ref.card.classList.toggle("off", v.off);
+  for (const tone of ["warm", "cool", "neutral"]) ref.card.classList.toggle(`tone-${tone}`, v.tone === tone);
+  ref.now.textContent = v.now;
+  ref.target.textContent = v.target;
+  ref.minus.disabled = ref.plus.disabled = !v.canAdjust;
+  ref.controls.hidden = !v.hasControls;
+  if (!v.hasControls) return;
+  ref.power.classList.toggle("on", !v.off);
+  ref.power.setAttribute("aria-pressed", String(!v.off));
+  ref.power.setAttribute("aria-label", `Turn ${ref.displayName} ${v.off ? "on" : "off"}`);
+  ref.turnOnMode = v.turnOnMode;
+  for (const dd of v.dropdowns) {
+    const slot = ref.dropdowns.get(dd.key);
+    if (!slot) continue;
+    setIcon(slot.icon, dd.icon);
+    slot.value.textContent = dd.labelFor(dd.value) ?? "—";
+    slot.btn.setAttribute("aria-label", `${dd.label}: ${slot.value.textContent}`);
+    slot.options = dd.options;
+    slot.current = dd.value;
+    slot.labelFor = dd.labelFor;
+    slot.iconFor = dd.iconFor;
   }
-
-  this._wireClimateMode(ref, entityId, attrs, mode);
 }
 
-// Fan/swing/schedule live behind more-info now — the inline row only wires
-// up the hvac-mode quick picker behind the swatch.
-export function _wireClimateMode(ref, entityId, attrs, mode) {
-  const hvacModes = Array.isArray(attrs.hvac_modes) ? attrs.hvac_modes : [];
-  const isMultiMode = hvacModes.length > 1;
-
-  ref.swatch.dataset.menu = isMultiMode ? "mode" : "";
-  if (isMultiMode) {
-    ref.modeMenu.setItems(
-      hvacModes.map((m) => ({ id: m, label: CLIMATE_LABELS[m] || m, icon: CLIMATE_ICONS[m] })),
-      mode,
-      (id) => this._call("climate", "set_hvac_mode", { entity_id: entityId, hvac_mode: id }),
-    );
+export function _updateInputSelectRef(ref, entityId) {
+  const st = this._hass.states?.[entityId];
+  if (!st) return;
+  const current = st.state === "unavailable" || st.state === "unknown" ? null : st.state;
+  for (const [option, chip] of ref.chips) {
+    chip.classList.toggle("sel", option === current);
+    chip.setAttribute("aria-pressed", String(option === current));
   }
+}
+
+// media_player supported_features bits (homeassistant.components.media_player).
+const MP = { PAUSE: 1, VOLUME_SET: 4, VOLUME_MUTE: 8, PREVIOUS: 16, NEXT: 32, TURN_ON: 128, TURN_OFF: 256, PLAY: 16384 };
+const MEDIA_STATE_LABEL = { playing: "Playing", paused: "Paused", idle: "Idle", on: "On", off: "Off", standby: "Standby", buffering: "Buffering", unavailable: "Unavailable" };
+
+// What the media card shows, from the player's state alone. An entity that
+// doesn't report supported_features (some dev/test fixtures) gets every control.
+export function mediaView(st) {
+  const a = st.attributes || {};
+  const f = a.supported_features;
+  const has = (bit) => f == null || (Number(f) & bit) === bit;
+  const off = st.state === "off" || st.state === "standby" || st.state === "unavailable";
+  const playing = st.state === "playing" || st.state === "buffering";
+  const title = a.media_title || (off ? null : a.app_name || a.source) || null;
+  const subtitle = [a.media_artist || a.media_series_title, a.media_album_name].filter(Boolean).join(" · ") || null;
+  return {
+    off,
+    playing,
+    title: title || MEDIA_STATE_LABEL[st.state] || st.state,
+    subtitle: title ? subtitle || MEDIA_STATE_LABEL[st.state] || null : null,
+    artwork: off ? null : a.entity_picture || null,
+    canPower: off ? has(MP.TURN_ON) && st.state !== "unavailable" : f != null && has(MP.TURN_OFF),
+    canPlayPause: !off && (has(MP.PAUSE) || has(MP.PLAY)),
+    canPrev: !off && has(MP.PREVIOUS),
+    canNext: !off && has(MP.NEXT),
+    canVolume: !off && has(MP.VOLUME_SET) && a.volume_level != null,
+    canMute: !off && has(MP.VOLUME_MUTE),
+    volume: Math.round((Number(a.volume_level) || 0) * 100),
+    muted: !!a.is_volume_muted,
+  };
+}
+
+export function _updateMediaRef(ref, entityId) {
+  const st = this._hass.states?.[entityId];
+  if (!st) return;
+  const v = mediaView(st);
+  ref.card.classList.toggle("off", v.off);
+  ref.card.classList.toggle("playing", v.playing);
+  ref.title.textContent = v.title;
+  ref.subtitle.textContent = v.subtitle || "";
+  ref.subtitle.hidden = !v.subtitle;
+  if (ref.artworkUrl !== v.artwork) {
+    ref.artworkUrl = v.artwork;
+    ref.art.style.backgroundImage = v.artwork ? `url("${v.artwork}")` : "";
+    ref.art.classList.toggle("has-img", !!v.artwork);
+  }
+  ref.power.hidden = !v.canPower;
+  ref.power.setAttribute("aria-label", `Turn ${ref.displayName} ${v.off ? "on" : "off"}`);
+  ref.prev.hidden = !v.canPrev;
+  ref.next.hidden = !v.canNext;
+  ref.playPause.hidden = !v.canPlayPause;
+  setIcon(ref.playPause.firstElementChild, v.playing ? "mdi:pause" : "mdi:play");
+  ref.playPause.setAttribute("aria-label", `${v.playing ? "Pause" : "Play"} ${ref.displayName}`);
+  ref.volumeRow.hidden = !v.canVolume && !v.canMute;
+  ref.mute.hidden = !v.canMute;
+  setIcon(ref.mute.firstElementChild, v.muted ? "mdi:volume-off" : "mdi:volume-high");
+  ref.mute.setAttribute("aria-pressed", String(v.muted));
+  ref.volume.hidden = !v.canVolume;
+  // Leave the slider alone while it's being dragged; HA's echo catches up after.
+  if (!ref.volumeDragging) ref.volume.value = String(v.volume);
+  ref.volume.style.setProperty("--v", `${v.volume}%`);
+}
+
+export function _updateSensorRef(ref) {
+  const st = this._hass.states?.[ref.entityId];
+  ref.value.textContent = fmtSensorValue(st);
+  setIcon(ref.icon, iconForSensor(st));
+  const tone = sensorTone(st);
+  for (const t of ["alert", "warn", "info"]) ref.tile.classList.toggle(`t-${t}`, tone === t);
 }
 
 export function _updateAutomationRef(ref, entityId) {
   const hass = this._hass;
   const st = hass.states?.[entityId];
   if (!st) return;
-  if (unchangedState(ref, "_lastState", st)) return;
   const enabled = ref.isScript ? true : st.state !== "off";
-  ref.row.classList.toggle("disabled", !enabled);
-  ref.name.classList.toggle("disabled", !enabled);
-  if (ref.status) ref.status.textContent = enabled ? "On" : "Off";
+  const flashing = ref.flashUntil > Date.now();
+  ref.row.classList.toggle("off", !enabled);
+  if (ref.swatch.tagName === "BUTTON") ref.swatch.setAttribute("aria-pressed", String(enabled));
   const lastTs = st.attributes?.last_triggered;
-  ref.last.textContent = lastTs ? fmtTimeAgoLong(lastTs) : "Never triggered";
+  const when = lastTs ? fmtTimeAgoLong(lastTs) : "never";
+  if (flashing) ref.sub.textContent = ref.isScript ? "Running…" : "Triggered just now";
+  else if (ref.isScript) ref.sub.textContent = `Script · ${lastTs ? when : "never run"}`;
+  else ref.sub.textContent = `${enabled ? "On" : "Off"} · ${when}`;
+
+  const labels = (hass.entities[entityId]?.labels || []).map((lid) => labelDescriptor(hass, lid)).filter(Boolean);
+  const labelsKey = labels.map((d) => `${d.name}|${d.icon}|${d.color}`).join(";");
+  if (ref.labelsKey !== labelsKey) this._renderAutomationLabels(ref, labels, labelsKey);
+  ref.play.classList.toggle("disabled", !enabled);
+  ref.play.classList.toggle("flash", flashing);
+}
+
+export function _renderAutomationLabels(ref, labels, labelsKey) {
+  ref.labelsKey = labelsKey;
   ref.labels.innerHTML = "";
-  const ent = hass.entities[entityId];
-  const labelIds = ent?.labels || [];
-  for (const lid of labelIds) {
-    const desc = labelDescriptor(hass, lid);
-    if (!desc) continue;
+  for (const desc of labels) {
     const chip = document.createElement("span");
     chip.className = "atrium-auto-label";
     chip.style.color = desc.color;
-    chip.innerHTML = desc.icon ? `${haIcon(desc.icon, 9)}${desc.name}` : desc.name;
+    chip.style.background = tint(desc.color, 16);
+    chip.innerHTML = `${haIcon(desc.icon || "mdi:star-outline", 11)}<span></span>`;
+    chip.lastChild.textContent = desc.name;
     ref.labels.appendChild(chip);
   }
-  ref.play.classList.toggle("disabled", !enabled);
-}
-
-export function _bindSwipeTile(tile, fill, thumb, swatch, stateEl, entityId, kind) {
-  const ref = {
-    startX: 0, startY: 0, dragging: false, moved: false, longPress: false, lpTimer: 0,
-    pointerId: null, onMove: null, onUp: null, onCancel: null,
-  };
-  const detach = () => {
-    if (ref.onMove) window.removeEventListener("pointermove", ref.onMove);
-    if (ref.onUp) window.removeEventListener("pointerup", ref.onUp);
-    if (ref.onCancel) window.removeEventListener("pointercancel", ref.onCancel);
-    ref.onMove = ref.onUp = ref.onCancel = null;
-    if (ref.pointerId !== null) {
-      try { tile.releasePointerCapture(ref.pointerId); } catch (_) {}
-    }
-    ref.pointerId = null;
-  };
-  const resetVisuals = () => {
-    fill.style.transition = "";
-    thumb.style.transition = "";
-  };
-
-  tile.addEventListener("pointerdown", (e) => {
-    if (tile.classList.contains("unavailable")) return;
-    if (ref.pointerId !== null) return;
-    ref.startX = e.clientX;
-    ref.startY = e.clientY;
-    ref.dragging = false;
-    ref.moved = false;
-    ref.longPress = false;
-    ref.pointerId = e.pointerId;
-    try { tile.setPointerCapture(e.pointerId); } catch (_) {}
-    tile.classList.add("pressed");
-    ref.lpTimer = setTimeout(() => {
-      ref.longPress = true;
-      detach();
-      tile.classList.remove("pressed");
-      ref.dragging = false;
-      ref.moved = false;
-      this._dragState.delete(entityId);
-      resetVisuals();
-      vibrate();
-      this._moreInfo(entityId);
-    }, LONG_PRESS_MS);
-
-    ref.onMove = (ev) => {
-      if (ev.pointerId !== ref.pointerId) return;
-      const dx = ev.clientX - ref.startX;
-      const dy = ev.clientY - ref.startY;
-      if (!ref.dragging && Math.abs(dx) > DRAG_THRESHOLD_PX && Math.abs(dx) > Math.abs(dy)) {
-        clearTimeout(ref.lpTimer);
-        const st = this._hass.states?.[entityId];
-        // on/off-only entities have nothing to drag; leave ref.moved false so
-        // pointerup still resolves this as a tap-toggle instead of a dead swipe.
-        if (kind === "light" && !canDimLight(st)) return;
-        if (kind === "switch") return;
-        ref.moved = true;
-        ref.dragging = true;
-      }
-      if (ref.dragging) {
-        const pct = pctFromPointerX(tile, ev.clientX);
-        this._dragState.set(entityId, { pct, kind });
-        // Disable easing on both fill and thumb so they track the pointer
-        // together during the live preview.
-        fill.style.transition = "none";
-        fill.style.width = `${pct}%`;
-        thumb.style.transition = "none";
-        thumb.style.display = "block";
-        thumb.style.left = `calc(${pct}% - 2px)`;
-        thumb.style.opacity = "1";
-        stateEl.textContent = `${pct}%`;
-        if (kind === "cover") stateEl.classList.add("on-cover");
-      }
-    };
-
-    ref.onUp = (ev) => {
-      if (ev.pointerId !== ref.pointerId) return;
-      clearTimeout(ref.lpTimer);
-      const drag = this._dragState.get(entityId);
-      this._dragState.delete(entityId);
-      const wasDragging = ref.dragging;
-      const wasMoved = ref.moved;
-      const wasLongPress = ref.longPress;
-      detach();
-      tile.classList.remove("pressed");
-      ref.startX = 0;
-      ref.dragging = false;
-      ref.moved = false;
-      resetVisuals();
-      if (wasDragging && drag) {
-        if (kind === "light") {
-          if (drag.pct <= 0) this._call("light", "turn_off", { entity_id: entityId });
-          else this._call("light", "turn_on", { entity_id: entityId, brightness_pct: drag.pct });
-        } else {
-          if (drag.pct <= 0) this._call("cover", "close_cover", { entity_id: entityId });
-          else if (drag.pct >= 100) this._call("cover", "open_cover", { entity_id: entityId });
-          else this._call("cover", "set_cover_position", { entity_id: entityId, position: drag.pct });
-        }
-      } else if (!wasLongPress && !wasMoved) {
-        // Pointer capture guarantees this down/up sequence belongs to this
-        // tile, so toggle without consulting ev.target (unreliable under
-        // capture / shadow DOM).
-        if (kind === "light") {
-          const st = this._hass.states?.[entityId];
-          if (st?.state === "on") this._call("light", "turn_off", { entity_id: entityId });
-          else if (canDimLight(st)) this._call("light", "turn_on", { entity_id: entityId, brightness_pct: 100 });
-          else this._call("light", "turn_on", { entity_id: entityId });
-        } else if (kind === "switch") {
-          const st = this._hass.states?.[entityId];
-          this._call("switch", st?.state === "on" ? "turn_off" : "turn_on", { entity_id: entityId });
-        } else {
-          const pct = fmtCoverPct(this._hass.states?.[entityId] || { attributes: {} });
-          this._call("cover", pct > 5 ? "close_cover" : "open_cover", { entity_id: entityId });
-        }
-      }
-    };
-
-    ref.onCancel = (ev) => {
-      if (ev.pointerId !== ref.pointerId) return;
-      clearTimeout(ref.lpTimer);
-      this._dragState.delete(entityId);
-      detach();
-      tile.classList.remove("pressed");
-      ref.startX = 0;
-      ref.dragging = false;
-      ref.moved = false;
-      resetVisuals();
-    };
-
-    window.addEventListener("pointermove", ref.onMove);
-    window.addEventListener("pointerup", ref.onUp);
-    window.addEventListener("pointercancel", ref.onCancel);
-  });
 }

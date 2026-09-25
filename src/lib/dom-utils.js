@@ -16,6 +16,12 @@ export function haIcon(icon, sizePx) {
     : `<ha-icon icon="${icon}"></ha-icon>`;
 }
 
+// Point an <ha-icon> at `icon` only when it changes: re-setting the same
+// value (or rebuilding the element) makes the icon re-render and flicker.
+export function setIcon(el, icon) {
+  if (el && el.getAttribute("icon") !== icon) el.setAttribute("icon", icon);
+}
+
 // A translucent tint of `color` over the background — the dashboard's one
 // idiom for chip/pill/swatch fills.
 export function tint(color, pct = 12) {
@@ -33,7 +39,7 @@ export function injectStyleOnce(id, css) {
 }
 
 // Persists a scene's badge gradient (see area-card-shared.js's
-// computeSceneGradient) across reloads, keyed by entity id. Wrapped in
+// lightsGradient) across reloads, keyed by entity id. Wrapped in
 // try/catch — some HA frontend contexts (kiosk browsers, restricted
 // webviews) block storage entirely, and losing the gradient is harmless.
 const SCENE_GRADIENT_PREFIX = "atrium-scene-gradient:";
@@ -67,12 +73,6 @@ export function fireMoreInfo(target, entityId) {
 
 export function vibrate(ms = 15) {
   if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(ms);
-}
-
-// Pointer x → 0-100% across an element's width.
-export function pctFromPointerX(target, clientX) {
-  const r = target.getBoundingClientRect();
-  return Math.max(0, Math.min(100, Math.round(((clientX - r.left) / r.width) * 100)));
 }
 
 // Tap vs long-press on a button-like element (no drag). Long-press haptic-buzzes

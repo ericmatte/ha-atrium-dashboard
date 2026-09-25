@@ -26,44 +26,9 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
 
-  /* Stands in for Home Assistant's own top app bar + view tabs. Its height
-     is published to --header-height so atrium-header (which sticks itself
-     at `top: var(--header-height, 0px)`) parks right below it instead of
-     underneath it. */
-  .dev-tabbar {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 0 12px;
-    background: #16181d;
-    border-bottom: 1px solid color-mix(in srgb, var(--primary-text-color) 12%, transparent);
-  }
-  .dev-tab {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    border: none;
-    background: transparent;
-    color: var(--secondary-text-color);
-    font: inherit;
-    font-size: 13px;
-    font-weight: 600;
-    padding: 13px 14px 11px;
-    border-bottom: 2px solid transparent;
-    cursor: pointer;
-  }
-  .dev-tab ha-icon { --mdc-icon-size: 18px; }
-  .dev-tab:hover { color: var(--primary-text-color); }
-  .dev-tab.is-active { color: var(--primary-text-color); border-bottom-color: var(--state-light-active-color, #f5c451); }
-  .dev-tabbar-spacer { flex: 1; }
-  .dev-tabbar-note { font-size: 11px; color: var(--secondary-text-color); padding-right: 4px; white-space: nowrap; }
-
   .dev-view { display: none; }
   .dev-view.is-active { display: block; }
-  .dev-view atrium-area-card { display: block; }
+  .dev-view atrium-rooms { display: block; }
 
   .dev-toast {
     position: fixed;
@@ -85,7 +50,6 @@
 </style>
 </head>
 <body>
-  <div id="tabbar" class="dev-tabbar"></div>
   <div id="views"></div>
   <div id="toast" class="dev-toast"></div>
   <script type="module" src="/out/main.js"></script>

@@ -15,17 +15,15 @@ export function ensurePopoverItemStyle() {
 
 export const capitalize = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
+// Case-insensitive: a humanized fallback name (no friendly_name set) is all
+// lower-case, but the area name it's prefixed with isn't.
 export function nameWithoutAreaPrefix(name, area) {
-  return capitalize((name || "").replace(`${area.name} `, "").trim());
+  const escaped = (area.name || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return capitalize((name || "").replace(new RegExp(`^${escaped} `, "i"), "").trim());
 }
 
 export function nameWithoutStairs(name) {
   return capitalize((name || "").replace("Upstairs", "").replace("Downstairs", "").trim());
-}
-
-export function matchesAny(haystack, needles) {
-  const lower = (haystack || "").toLowerCase();
-  return needles.some((n) => lower.includes(n));
 }
 
 export const ICONS = {
@@ -144,18 +142,14 @@ export function lightRgbTriple(state) {
   return null;
 }
 
-// Approximates a scene's badge gradient from the CURRENT color of the
-// lights it targets. This only reads what's already in `hass.states` (no
-// admin-only scene-config API call), so it's accurate right after the scene
-// fires (see _refreshSceneGradient in area-card-builders.js) and stale
-// otherwise — good enough for a decorative badge, not a live scene preview.
-// A scene with no contributing lights (all switches/covers, or every
-// light currently off) has nothing to show and returns null.
-export function computeSceneGradient(hass, sceneEntityId) {
-  const ids = hass.states?.[sceneEntityId]?.attributes?.entity_id;
-  if (!Array.isArray(ids)) return null;
+// A dimmed gradient of the CURRENT colors of the given lights — one stop per
+// light that's on (its rgb color, or the warm-white tint in a white mode).
+// Captured right after a scene fires (see _captureSceneColors in
+// area-card-builders.js) it reads as "what this scene looks like". Null when
+// none of them is on.
+export function lightsGradient(hass, lightIds) {
   const stops = [];
-  for (const id of ids) {
+  for (const id of lightIds) {
     if (!id.startsWith("light.")) continue;
     const st = hass.states?.[id];
     if (!st || st.state !== "on") continue;
