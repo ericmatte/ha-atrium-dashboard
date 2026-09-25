@@ -46,7 +46,7 @@ function makeDivaRef() {
     pctBottom: makeStyleEl(),
     thumb: { style: {}, classList: makeClassList() },
     name: { textContent: "Fan" },
-    ago: { textContent: "" },
+    ago: { textContent: "", innerHTML: "", classList: makeClassList(), querySelector() { return this.innerHTML.includes("ha-icon") ? {} : null; } },
   };
 }
 
@@ -267,7 +267,9 @@ test("_updateDivaRef: an unavailable entity disables the track with no fill", ()
   assert.equal(ref.track.disabled, true);
   assert.equal(ref.track.classList.contains("un"), true);
   assert.equal(ref.fill.style.height, "0%");
-  assert.equal(ref.ago.textContent, "Unavailable");
+  assert.ok(ref.ago.innerHTML.includes("Unavailable"));
+  assert.ok(ref.ago.innerHTML.includes("mdi:alert"));
+  assert.equal(ref.ago.classList.contains("unavailable"), true);
 });
 
 test("climateView: without hvac_action only the current temperature shows (no guessed status); single-mode has no controls", () => {
