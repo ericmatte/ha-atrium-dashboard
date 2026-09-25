@@ -344,9 +344,12 @@ export function _buildDivaTile(area, entity, { kind, icon, refKey }, deviceSenso
   thumb.innerHTML = haIcon(customIcon || icon, 17);
   track.append(fill, pctTop, pctBottom, thumb);
 
-  const name = document.createElement("div");
+  // The track toggles/drags; the name opens the entity's details.
+  const name = document.createElement("button");
+  name.type = "button";
   name.className = "atrium-diva-name";
   name.textContent = nameWithoutAreaPrefix(this._entityName(entity), area, entity.entity_id);
+  name.addEventListener("click", () => this._moreInfo(entity.entity_id));
   const ago = document.createElement("div");
   ago.className = "atrium-diva-ago";
 
