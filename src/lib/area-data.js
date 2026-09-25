@@ -81,11 +81,12 @@ export function classifyAreaEntities(hass, area, entities) {
       else if (dc === "door" || dc === "garage_door" || dc === "window" || dc === "opening") out.doors.push(e);
       else out.sensors.other.push(e);
     } else if (domain === "sensor") {
+      // A plant/soil probe also reports air humidity, temperature and battery;
+      // only its moisture reading (or an untyped %) is the soil level.
       const isSoil =
         matchesAny(e.entity_id, ["soil", "plant"]) &&
-        dc !== "battery" &&
         !matchesAny(e.entity_id, ["battery"]) &&
-        (dc === "moisture" || st?.attributes?.unit_of_measurement === "%");
+        (dc === "moisture" || (!dc && st?.attributes?.unit_of_measurement === "%"));
       const isPropane = matchesAny(e.entity_id, ["propane", "fuel_tank", "gas_tank"]);
       const isTempWinner =
         dc === "temperature" &&
@@ -195,6 +196,14 @@ export function areaMetaLine({ temp, humid, alert }) {
 // toward the total but never as on.
 export function lightsSummary(hass, lightIds) {
   return { on: lightIds.filter((id) => hass.states?.[id]?.state === "on").length, total: lightIds.length };
+}
+
+// Colors a tank-style level (propane, fuel): red when nearly empty, amber
+// when low, green otherwise.
+export function levelTone(pct) {
+  if (pct <= 20) return "alert";
+  if (pct <= 40) return "warn";
+  return "good";
 }
 
 export function areaHasAlert(hass, data) {

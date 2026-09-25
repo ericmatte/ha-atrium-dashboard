@@ -8,7 +8,7 @@ import { closePopoverFor } from "../lib/popover.js";
 import { sameRegistries, unchangedStates, areaIdForEntity, entityDisplayName } from "../lib/hass-utils.js";
 import { fireMoreInfo, haIcon } from "../lib/dom-utils.js";
 import { callService, toggleLights } from "../lib/ha-actions.js";
-import { STYLE, iconForArea, fmtCoverPct } from "./area-card-shared.js";
+import { STYLE, ICONS, iconForArea, fmtCoverPct } from "./area-card-shared.js";
 import {
   entitiesForArea,
   hiddenRoutinesForArea,
@@ -20,6 +20,7 @@ import {
   areaStatusDot,
   areaMetaLine,
   lightsSummary,
+  levelTone,
   areaPanelSignature,
 } from "../lib/area-data.js";
 import * as buildersMod from "./area-card-builders.js";
@@ -548,6 +549,21 @@ class AtriumRooms extends HTMLElement {
     if (data.sensors.humid) {
       const st = hass.states?.[data.sensors.humid.entity_id];
       if (st && st.state !== "unavailable") add("mdi:water-percent", `${Math.round(parseFloat(st.state))}%`, null, data.sensors.humid.entity_id);
+    }
+    // Soil moisture and tank levels, as the pre-redesign area chips showed
+    // them: a plant in green, a propane tank colored by how full it is.
+    const percent = (e) => {
+      const st = hass.states?.[e.entity_id];
+      const v = parseFloat(st?.state);
+      return st && st.state !== "unavailable" && Number.isFinite(v) ? Math.round(v) : null;
+    };
+    for (const s of data.sensors.soil) {
+      const pct = percent(s);
+      if (pct != null) add(ICONS.plant, `${pct}%`, "good", s.entity_id);
+    }
+    for (const p of data.sensors.propane) {
+      const pct = percent(p);
+      if (pct != null) add(ICONS.propane, `${pct}%`, levelTone(pct), p.entity_id);
     }
     const activeMotion = data.sensors.motion.find((s) => hass.states?.[s.entity_id]?.state === "on");
     if (activeMotion) add("mdi:motion-sensor", "Motion", "info", activeMotion.entity_id);

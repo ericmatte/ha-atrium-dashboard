@@ -14,6 +14,7 @@ import {
   areaStatusDot,
   areaMetaLine,
   lightsSummary,
+  levelTone,
   sensorTone,
   areaPanelSignature,
 } from "./area-data.js";
@@ -257,4 +258,25 @@ test("areaPanelSignature: moving an automation between enabled and disabled chan
   const b = emptyAreaData();
   b.disabledAutomations.push({ entity_id: "automation.x" });
   assert.notEqual(areaPanelSignature(area, a), areaPanelSignature(area, b));
+});
+
+test("classifyAreaEntities: a soil probe's moisture is the soil level; its air humidity is just a reading", () => {
+  const hass = {
+    states: {
+      "sensor.soil_moisture_soil_moisture": { state: "40", attributes: { device_class: "moisture", unit_of_measurement: "%" } },
+      "sensor.soil_moisture_humidity": { state: "83", attributes: { device_class: "humidity", unit_of_measurement: "%" } },
+      "sensor.soil_moisture_battery": { state: "100", attributes: { device_class: "battery", unit_of_measurement: "%" } },
+    },
+    entities: {}, devices: {},
+  };
+  const ids = Object.keys(hass.states).map((entity_id) => ({ entity_id }));
+  const out = classifyAreaEntities(hass, { area_id: "office" }, ids);
+  assert.deepEqual(out.sensors.soil.map((e) => e.entity_id), ["sensor.soil_moisture_soil_moisture"]);
+  assert.deepEqual(out.sensors.extras.map((e) => e.entity_id), ["sensor.soil_moisture_humidity"]);
+});
+
+test("levelTone: red when nearly empty, amber when low, green otherwise", () => {
+  assert.equal(levelTone(12), "alert");
+  assert.equal(levelTone(31), "warn");
+  assert.equal(levelTone(64), "good");
 });

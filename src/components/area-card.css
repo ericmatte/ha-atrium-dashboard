@@ -136,6 +136,7 @@ button.atrium-badge { cursor: pointer; }
 .atrium-badge.is-alert { background: color-mix(in srgb, #ff5d5d 18%, transparent); color: #ff8f8f; }
 .atrium-badge.is-warn { background: color-mix(in srgb, #ffb561 16%, transparent); color: #ffb561; }
 .atrium-badge.is-info { background: color-mix(in srgb, #8cc1ff 14%, transparent); color: #8cc1ff; }
+.atrium-badge.is-good { background: color-mix(in srgb, #79d99a 14%, transparent); color: #79d99a; }
 
 .atrium-section { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .atrium-shead { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--a-dim); }
