@@ -282,31 +282,28 @@ class AtriumRooms extends HTMLElement {
     this._sizeOrbs();
   }
 
-  // Floor heading: icon, name, and — when the floor has lights — how many
-  // are on plus a button that turns them all off (or all on when none is).
+  // Floor heading: when the floor has lights, a toggle showing how many are
+  // on (tap: all off, or all on when none is), then the floor icon and name.
   _buildFloorLabel({ floor, areas }) {
     const label = document.createElement("div");
     label.className = "atrium-floor-label";
-    const name = document.createElement("span");
-    name.className = "atrium-floor-name";
-    name.textContent = floor.name;
-    if (floor.icon) label.insertAdjacentHTML("beforeend", haIcon(floor.icon));
-    label.append(name);
-
     const lightIds = areas.flatMap(({ data }) => data.lights.map((l) => l.entity_id));
     if (lightIds.length) {
-      const count = document.createElement("span");
-      count.className = "atrium-floor-count";
       const toggle = document.createElement("button");
       toggle.type = "button";
       toggle.className = "atrium-floor-toggle";
-      toggle.innerHTML = haIcon("mdi:lightbulb-group");
+      toggle.innerHTML = `${haIcon("mdi:lightbulb-group")}<span class="atrium-floor-count"></span>`;
       toggle.addEventListener("click", () => toggleLights(this._hass, lightIds));
-      label.append(count, toggle);
-      const ref = { floor, lightIds, count, toggle };
+      label.appendChild(toggle);
+      const ref = { floor, lightIds, count: toggle.lastChild, toggle };
       this._floorRefs.push(ref);
       this._updateFloorLabel(ref);
     }
+    if (floor.icon) label.insertAdjacentHTML("beforeend", haIcon(floor.icon));
+    const name = document.createElement("span");
+    name.className = "atrium-floor-name";
+    name.textContent = floor.name;
+    label.append(name);
     return label;
   }
 
@@ -314,7 +311,7 @@ class AtriumRooms extends HTMLElement {
     const { on, total } = lightsSummary(this._hass, ref.lightIds);
     ref.count.textContent = `${on}/${total}`;
     ref.toggle.classList.toggle("on", on > 0);
-    ref.toggle.setAttribute("aria-label", on > 0 ? `Turn off ${ref.floor.name} lights` : `Turn on ${ref.floor.name} lights`);
+    ref.toggle.setAttribute("aria-label", `${on} of ${total} ${ref.floor.name} lights on — turn ${on > 0 ? "off" : "on"}`);
   }
 
   _renderPanel({ replayPanelIn = false } = {}) {
