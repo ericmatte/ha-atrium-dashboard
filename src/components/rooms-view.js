@@ -195,7 +195,7 @@ class AtriumRooms extends HTMLElement {
     this._closing = false;
     this._selectedAreaId = areaId;
     if (reopening) this._pushPanelHistory();
-    this._renderPanel({ replayPanelIn: reopening });
+    this._renderPanel({ freshPanel: reopening });
     this._syncLayout();
   }
 
@@ -364,7 +364,7 @@ class AtriumRooms extends HTMLElement {
     ref.toggle.setAttribute("aria-label", `${on} of ${total} ${ref.floor.name} lights on — turn ${on > 0 ? "off" : "on"}`);
   }
 
-  _renderPanel({ replayPanelIn = false } = {}) {
+  _renderPanel({ freshPanel = false } = {}) {
     const areaId = this._selectedAreaId;
     const area = areaId ? this._hass.areas?.[areaId] : null;
     if (!area) {
@@ -382,12 +382,12 @@ class AtriumRooms extends HTMLElement {
       this._updatePanel(area, data);
       return;
     }
-    // Sections slide in only when the panel first opens; switching rooms or
-    // a rebuild (an entity was added/removed) swaps the content in place.
+    // Only the panel itself slides in/out; its content just appears. A panel
+    // opened from closed starts from a fresh, unscrolled container.
     this._panelSig = sig;
     this._panelAreaId = area.area_id;
     this._closeOpenPopovers();
-    if (!this._pin || replayPanelIn) {
+    if (!this._pin || freshPanel) {
       this._panel.innerHTML = "";
       this._pin = document.createElement("div");
       this._pin.className = "atrium-panel-inner";
@@ -396,7 +396,6 @@ class AtriumRooms extends HTMLElement {
       this._bindSheetSwipe(grabber);
       this._panel.append(grabber, this._pin);
     }
-    this._pin.classList.toggle("settled", !replayPanelIn);
     this._pin.innerHTML = "";
     this._pin.scrollTop = 0;
     this._panel.setAttribute("aria-label", area.name);

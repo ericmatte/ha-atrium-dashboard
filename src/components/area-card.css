@@ -110,18 +110,6 @@
 /* ── Details panel ───────────────────────────────────────────────────── */
 .atrium-panel { display: none; background: var(--a-panel); color: var(--a-text); overflow: hidden; }
 .atrium-panel-inner { height: 100%; box-sizing: border-box; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 20px; padding: 18px 16px 32px; scrollbar-width: thin; }
-.atrium-panel-inner > * { animation: atrium-sec-in .45s var(--a-ease) both; }
-.atrium-panel-inner > :nth-child(1) { animation-delay: .08s; }
-.atrium-panel-inner > :nth-child(2) { animation-delay: .12s; }
-.atrium-panel-inner > :nth-child(3) { animation-delay: .16s; }
-.atrium-panel-inner > :nth-child(4) { animation-delay: .20s; }
-.atrium-panel-inner > :nth-child(5) { animation-delay: .24s; }
-.atrium-panel-inner > :nth-child(6) { animation-delay: .28s; }
-.atrium-panel-inner > :nth-child(7) { animation-delay: .32s; }
-.atrium-panel-inner > :nth-child(8) { animation-delay: .36s; }
-.atrium-panel-inner > :nth-child(9) { animation-delay: .40s; }
-.atrium-panel-inner > :nth-child(n+10) { animation-delay: .44s; }
-.atrium-panel-inner.settled > * { animation: none; }
 
 .atrium-panel-hero { display: flex; align-items: center; gap: 16px; }
 .atrium-sheet-grabber { display: none; }
@@ -359,8 +347,7 @@ button.atrium-badge { cursor: pointer; }
   .atrium-rooms:not(.has-sel) .atrium-panel { border-left: 0; }
   .has-sel .atrium-panel { width: 580px; }
   .has-sel.closing .atrium-panel { width: 0; }
-  .atrium-panel-inner { width: 580px; gap: 24px; padding: 26px 28px 40px; animation: atrium-pin-in .5s .1s var(--a-ease) both; }
-  .closing .atrium-panel-inner { animation: atrium-pin-out .24s ease both; }
+  .atrium-panel-inner { width: 580px; gap: 24px; padding: 26px 28px 40px; }
   .atrium-panel-hero-photo { width: 72px; height: 72px; }
   .atrium-panel-hero-photo .atrium-orb-art ha-icon { --mdc-icon-size: 30px; }
   .atrium-panel-hero-name { font-size: 28px; }
@@ -368,9 +355,6 @@ button.atrium-badge { cursor: pointer; }
 
 @keyframes atrium-sheet-in { from { transform: translateY(100%); } to { transform: none; } }
 @keyframes atrium-sheet-out { from { transform: none; } to { transform: translateY(100%); } }
-@keyframes atrium-pin-in { from { opacity: 0; transform: translateX(32px); } to { opacity: 1; transform: none; } }
-@keyframes atrium-pin-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(32px); } }
-@keyframes atrium-sec-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes atrium-strip-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
 /* Two identical keyframes on purpose: swapping animation-name when the
    layout flips (grid ↔ strip) is what replays the staggered pop-in. */
