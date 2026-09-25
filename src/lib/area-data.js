@@ -122,14 +122,12 @@ export function classifyAreaEntities(hass, area, entities) {
   return out;
 }
 
-// Drives the orb's red alert dot and the alert text under the tile: any
-// active leak or "problem" binary_sensor, an unavailable entity in a domain
-// where that's actually meaningful (mirrors the header's own
-// PROBLEM_UNAVAILABLE_DOMAINS notion of "worth flagging"), or an open door.
+// Drives the orb's alert dot and the alert text under the tile: an active
+// leak or "problem" binary_sensor, or an open door. (Unavailable devices are
+// left to the header's problem pill — too noisy on every tile.)
 // Returns the most serious one as { icon, label, tone, entityId }, or null —
 // tone "alert" (red) for things that are wrong, "warn" (orange) for an
 // opening; entityId is what tapping the dot opens.
-const ALERT_UNAVAILABLE_DOMAINS = new Set(["light", "switch", "cover", "climate", "vacuum"]);
 const OPEN_LABEL = { window: "Window open", garage_door: "Garage open" };
 export function areaAlert(hass, data) {
   const st = (e) => hass.states?.[e.entity_id];
@@ -139,9 +137,6 @@ export function areaAlert(hass, data) {
   if (leak) return found(leak, { icon: "mdi:water-alert", label: "Leak!", tone: "alert" });
   const problem = [...data.sensors.other, ...data.doors].find((e) => isOn(e) && st(e).attributes?.device_class === "problem");
   if (problem) return found(problem, { icon: "mdi:alert", label: "Problem", tone: "alert" });
-  const controllable = [...data.lights, ...data.switches, ...data.covers, ...data.climates, ...data.vacuums];
-  const down = controllable.find((e) => ALERT_UNAVAILABLE_DOMAINS.has(e.entity_id.split(".")[0]) && st(e)?.state === "unavailable");
-  if (down) return found(down, { icon: "mdi:alert", label: "Unavailable", tone: "alert" });
   const open = data.doors.find(isOn);
   if (open) return found(open, { icon: "mdi:door-open", label: OPEN_LABEL[st(open).attributes?.device_class] || "Door open", tone: "warn" });
   return null;
@@ -183,6 +178,12 @@ export function areaAlertIcon(hass, data) {
 // matters right now, and the line stays one short glance.
 export function areaMetaLine({ temp, humid, alert }) {
   return [temp != null ? `${temp.toFixed(1)}°` : null, alert ?? (humid != null ? `${humid}%` : null)].filter(Boolean).join(" · ");
+}
+
+// How many of these lights are on, out of how many — unavailable ones count
+// toward the total but never as on.
+export function lightsSummary(hass, lightIds) {
+  return { on: lightIds.filter((id) => hass.states?.[id]?.state === "on").length, total: lightIds.length };
 }
 
 export function areaHasAlert(hass, data) {

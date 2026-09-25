@@ -12,6 +12,7 @@ import {
   areaPresence,
   areaActivity,
   areaMetaLine,
+  lightsSummary,
   sensorTone,
   areaPanelSignature,
 } from "./area-data.js";
@@ -99,16 +100,11 @@ test("areaHasAlert: a 'problem' binary_sensor that's on is an alert", () => {
   assert.equal(areaHasAlert(hass, data), true);
 });
 
-test("areaHasAlert: an unavailable light is an alert, an unavailable non-controllable sensor is not", () => {
-  const hass = { states: { "light.a": { state: "unavailable" }, "sensor.a": { state: "unavailable" } } };
+test("areaHasAlert: an unavailable device is not a tile alert", () => {
+  const hass = { states: { "light.a": { state: "unavailable" } } };
   const data = emptyAreaData();
   data.lights = [{ entity_id: "light.a" }];
-  data.sensors.extras = [{ entity_id: "sensor.a" }];
-  assert.equal(areaHasAlert(hass, data), true);
-
-  const data2 = emptyAreaData();
-  data2.sensors.extras = [{ entity_id: "sensor.a" }];
-  assert.equal(areaHasAlert(hass, data2), false);
+  assert.equal(areaHasAlert(hass, data), false);
 });
 
 test("areaIsEmpty: a room with nothing classified stays empty", () => {
@@ -224,4 +220,10 @@ test("areaActivity: a speaker gets a music icon, cooling a snowflake", () => {
   assert.equal(areaActivity(hass, data).icon, "mdi:music");
   hass.states["media_player.sonos"].state = "idle";
   assert.equal(areaActivity(hass, data).icon, "mdi:snowflake");
+});
+
+test("lightsSummary: counts lights on out of the total", () => {
+  const hass = { states: { "light.a": { state: "on" }, "light.b": { state: "off" }, "light.c": { state: "unavailable" } } };
+  assert.deepEqual(lightsSummary(hass, ["light.a", "light.b", "light.c"]), { on: 1, total: 3 });
+  assert.deepEqual(lightsSummary(hass, []), { on: 0, total: 0 });
 });

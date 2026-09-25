@@ -34,7 +34,12 @@
 /* Tile size, column count and gaps follow the width actually available;
    rooms-view.js sets them from orb-grid.js as the width changes. */
 .atrium-floor-group { display: flex; flex-direction: column; gap: 12px; }
-.atrium-floor-name { font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: color-mix(in srgb, var(--a-dim) 75%, transparent); }
+.atrium-floor-label { display: flex; align-items: center; gap: 10px; min-height: 28px; color: color-mix(in srgb, var(--a-dim) 85%, transparent); }
+.atrium-floor-label > ha-icon { --mdc-icon-size: 20px; flex-shrink: 0; }
+.atrium-floor-name { font-size: 15px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
+.atrium-floor-count { margin-left: auto; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--a-dim) 75%, transparent); }
+.atrium-floor-toggle { flex-shrink: 0; width: 34px; height: 28px; padding: 0; border: 0; border-radius: 9px; background: var(--a-surface); color: color-mix(in srgb, var(--a-dim) 75%, transparent); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: background .25s, color .25s; --mdc-icon-size: 16px; }
+.atrium-floor-toggle.on { background: color-mix(in srgb, #f6c14b 16%, transparent); color: #f6c14b; }
 .atrium-orb-row { display: grid; grid-template-columns: repeat(var(--orb-cols, 3), var(--orb-size, minmax(0, 1fr))); gap: calc(var(--orb-gap, 24px) * .8) var(--orb-gap, 24px); }
 
 .atrium-orb { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; animation: atrium-room-in-b .45s var(--a-ease) both; animation-delay: calc(var(--i, 0) * 28ms); }
@@ -233,7 +238,10 @@ button.atrium-badge { cursor: pointer; }
   .closing .atrium-rooms-content { opacity: .5; transition: opacity .25s; }
   .has-sel .atrium-floor-group { gap: 8px; flex-shrink: 0; }
   .has-sel .atrium-floor-group + .atrium-floor-group { padding-left: 14px; border-left: 1px solid color-mix(in srgb, var(--a-text) 10%, transparent); }
-  .has-sel .atrium-floor-name { font-size: 10px; letter-spacing: .12em; white-space: nowrap; }
+  .has-sel .atrium-floor-label { min-height: 0; gap: 6px; }
+  .has-sel .atrium-floor-label > ha-icon { --mdc-icon-size: 13px; }
+  .has-sel .atrium-floor-name { font-size: 10px; letter-spacing: .12em; }
+  .has-sel .atrium-floor-count, .has-sel .atrium-floor-toggle { display: none; }
   .has-sel .atrium-orb-row { display: flex; flex-wrap: nowrap; gap: 24px; margin-block: 8px; }
   .has-sel .atrium-orb { width: 70px; flex-shrink: 0; gap: 6px; animation-name: atrium-room-in-a; }
   /* orbBadgeFont(64) from orb-grid.js. */

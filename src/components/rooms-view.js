@@ -18,6 +18,7 @@ import {
   areaPresence,
   areaActivity,
   areaMetaLine,
+  lightsSummary,
   areaPanelSignature,
 } from "../lib/area-data.js";
 import * as buildersMod from "./area-card-builders.js";
@@ -209,6 +210,7 @@ class AtriumRooms extends HTMLElement {
       this._buildFloors(floors);
     } else {
       for (const f of floors) for (const { area, data } of f.areas) this._updateOrb(this._orbRefs.get(area.area_id), area, data);
+      for (const ref of this._floorRefs) this._updateFloorLabel(ref);
     }
     if (this._selectedAreaId && !this._hass.areas?.[this._selectedAreaId]) {
       this._selectedAreaId = null;
@@ -264,22 +266,55 @@ class AtriumRooms extends HTMLElement {
 
   _buildFloors(floors) {
     this._orbRefs = new Map();
+    this._floorRefs = [];
     this._maxAreasPerFloor = Math.max(0, ...floors.map((f) => f.areas.length));
     this._content.innerHTML = "";
     let index = 0;
-    for (const { floor, areas } of floors) {
+    for (const f of floors) {
       const group = document.createElement("section");
       group.className = "atrium-floor-group";
-      const label = document.createElement("div");
-      label.className = "atrium-floor-name";
-      label.textContent = floor.name;
       const row = document.createElement("div");
       row.className = "atrium-orb-row";
-      for (const { area, data } of areas) row.appendChild(this._buildOrb(area, data, index++));
-      group.append(label, row);
+      for (const { area, data } of f.areas) row.appendChild(this._buildOrb(area, data, index++));
+      group.append(this._buildFloorLabel(f), row);
       this._content.appendChild(group);
     }
     this._sizeOrbs();
+  }
+
+  // Floor heading: icon, name, and — when the floor has lights — how many
+  // are on plus a button that turns them all off (or all on when none is).
+  _buildFloorLabel({ floor, areas }) {
+    const label = document.createElement("div");
+    label.className = "atrium-floor-label";
+    const name = document.createElement("span");
+    name.className = "atrium-floor-name";
+    name.textContent = floor.name;
+    if (floor.icon) label.insertAdjacentHTML("beforeend", haIcon(floor.icon));
+    label.append(name);
+
+    const lightIds = areas.flatMap(({ data }) => data.lights.map((l) => l.entity_id));
+    if (lightIds.length) {
+      const count = document.createElement("span");
+      count.className = "atrium-floor-count";
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "atrium-floor-toggle";
+      toggle.innerHTML = haIcon("mdi:lightbulb-group");
+      toggle.addEventListener("click", () => toggleLights(this._hass, lightIds));
+      label.append(count, toggle);
+      const ref = { floor, lightIds, count, toggle };
+      this._floorRefs.push(ref);
+      this._updateFloorLabel(ref);
+    }
+    return label;
+  }
+
+  _updateFloorLabel(ref) {
+    const { on, total } = lightsSummary(this._hass, ref.lightIds);
+    ref.count.textContent = `${on}/${total}`;
+    ref.toggle.classList.toggle("on", on > 0);
+    ref.toggle.setAttribute("aria-label", on > 0 ? `Turn off ${ref.floor.name} lights` : `Turn on ${ref.floor.name} lights`);
   }
 
   _renderPanel({ replayPanelIn = false } = {}) {
