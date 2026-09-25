@@ -166,7 +166,11 @@ export function _updateDivaRef(ref, entityId, kind, override) {
   ref.pctTop.style.opacity = v.pctTopOpacity;
   ref.pctBottom.style.opacity = v.pctBottomOpacity;
 
-  if (unavailable) ref.ago.textContent = "Unavailable";
+  ref.ago.classList.toggle("unavailable", unavailable);
+  if (unavailable) {
+    // Built once, so the icon doesn't re-render on every update.
+    if (!ref.ago.querySelector("ha-icon")) ref.ago.innerHTML = `${haIcon("mdi:alert", 11)}<span>Unavailable</span>`;
+  }
   else {
     const since = fmtTimeAgoShort(st.last_changed || st.last_updated);
     ref.ago.textContent = since === "now" ? "Just now" : `${since} ago`;
