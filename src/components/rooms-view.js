@@ -21,7 +21,7 @@ import {
 import * as buildersMod from "./area-card-builders.js";
 import * as updatersMod from "./area-card-updaters.js";
 import { subscribeLabelsLoaded } from "../lib/label-registry.js";
-import { orbGrid, orbBadge } from "../lib/orb-grid.js";
+import { orbGrid, orbBadgeFont } from "../lib/orb-grid.js";
 
 // Matches the design's exit animations (pinOut .24s / sheetOut .28s) so the
 // selection is only dropped once they've played.
@@ -236,11 +236,7 @@ class AtriumRooms extends HTMLElement {
     this._content.style.setProperty("--orb-cols", String(cols));
     this._content.style.setProperty("--orb-gap", `${gap}px`);
     this._content.style.setProperty("--orb-size", `${size}px`);
-    const badge = orbBadge(size);
-    this._content.style.setProperty("--orb-badge-font", `${badge.font}px`);
-    this._content.style.setProperty("--orb-badge-x", `${badge.insetX}px`);
-    this._content.style.setProperty("--orb-badge-y", `${badge.insetY}px`);
-    this._content.style.setProperty("--orb-badge-ring", `${badge.ring}px`);
+    this._content.style.setProperty("--orb-badge-font", `${orbBadgeFont(size)}px`);
   }
 
   _floorsData() {

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { orbGrid, MAX_ORB_SIZE, badgeScale, orbBadge } from "./orb-grid.js";
+import { orbGrid, MAX_ORB_SIZE, orbBadgeFont } from "./orb-grid.js";
 
 test("orbGrid: never more columns than the busiest floor has areas, so rows end flush", () => {
   const { cols, gap, size } = orbGrid(640, 4);
@@ -30,15 +30,10 @@ test("orbGrid: an empty floor list still yields one column", () => {
   assert.equal(orbGrid(500, 0).cols, 1);
 });
 
-test("badgeScale: ×2 on phone-sized tiles, easing to ×1.2 at the largest", () => {
-  assert.equal(badgeScale(64), 2);
-  assert.equal(badgeScale(100), 2);
-  assert.equal(badgeScale(137.5), 1.6);
-  assert.equal(badgeScale(MAX_ORB_SIZE), 1.2);
-  assert.equal(badgeScale(400), 1.2);
-});
-
-test("orbBadge: text follows the scale, insets and ring stay at the design's proportions", () => {
-  assert.deepEqual(orbBadge(156), { font: +(156 * (12 / 156) * badgeScale(156)).toFixed(2), insetX: 4, insetY: 8, ring: 3 });
-  assert.equal(orbBadge(100).font, 15.38);
+test("orbBadgeFont: proportional to the tile, between 13 and 16px", () => {
+  assert.equal(orbBadgeFont(64), 13);
+  assert.equal(orbBadgeFont(100), 13);
+  assert.equal(orbBadgeFont(156), 14.4);
+  assert.equal(orbBadgeFont(175), 16);
+  assert.equal(orbBadgeFont(400), 16);
 });
