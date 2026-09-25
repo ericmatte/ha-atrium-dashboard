@@ -275,7 +275,8 @@ button.atrium-badge { cursor: pointer; }
 .atrium-auto-title { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
 .atrium-auto-name { font-size: 14px; font-weight: 700; line-height: 1.25; color: var(--a-text); }
 .atrium-auto-row.off .atrium-auto-name { color: color-mix(in srgb, var(--a-text) 75%, transparent); }
-.atrium-auto-labels { display: contents; }
+.atrium-auto-labels { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 2px; }
+.atrium-auto-labels:empty { display: none; }
 .atrium-auto-label { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 6px; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 14px; }
 .atrium-auto-last { font-size: 12px; font-weight: 600; color: var(--a-dim); }
 .atrium-auto-play { flex-shrink: 0; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: rgba(140,193,255,.14); color: #8cc1ff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: background .2s, color .2s, transform .15s; }
