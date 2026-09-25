@@ -111,6 +111,7 @@ export function buildFixtures() {
   add("climate.living_room_heat_pump", "living_room", "heat_cool", {
     current_temperature: 21.4, temperature: 22, target_temp_step: 0.5, min_temp: 10, max_temp: 30,
     hvac_modes: ["off", "heat", "cool", "heat_cool", "auto"], fan_mode: "auto", fan_modes: ["auto", "low", "medium", "high"],
+    swing_mode: "swing", swing_modes: ["swing", "static"],
     friendly_name: "Heat pump",
   });
   add("automation.living_room_climate_controller", "living_room", "on", { icon: "mdi:thermostat-auto", last_triggered: isoMinutesAgo(60 * 4), friendly_name: "Smart climate controller" });

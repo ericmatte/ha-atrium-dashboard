@@ -325,6 +325,23 @@ test("_updateClimateRef: remembers the last active mode so power brings it back"
   assert.equal(ref.minus.disabled, true);
 });
 
+test("_updateClimateRef: fills each dropdown's menu options, current value and label", () => {
+  const ref = makeClimateRef();
+  const slot = () => ({ btn: { setAttribute(k, v) { this[k] = v; } }, icon: { setAttribute() {} }, value: { textContent: "" }, options: [], current: null, labelFor: (v) => v });
+  ref.dropdowns = new Map([["mode", slot()], ["fan", slot()], ["swing", slot()]]);
+  const ctx = {
+    _hass: { states: { "climate.x": { state: "heat", attributes: { hvac_modes: ["off", "heat", "cool"], fan_mode: "auto", fan_modes: ["auto", "low"], swing_mode: "swing", swing_modes: ["swing", "static"], temperature: 20 } } } },
+    _lastClimateMode: new Map(),
+  };
+  _updateClimateRef.call(ctx, ref, "climate.x");
+  const swing = ref.dropdowns.get("swing");
+  assert.deepEqual(swing.options, ["swing", "static"]);
+  assert.equal(swing.current, "swing");
+  assert.equal(swing.value.textContent, "Swing");
+  assert.equal(ref.dropdowns.get("mode").value.textContent, "Heat");
+  assert.deepEqual(ref.dropdowns.get("mode").options, ["heat", "cool"]);
+});
+
 test("_updateClimateRef: a single-mode thermostat hides the controls row", () => {
   const ref = makeClimateRef();
   const ctx = { _hass: { states: { "climate.x": { state: "heat", attributes: { hvac_modes: ["heat"], temperature: 21, current_temperature: 20 } } } }, _lastClimateMode: new Map() };

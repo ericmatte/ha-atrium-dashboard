@@ -25,8 +25,6 @@
    outside the selection ring. */
 .atrium-rooms .atrium-orb:focus-visible { outline: none; }
 .atrium-orb:focus-visible .atrium-orb-photo { outline: 2px solid var(--a-focus); outline-offset: 8px; }
-/* The climate pills hide a native <select>; the ring goes on the pill. */
-.atrium-climate-dd:has(.atrium-climate-dd-select:focus-visible) { outline: 2px solid var(--a-focus); outline-offset: 2px; }
 /* Text-only buttons get a rounded ring rather than a hard rectangle. */
 .atrium-auto-body, .atrium-climate-top, .atrium-mode-name { border-radius: 8px; }
 
@@ -150,11 +148,10 @@ button.atrium-badge { cursor: pointer; }
 .atrium-climate-controls[hidden] { display: none; }
 .atrium-climate-power { flex-shrink: 0; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 12px; background: color-mix(in srgb, var(--a-text) 6%, transparent); color: var(--a-dim); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .2s, color .2s; }
 .atrium-climate-power.on { background: var(--c-accent); color: #1d0f08; }
-.atrium-climate-dd { position: relative; box-sizing: border-box; flex: 1 1 84px; min-width: 0; height: 34px; display: flex; align-items: center; gap: 7px; padding: 0 10px; border-radius: 12px; background: color-mix(in srgb, var(--a-text) 6%, transparent); cursor: pointer; transition: background .15s, opacity .2s; --mdc-icon-size: 16px; }
-.atrium-climate-dd:hover { background: color-mix(in srgb, var(--a-text) 10%, transparent); }
+.atrium-climate-dd { position: relative; box-sizing: border-box; flex: 1 1 84px; min-width: 0; height: 34px; display: flex; align-items: center; gap: 7px; padding: 0 10px; border: 0; border-radius: 12px; background: color-mix(in srgb, var(--a-text) 6%, transparent); color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background .15s, opacity .2s; --mdc-icon-size: 16px; }
+.atrium-climate-dd:hover, .atrium-climate-dd.atrium-pop-open { background: color-mix(in srgb, var(--a-text) 10%, transparent); }
 .atrium-climate-dd ha-icon { flex-shrink: 0; color: var(--a-dim); }
 .atrium-climate-dd-value { min-width: 0; font-size: 14px; font-weight: 600; color: var(--a-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.atrium-climate-dd-select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px; }
 .atrium-climate.off .atrium-climate-dd, .atrium-climate.off .atrium-climate-mid { opacity: .45; }
 .atrium-climate.off .atrium-climate-target { color: var(--a-dim); }
 

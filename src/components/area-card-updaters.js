@@ -308,17 +308,10 @@ export function _updateClimateRef(ref, entityId) {
     if (!slot) continue;
     slot.icon.setAttribute("icon", dd.icon);
     slot.value.textContent = dd.labelFor(dd.value) ?? "—";
-    const optionsKey = dd.options.join("|");
-    if (slot.select.dataset.options !== optionsKey) {
-      slot.select.dataset.options = optionsKey;
-      slot.select.replaceChildren(...dd.options.map((o) => {
-        const opt = document.createElement("option");
-        opt.value = o;
-        opt.textContent = dd.labelFor(o);
-        return opt;
-      }));
-    }
-    slot.select.value = dd.value ?? "";
+    slot.btn.setAttribute("aria-label", `${dd.label}: ${slot.value.textContent}`);
+    slot.options = dd.options;
+    slot.current = dd.value;
+    slot.labelFor = dd.labelFor;
   }
 }
 

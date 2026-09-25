@@ -1,4 +1,4 @@
-import { openListPopover } from "../lib/popover.js";
+import { openPopover, closePopoverFor, openListPopover } from "../lib/popover.js";
 import { haIcon, bindLongPress, readSceneGradient, writeSceneGradient } from "../lib/dom-utils.js";
 import {
   ICONS,
@@ -11,8 +11,8 @@ import {
 import { FLASH_MS } from "./area-card-updaters.js";
 
 // Panel content for one selected room, in the order the design settled on:
-// climate (own full-width card), scenes/buttons (a pill strip), lights +
-// switches side by side, mode selectors, covers, sensor readings, then
+// climate (own full-width card), scenes/buttons (a pill strip), lights,
+// switches and covers side by side, mode selectors, sensor readings, then
 // routines (automations & scripts) last.
 export function _buildRoomSections(area, data) {
   const sections = [];
@@ -20,11 +20,10 @@ export function _buildRoomSections(area, data) {
 
   if (data.scenes.length || data.buttons.length) sections.push(this._buildPillsSection(area, data.scenes, data.buttons, data.lights));
 
-  if (data.lights.length || data.switches.length) {
-    sections.push(this._buildDeviceGroupsRow(area, data.lights, data.switches, data.deviceSensors));
+  if (data.lights.length || data.switches.length || data.covers.length) {
+    sections.push(this._buildDeviceGroupsRow(area, data.lights, data.switches, data.covers, data.deviceSensors));
   }
   if (data.inputSelects.length) sections.push(this._buildInputSelectsSection(area, data.inputSelects));
-  if (data.covers.length) sections.push(this._buildCoversSection(area, data.covers));
 
   const genericSensors = [...data.sensors.extras, ...data.sensors.other];
   if (genericSensors.length) sections.push(this._buildSensorsSection(area, genericSensors));
@@ -53,6 +52,40 @@ export function _buildClimateSection(area, climates) {
   list.className = "atrium-climate-list";
   for (const climate of climates) list.appendChild(this._buildClimateTile(area, climate));
   return this._section("Climate", list);
+}
+
+// A small themed menu under a pill (climate mode/fan/swing): the options,
+// the current one checked. Replaces the OS <select> picker so it matches the
+// rest of the panel.
+export function _openOptionMenu(anchor, title, slot, onPick) {
+  ensurePopoverItemStyle();
+  const menu = document.createElement("div");
+  menu.className = "atrium-pop-menu";
+  menu.setAttribute("role", "menu");
+  menu.setAttribute("aria-label", title);
+  for (const option of slot.options) {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "atrium-pop-menu-item" + (option === slot.current ? " active" : "");
+    item.setAttribute("role", "menuitemradio");
+    item.setAttribute("aria-checked", String(option === slot.current));
+    item.innerHTML = `<span class="atrium-pop-menu-label"></span>${haIcon("mdi:check", 16)}`;
+    item.firstChild.textContent = slot.labelFor(option);
+    item.addEventListener("click", () => {
+      closePopoverFor(anchor);
+      if (option !== slot.current) onPick(option);
+    });
+    menu.appendChild(item);
+  }
+  this._openAnchors.add(anchor);
+  const opened = openPopover({
+    anchor,
+    content: menu,
+    width: Math.max(160, anchor.getBoundingClientRect().width),
+    onClose: () => this._openAnchors.delete(anchor),
+  });
+  if (opened) anchor.classList.add("atrium-pop-open");
+  (menu.querySelector(".active") || menu.firstChild)?.focus({ focusVisible: false });
 }
 
 export function _buildClimateTile(area, climate) {
@@ -115,20 +148,18 @@ export function _buildClimateTile(area, climate) {
   const labels = { mode: "Mode", fan: "Fan mode", swing: "Swing mode" };
   for (const key of ["mode", "fan", "swing"]) {
     if (!present[key]) continue;
-    // A native <select> stretched invisibly over the pill: the OS picker on
-    // phones, keyboard support everywhere, no custom popover to maintain.
-    const dd = document.createElement("label");
-    dd.className = "atrium-climate-dd";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "atrium-climate-dd";
+    btn.setAttribute("aria-haspopup", "menu");
     const icon = document.createElement("ha-icon");
     const value = document.createElement("span");
     value.className = "atrium-climate-dd-value";
-    const select = document.createElement("select");
-    select.className = "atrium-climate-dd-select";
-    select.setAttribute("aria-label", labels[key]);
-    select.addEventListener("change", () => services[key](select.value));
-    dd.append(icon, value, select);
-    controls.appendChild(dd);
-    ref.dropdowns.set(key, { icon, value, select });
+    btn.append(icon, value);
+    const slot = { btn, icon, value, options: [], current: null, labelFor: (v) => v };
+    btn.addEventListener("click", () => this._openOptionMenu(btn, labels[key], slot, services[key]));
+    controls.appendChild(btn);
+    ref.dropdowns.set(key, slot);
   }
 
   card.append(top, mid, controls);
@@ -137,26 +168,26 @@ export function _buildClimateTile(area, climate) {
   return card;
 }
 
-// Lights and switches sit side by side as two independently-headed groups
-// (one wrapping flex row) rather than two stacked sections — a room's
-// dimmers and its plain on/off devices read as one glance.
-export function _buildDeviceGroupsRow(area, lights, switches, deviceSensors) {
+// Lights, switches and covers sit side by side as independently headed
+// groups in one wrapping row rather than stacked sections — a room's
+// dimmers, plain on/off devices and blinds read as one glance.
+export function _buildDeviceGroupsRow(area, lights, switches, covers, deviceSensors) {
   const row = document.createElement("div");
   row.className = "atrium-groups-row";
+  const group = (title, action, grid) => {
+    const el = document.createElement("div");
+    el.className = "atrium-group";
+    el.append(this._sectionHead(title, action), grid);
+    row.appendChild(el);
+  };
   if (lights.length) {
-    const group = document.createElement("div");
-    group.className = "atrium-group";
-    group.append(
-      this._sectionHead("Lights", lights.length > 1 ? this._bulkButton(() => this._toggleAllLights(lights), () => (lights.some((l) => this._hass.states?.[l.entity_id]?.state === "on") ? "All off" : "All on")) : null),
-      this._divaGrid(area, lights, "light", deviceSensors),
-    );
-    row.appendChild(group);
+    const anyOn = () => lights.some((l) => this._hass.states?.[l.entity_id]?.state === "on");
+    group("Lights", lights.length > 1 ? this._bulkButton(() => this._toggleAllLights(lights), () => (anyOn() ? "All off" : "All on")) : null, this._divaGrid(area, lights, "light", deviceSensors));
   }
-  if (switches.length) {
-    const group = document.createElement("div");
-    group.className = "atrium-group";
-    group.append(this._sectionHead("Devices"), this._divaGrid(area, switches, "switch", deviceSensors));
-    row.appendChild(group);
+  if (switches.length) group("Devices", null, this._divaGrid(area, switches, "switch", deviceSensors));
+  if (covers.length) {
+    const anyOpen = () => covers.some((c) => fmtCoverPct(this._hass.states?.[c.entity_id] || { attributes: {} }) > 5);
+    group("Covers", covers.length > 1 ? this._bulkButton(() => this._toggleAllCovers(covers), () => (anyOpen() ? "Close all" : "Open all")) : null, this._divaGrid(area, covers, "cover"));
   }
   return this._section(null, row);
 }
@@ -194,16 +225,6 @@ export function _divaGrid(area, entities, kind, deviceSensors) {
   grid.className = "atrium-diva-grid";
   for (const entity of entities) grid.appendChild(this._buildDivaTile(area, entity, { kind, ...DIVA_KIND[kind] }, deviceSensors));
   return grid;
-}
-
-export function _buildCoversSection(area, covers) {
-  const action = covers.length > 1
-    ? this._bulkButton(() => this._toggleAllCovers(covers), () => (covers.some((c) => fmtCoverPct(this._hass.states?.[c.entity_id] || { attributes: {} }) > 5) ? "Close all" : "Open all"))
-    : null;
-  const wrap = document.createElement("div");
-  wrap.className = "atrium-section";
-  wrap.append(this._sectionHead("Covers", action), this._divaGrid(area, covers, "cover"));
-  return wrap;
 }
 
 // Vertical track tile shared by lights, switches and covers — a fixed-width

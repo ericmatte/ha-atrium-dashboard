@@ -34,3 +34,14 @@
 
 :is(.atrium-pop-list-rooms, .atrium-pop-list-sensors) :is(button, select):focus { outline: none; }
 :is(.atrium-pop-list-rooms, .atrium-pop-list-sensors) :is(button, select):focus-visible { outline: 2px solid var(--a-focus); outline-offset: 2px; }
+
+/* Option menu under a climate pill (mode / fan / swing). */
+.atrium-pop-menu { display: flex; flex-direction: column; gap: 2px; padding: 2px; }
+.atrium-pop-menu-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 38px; padding: 0 10px 0 12px; border: 0; border-radius: 9px; background: transparent; color: var(--primary-text-color, #ececef); font: inherit; font-size: 14px; font-weight: 600; text-align: left; cursor: pointer; transition: background .15s; }
+.atrium-pop-menu-item:hover { background: color-mix(in srgb, var(--primary-text-color, #ececef) 6%, transparent); }
+.atrium-pop-menu-item.active { background: color-mix(in srgb, var(--primary-text-color, #ececef) 9%, transparent); }
+.atrium-pop-menu-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.atrium-pop-menu-item ha-icon { flex-shrink: 0; visibility: hidden; color: var(--primary-text-color, #ececef); }
+.atrium-pop-menu-item.active ha-icon { visibility: visible; }
+.atrium-pop-menu-item:focus { outline: none; }
+.atrium-pop-menu-item:focus-visible { outline: 2px solid color-mix(in srgb, var(--primary-text-color, #ececef) 60%, transparent); outline-offset: -2px; }
