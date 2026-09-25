@@ -308,7 +308,6 @@ export function _bindDivaTrack(ref, entityId, kind) {
 
 const WARM_MODES = new Set(["heat", "heat_cool", "auto"]);
 const COOL_MODES = new Set(["cool", "dry"]);
-const TREND_FROM_MODE = { off: "off", cool: "cooling", auto: "auto", dry: "drying", fan_only: "fan" };
 const humanize = (v) => (v ? String(v).charAt(0).toUpperCase() + String(v).slice(1).replace(/_/g, " ") : v);
 
 // Icons for the free-form fan/swing mode names integrations report
@@ -350,7 +349,10 @@ export function climateView(st, lastMode) {
   let target = "—";
   if (tgt != null) target = `${fmt(tgt)}°`;
   else if (attrs.target_temp_low != null && attrs.target_temp_high != null) target = `${fmt(attrs.target_temp_low)}–${fmt(attrs.target_temp_high)}°`;
-  const trend = attrs.hvac_action || TREND_FROM_MODE[mode] || (cur != null && tgt != null && cur < tgt ? "heating" : "idle");
+  // Only what the device reports: many units (IR-controlled heat pumps) have
+  // no hvac_action at all, and guessing "heating"/"idle" from the target
+  // would be wrong.
+  const trend = attrs.hvac_action ? humanize(attrs.hvac_action).toLowerCase() : null;
   const shownMode = off ? (activeModes.includes(lastMode) ? lastMode : activeModes[0]) : mode;
   const modeIcon = (m) => CLIMATE_ICONS[m] || ICONS.thermo;
   const dropdowns = [
@@ -361,7 +363,7 @@ export function climateView(st, lastMode) {
   return {
     off,
     tone: off ? "neutral" : WARM_MODES.has(mode) ? "warm" : COOL_MODES.has(mode) ? "cool" : "neutral",
-    now: cur != null ? `Now ${cur}° · ${humanize(trend).toLowerCase()}` : humanize(trend),
+    now: [cur != null ? `Now ${cur}°` : null, trend].filter(Boolean).join(" · "),
     target,
     canAdjust: tgt != null && !off,
     // Single-mode thermostats show no mode chips or power button.

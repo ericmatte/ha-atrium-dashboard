@@ -270,9 +270,9 @@ test("_updateDivaRef: an unavailable entity disables the track with no fill", ()
   assert.equal(ref.ago.textContent, "Unavailable");
 });
 
-test("climateView: a heating single-mode thermostat shows now/trend and target, with no mode controls", () => {
+test("climateView: without hvac_action only the current temperature shows (no guessed status); single-mode has no controls", () => {
   const v = climateView({ state: "heat", attributes: { current_temperature: 19.8, temperature: 21, target_temp_step: 0.5, hvac_modes: ["heat"] } });
-  assert.equal(v.now, "Now 19.8° · heating");
+  assert.equal(v.now, "Now 19.8°");
   assert.equal(v.target, "21°");
   assert.equal(v.tone, "warm");
   assert.equal(v.hasControls, false);
@@ -348,7 +348,7 @@ test("_updateClimateRef: a single-mode thermostat hides the controls row", () =>
   const ctx = { _hass: { states: { "climate.x": { state: "heat", attributes: { hvac_modes: ["heat"], temperature: 21, current_temperature: 20 } } } }, _lastClimateMode: new Map() };
   _updateClimateRef.call(ctx, ref, "climate.x");
   assert.equal(ref.controls.hidden, true);
-  assert.equal(ref.now.textContent, "Now 20° · heating");
+  assert.equal(ref.now.textContent, "Now 20°");
 });
 
 function makeAutomationRef(isScript) {
@@ -583,4 +583,9 @@ test("touch: while the page is still scrolling, a touch neither drags nor toggle
     assert.deepEqual(ctx.calls, []);
     noteScroll(-Infinity);
   });
+});
+
+test("climateView: the status shown is the device's hvac_action, when it reports one", () => {
+  assert.equal(climateView({ state: "heat", attributes: { current_temperature: 20, hvac_action: "heating", hvac_modes: ["heat"] } }).now, "Now 20° · heating");
+  assert.equal(climateView({ state: "off", attributes: { current_temperature: 20, hvac_modes: ["off", "heat"] } }).now, "Now 20°");
 });
