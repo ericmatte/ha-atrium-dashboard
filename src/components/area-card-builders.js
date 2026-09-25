@@ -51,7 +51,7 @@ export function _buildClimateSection(area, climates) {
   const list = document.createElement("div");
   list.className = "atrium-climate-list";
   for (const climate of climates) list.appendChild(this._buildClimateTile(area, climate));
-  return this._section("Climate", list);
+  return this._section(null, list);
 }
 
 // A small themed menu under a pill (climate mode/fan/swing): the options,

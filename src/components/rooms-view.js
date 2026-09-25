@@ -381,13 +381,13 @@ class AtriumRooms extends HTMLElement {
     ref.litBadge.hidden = lightsOn === 0;
     if (lightsOn > 0 && ref.litBadge.dataset.count !== String(lightsOn)) {
       ref.litBadge.dataset.count = String(lightsOn);
-      ref.litBadge.innerHTML = `${haIcon("mdi:lightbulb-outline", 13)}${lightsOn}`;
+      ref.litBadge.innerHTML = `${haIcon("mdi:lightbulb-outline")}${lightsOn}`;
     }
     const alert = areaAlert(this._hass, data);
     ref.alertBadge.hidden = !alert;
     if (alert && ref.alertBadge.dataset.icon !== alert.icon) {
       ref.alertBadge.dataset.icon = alert.icon;
-      ref.alertBadge.innerHTML = haIcon(alert.icon, 14);
+      ref.alertBadge.innerHTML = haIcon(alert.icon);
     }
     ref.meta.textContent = this._areaMeta(area, data, alert) || "\u00a0";
   }
