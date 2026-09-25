@@ -56,7 +56,7 @@
 .atrium-orb-badge-lit, .atrium-orb-badge-alert { position: absolute; top: 14.6%; transform: translate(-50%, -50%); }
 .atrium-orb-badge-lit { left: 14.6%; box-sizing: border-box; height: 1.75em; display: inline-flex; align-items: center; gap: .167em; padding: 0 .667em 0 .5em; border-radius: 999px; background: #f6c14b; color: #1b1506; font-size: 1em; font-weight: 800; line-height: 1; white-space: nowrap; }
 .atrium-orb-badge-lit ha-icon { --mdc-icon-size: 1.083em; }
-.atrium-orb-badge-alert { left: 85.4%; width: 2.167em; height: 2.167em; border-radius: 50%; background: #ff5d5d; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 .208em var(--a-bg); }
+.atrium-orb-badge-alert { left: 85.4%; width: 2.167em; height: 2.167em; border-radius: 50%; background: #ff5d5d; color: #fff; display: flex; align-items: center; justify-content: center; }
 .atrium-orb-badge-alert ha-icon { --mdc-icon-size: 1.167em; }
 .atrium-orb-badge-alert.warn { background: #ffa94d; color: #2a1605; }
 .atrium-orb-badge-lit[hidden], .atrium-orb-badge-alert[hidden] { display: none; }
