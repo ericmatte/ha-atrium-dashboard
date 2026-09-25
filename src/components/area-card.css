@@ -49,15 +49,10 @@
 .atrium-orb-row .atrium-orb-art ha-icon { --mdc-icon-size: calc(var(--orb-size, 100px) * .28); }
 .atrium-orb.gray .atrium-orb-art, .atrium-panel-hero-photo.gray .atrium-orb-art { filter: grayscale(1) brightness(.42); }
 
-/* The light count and alert dot scale with the photo: rooms-view.js sets
-   their text size, insets and ring from the tile size (orbBadge in
-   orb-grid.js), and each badge is sized in em off that text size. */
-.atrium-orb-photo { font-size: var(--orb-badge-font, 15px); }
-/* Shorter than the alert dot (2.167em), so it's offset to share its centre line. */
-.atrium-orb-badge-lit { position: absolute; left: var(--orb-badge-x, 4px); top: calc(var(--orb-badge-y, 8px) + .208em); box-sizing: border-box; height: 1.75em; display: inline-flex; align-items: center; gap: .167em; padding: 0 .667em 0 .5em; border-radius: 999px; background: #f6c14b; color: #1b1506; font-size: 1em; font-weight: 800; line-height: 1; }
-.atrium-orb-badge-lit ha-icon { --mdc-icon-size: 1.083em; }
-.atrium-orb-badge-alert { position: absolute; right: var(--orb-badge-x, 4px); top: var(--orb-badge-y, 8px); width: 2.167em; height: 2.167em; border-radius: 50%; background: #ff5d5d; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 var(--orb-badge-ring, 3px) var(--a-bg); }
-.atrium-orb-badge-alert ha-icon { --mdc-icon-size: 1.167em; }
+.atrium-orb-badge-lit { position: absolute; left: -4px; top: -2px; display: inline-flex; align-items: center; gap: 2px; padding: 2px 6px 2px 4px; border-radius: 999px; background: #f6c14b; color: #1b1506; font-size: 11px; font-weight: 800; line-height: 16px; }
+.atrium-orb-badge-lit ha-icon { --mdc-icon-size: 13px; }
+.atrium-orb-badge-alert { position: absolute; right: -4px; top: -2px; width: 20px; height: 20px; border-radius: 50%; background: #ff5d5d; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 3px var(--a-bg); }
+.atrium-orb-badge-alert ha-icon { --mdc-icon-size: 11px; }
 .atrium-orb-badge-lit[hidden], .atrium-orb-badge-alert[hidden] { display: none; }
 
 .atrium-orb-name { font-size: 13px; font-weight: 700; line-height: 1.2; text-align: center; color: var(--a-text); transition: font-size .55s var(--a-ease); }
@@ -222,8 +217,7 @@ button.atrium-badge { cursor: pointer; }
   .has-sel .atrium-floor-name { font-size: 10px; letter-spacing: .12em; white-space: nowrap; }
   .has-sel .atrium-orb-row { display: flex; flex-wrap: nowrap; gap: 18px; margin-block: 8px; }
   .has-sel .atrium-orb { width: 70px; flex-shrink: 0; gap: 6px; animation-name: atrium-room-in-a; }
-  /* orbBadge(64) from orb-grid.js. */
-  .has-sel .atrium-orb { --orb-size: 64px; --orb-badge-font: 9.85px; --orb-badge-x: 1.64px; --orb-badge-y: 3.28px; --orb-badge-ring: 1.23px; }
+  .has-sel .atrium-orb { --orb-size: 64px; }
   .has-sel .atrium-orb-photo { width: 64px; }
   .has-sel .atrium-orb-name { font-size: 11px; max-width: 70px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .has-sel .atrium-orb-meta { display: none; }
@@ -248,6 +242,9 @@ button.atrium-badge { cursor: pointer; }
   .atrium-floor-group { gap: 16px; }
   .atrium-orb { gap: 14px; animation: none; transition: gap .55s var(--a-ease); }
   .has-sel .atrium-orb { gap: 12px; }
+  .atrium-orb-badge-lit { left: 4px; top: 8px; padding: 4px 8px 4px 6px; font-size: 12px; }
+  .atrium-orb-badge-alert { right: 4px; top: 8px; width: 26px; height: 26px; }
+  .atrium-orb-badge-alert ha-icon { --mdc-icon-size: 14px; }
   .atrium-orb-name { font-size: 16px; font-weight: 800; }
   .has-sel .atrium-orb-name { font-size: 14px; }
   .atrium-orb-meta { font-size: 13px; margin-top: -10px; }

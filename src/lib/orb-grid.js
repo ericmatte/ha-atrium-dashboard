@@ -18,25 +18,3 @@ export function orbGrid(width, maxAreasPerFloor) {
   return { cols, gap, size };
 }
 
-// The light/alert badges on a tile, sized from the tile. Proportions come from
-// the design's 156px tile (12px text, 4px/8px inset, 3px ring), enlarged ×2
-// on a phone-sized tile and easing down to ×1.2 at the largest one — small
-// tiles need proportionally bigger badges to stay readable.
-const PHONE_ORB_SIZE = 100;
-const BADGE_SCALE_PHONE = 2;
-const BADGE_SCALE_MAX = 1.2;
-
-export function badgeScale(size) {
-  const t = clamp(0, (size - PHONE_ORB_SIZE) / (MAX_ORB_SIZE - PHONE_ORB_SIZE), 1);
-  return BADGE_SCALE_PHONE + (BADGE_SCALE_MAX - BADGE_SCALE_PHONE) * t;
-}
-
-export function orbBadge(size) {
-  const px = (v) => Math.round(v * 100) / 100;
-  return {
-    font: px(size * (12 / 156) * badgeScale(size)),
-    insetX: px(size * (4 / 156)),
-    insetY: px(size * (8 / 156)),
-    ring: px(size * (3 / 156)),
-  };
-}
