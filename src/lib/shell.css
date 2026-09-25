@@ -1,4 +1,7 @@
-.atrium-shell-root { display: block; max-width: 1800px; }
+.atrium-shell-root { display: block; max-width: 1800px; --atrium-focus: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 60%, transparent); }
+/* Same focus ring as the rooms view: follows each control's radius. */
+.atrium-shell-root button:focus { outline: none; }
+.atrium-shell-root button:focus-visible { outline: 2px solid var(--atrium-focus); outline-offset: 2px; }
 /* z-index stays at 2 so HA's native toolbar (on its own higher-z layer)
    wins when they overlap. */
 .atrium-shell-header {

@@ -55,3 +55,7 @@
   background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 12%, transparent);
 }
 .atrium-turn-off-all-btn ha-icon { --mdc-icon-size: 16px; }
+
+/* Popover rows: rounded focus ring instead of the browser's square one. */
+.atrium-pop :is(button, [tabindex]):focus { outline: none; }
+.atrium-pop :is(button, [tabindex]):focus-visible { outline: 2px solid color-mix(in srgb, var(--primary-text-color, #e8e9ec) 60%, transparent); outline-offset: -2px; }

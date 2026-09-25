@@ -20,6 +20,7 @@ import {
 import * as buildersMod from "./area-card-builders.js";
 import * as updatersMod from "./area-card-updaters.js";
 import { subscribeLabelsLoaded } from "../lib/label-registry.js";
+import { orbGrid } from "../lib/orb-grid.js";
 
 // Matches the design's exit animations (pinOut .24s / sheetOut .28s) so the
 // selection is only dropped once they've played.
@@ -45,6 +46,10 @@ class AtriumRooms extends HTMLElement {
 
   connectedCallback() {
     this.style.display = "block";
+    if (this._content && !this._resizeObserver) {
+      this._resizeObserver = new ResizeObserver(() => this._sizeOrbs());
+      this._resizeObserver.observe(this._content);
+    }
     this._unsubLabels = subscribeLabelsLoaded(() => {
       this._floorsSig = null;
       this._panelSig = null;
@@ -57,6 +62,8 @@ class AtriumRooms extends HTMLElement {
     document.documentElement.style.removeProperty("--atrium-panel-open");
     this._unsubLabels?.();
     this._unsubLabels = null;
+    this._resizeObserver?.disconnect();
+    this._resizeObserver = null;
   }
 
   set hass(hass) {
@@ -214,6 +221,20 @@ class AtriumRooms extends HTMLElement {
     this._panel.className = "atrium-panel";
     this._root.append(this._content, this._panel);
     this.appendChild(this._root);
+    this._resizeObserver = new ResizeObserver(() => this._sizeOrbs());
+    this._resizeObserver.observe(this._content);
+  }
+
+  // Follows the content width continuously — including while the desktop
+  // panel slides open — so the tiles always fill their row (see orb-grid.js).
+  _sizeOrbs() {
+    const style = getComputedStyle(this._content);
+    const width = this._content.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    if (width <= 0) return;
+    const { cols, gap, size } = orbGrid(width, this._maxAreasPerFloor);
+    this._content.style.setProperty("--orb-cols", String(cols));
+    this._content.style.setProperty("--orb-gap", `${gap}px`);
+    this._content.style.setProperty("--orb-size", `${size}px`);
   }
 
   _floorsData() {
@@ -231,6 +252,7 @@ class AtriumRooms extends HTMLElement {
 
   _buildFloors(floors) {
     this._orbRefs = new Map();
+    this._maxAreasPerFloor = Math.max(0, ...floors.map((f) => f.areas.length));
     this._content.innerHTML = "";
     let index = 0;
     for (const { floor, areas } of floors) {
@@ -245,6 +267,7 @@ class AtriumRooms extends HTMLElement {
       group.append(label, row);
       this._content.appendChild(group);
     }
+    this._sizeOrbs();
   }
 
   _renderPanel({ replayPanelIn = false } = {}) {
@@ -265,9 +288,8 @@ class AtriumRooms extends HTMLElement {
       this._updatePanel(area, data);
       return;
     }
-    // A rebuild for the same room (an entity was added/removed) swaps the
-    // content without replaying the entrance animations.
-    const sameRoom = this._panelAreaId === area.area_id;
+    // Sections slide in only when the panel first opens; switching rooms or
+    // a rebuild (an entity was added/removed) swaps the content in place.
     this._panelSig = sig;
     this._panelAreaId = area.area_id;
     this._closeOpenPopovers();
@@ -277,7 +299,7 @@ class AtriumRooms extends HTMLElement {
       this._pin.className = "atrium-panel-inner";
       this._panel.appendChild(this._pin);
     }
-    this._pin.classList.toggle("settled", !!sameRoom && !replayPanelIn);
+    this._pin.classList.toggle("settled", !replayPanelIn);
     this._pin.innerHTML = "";
     this._pin.scrollTop = 0;
     this._panel.setAttribute("aria-label", area.name);

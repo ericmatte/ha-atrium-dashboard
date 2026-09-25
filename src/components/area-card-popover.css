@@ -1,29 +1,36 @@
-.atrium-pop-list-rooms { background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 6%, transparent); }
-.atrium-pop-list-rooms .atrium-auto-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--divider-color, rgba(127,127,127,0.18)); }
-.atrium-pop-list-rooms .atrium-auto-row:last-child { border-bottom: none; }
-.atrium-pop-list-rooms .atrium-auto-row.disabled { opacity: .55; }
-.atrium-pop-list-rooms .atrium-auto-swatch { position: relative; flex-shrink: 0; width: 36px; height: 36px; border-radius: 999px; border: none; cursor: pointer; background: color-mix(in srgb, var(--state-climate-cool-color, #5cc6ff) 14%, transparent); color: var(--state-climate-cool-color, #5cc6ff); display: inline-flex; align-items: center; justify-content: center; transition: background .15s ease, color .15s ease; }
-.atrium-pop-list-rooms .atrium-auto-swatch.script { background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 4%, transparent); color: var(--secondary-text-color, #9aa0aa); cursor: default; }
-.atrium-pop-list-rooms .atrium-auto-row.disabled .atrium-auto-swatch:not(.script) { background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 4%, transparent); color: color-mix(in srgb, var(--secondary-text-color, #9aa0aa) 70%, transparent); }
-.atrium-pop-list-rooms .atrium-auto-body { flex: 1; min-width: 0; text-align: left; background: transparent; border: none; padding: 0; cursor: pointer; color: var(--primary-text-color, #e8e9ec); font-family: inherit; }
-.atrium-pop-list-rooms .atrium-auto-title { display: flex; align-items: center; gap: 5px; min-width: 0; }
-.atrium-pop-list-rooms .atrium-auto-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14.5px; font-weight: 500; color: var(--primary-text-color, #e8e9ec); line-height: 1.3; }
-.atrium-pop-list-rooms .atrium-auto-name.disabled { color: var(--secondary-text-color, #9aa0aa); }
-.atrium-pop-list-rooms .atrium-auto-last { font-size: 12.5px; color: color-mix(in srgb, var(--secondary-text-color, #9aa0aa) 70%, transparent); margin-top: 2px; }
-.atrium-pop-list-rooms .atrium-auto-labels { display: flex; flex-wrap: wrap; flex-shrink: 0; gap: 4px; }
-.atrium-pop-list-rooms .atrium-auto-label { display: inline-flex; align-items: center; gap: 2px; font-size: 10.5px; font-weight: 500; line-height: 1.5; }
-.atrium-pop-list-rooms .atrium-auto-play { flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; border: none; cursor: pointer; background: color-mix(in srgb, var(--state-climate-cool-color, #5cc6ff) 12%, transparent); color: var(--state-climate-cool-color, #5cc6ff); display: inline-flex; align-items: center; justify-content: center; transition: background .15s ease; }
-.atrium-pop-list-rooms .atrium-auto-play.disabled { background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 3%, transparent); color: color-mix(in srgb, var(--secondary-text-color, #9aa0aa) 70%, transparent); cursor: not-allowed; }
+/* Rows the rooms panel shows inside body-attached popovers ("N hidden"
+   routines, a tile's device sensors). They reuse the panel's markup, but its
+   stylesheet lives inside atrium-rooms, so the look is repeated here. */
+.atrium-pop-list-rooms, .atrium-pop-list-sensors {
+  --a-text: var(--primary-text-color, #ececef);
+  --a-dim: var(--secondary-text-color, #8b8c94);
+  --a-surface: color-mix(in srgb, var(--a-text) 5%, transparent);
+  --a-knob: color-mix(in srgb, var(--a-text) 10%, transparent);
+  --a-focus: color-mix(in srgb, var(--a-text) 60%, transparent);
+  display: flex; flex-direction: column; gap: 6px; padding: 2px;
+}
+.atrium-pop-list-rooms .atrium-auto-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 16px; background: var(--a-surface); transition: opacity .2s; }
+.atrium-pop-list-rooms .atrium-auto-row.off { opacity: .55; }
+.atrium-pop-list-rooms .atrium-auto-swatch { flex-shrink: 0; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: #fff; color: #141414; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.35); }
+.atrium-pop-list-rooms .atrium-auto-swatch.script, .atrium-pop-list-rooms .atrium-auto-row.off .atrium-auto-swatch { background: var(--a-knob); color: var(--a-dim); box-shadow: none; }
+.atrium-pop-list-rooms .atrium-auto-swatch.script { cursor: default; }
+.atrium-pop-list-rooms .atrium-auto-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 0; border: 0; border-radius: 8px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.atrium-pop-list-rooms .atrium-auto-title { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.atrium-pop-list-rooms .atrium-auto-name { font-size: 14px; font-weight: 700; line-height: 1.25; color: var(--a-text); }
+.atrium-pop-list-rooms .atrium-auto-labels { display: contents; }
+.atrium-pop-list-rooms .atrium-auto-label { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 6px; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 14px; }
+.atrium-pop-list-rooms .atrium-auto-last { font-size: 12px; font-weight: 600; color: var(--a-dim); }
+.atrium-pop-list-rooms .atrium-auto-play { flex-shrink: 0; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: rgba(140,193,255,.14); color: #8cc1ff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.atrium-pop-list-rooms .atrium-auto-play.disabled { background: var(--a-knob); color: var(--a-dim); cursor: not-allowed; }
+.atrium-pop-list-rooms .atrium-auto-play.flash { background: #8cc1ff; color: #0c1a2b; }
 
-.atrium-pop-menu { display: flex; flex-direction: column; min-width: 140px; padding: 2px; }
-.atrium-pop-menu-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 9px; border: none; border-radius: 7px; background: transparent; color: var(--primary-text-color, #e8e9ec); font-size: 14.5px; line-height: 14px; font-family: inherit; cursor: pointer; text-align: left; }
-.atrium-pop-menu-item:hover { background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 5%, transparent); }
-.atrium-pop-menu-item.active { color: var(--state-climate-cool-color, #5cc6ff); }
-.atrium-pop-menu-item ha-icon { --mdc-icon-size: 14px; flex-shrink: 0; }
+.atrium-pop-list-sensors .atrium-reading { display: flex; align-items: center; gap: 8px; min-width: 0; height: 40px; padding: 0 12px; border: 0; border-radius: 12px; background: var(--a-surface); font: inherit; text-align: left; cursor: pointer; }
+.atrium-pop-list-sensors .atrium-reading-icon { --mdc-icon-size: 16px; flex-shrink: 0; color: var(--a-dim); }
+.atrium-pop-list-sensors .atrium-reading-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: color-mix(in srgb, var(--a-text) 75%, transparent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.atrium-pop-list-sensors .atrium-reading-value { flex-shrink: 0; font-size: 13px; font-weight: 800; color: var(--a-text); white-space: nowrap; }
+.atrium-pop-list-sensors .atrium-reading.t-alert :is(.atrium-reading-value, .atrium-reading-icon) { color: #ff8f8f; }
+.atrium-pop-list-sensors .atrium-reading.t-warn :is(.atrium-reading-value, .atrium-reading-icon) { color: #ffb561; }
+.atrium-pop-list-sensors .atrium-reading.t-info :is(.atrium-reading-value, .atrium-reading-icon) { color: #8cc1ff; }
 
-.atrium-pop-list-sensors { display: flex; flex-direction: column; gap: 8px; }
-.atrium-pop-list-sensors .atrium-sensor { min-width: 0; height: 32px; background: color-mix(in srgb, var(--primary-text-color, #e8e9ec) 3%, transparent); border-radius: 9px; padding: 0 10px 0 8px; cursor: pointer; }
-.atrium-pop-list-sensors .atrium-sensor-row { display: flex; align-items: center; gap: 6px; height: 100%; }
-.atrium-pop-list-sensors .atrium-sensor-icon { --mdc-icon-size: 15px; flex-shrink: 0; color: var(--secondary-text-color, #9aa0aa); }
-.atrium-pop-list-sensors .atrium-sensor-name { flex: 1; min-width: 0; font-size: 14px; line-height: 14px; color: var(--primary-text-color, #e8e9ec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.atrium-pop-list-sensors .atrium-sensor-value { flex-shrink: 0; font-size: 14px; line-height: 14px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--primary-text-color, #e8e9ec); }
+:is(.atrium-pop-list-rooms, .atrium-pop-list-sensors) :is(button, select):focus { outline: none; }
+:is(.atrium-pop-list-rooms, .atrium-pop-list-sensors) :is(button, select):focus-visible { outline: 2px solid var(--a-focus); outline-offset: 2px; }
