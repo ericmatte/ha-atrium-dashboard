@@ -50,12 +50,12 @@
 
 /* The light count and alert dot scale with the photo as one piece: the
    photo's font-size is a fixed fraction of its width, and both badges are
-   sized in em — 1.6× the design's badges (12px text on a 156px tile), with
+   sized in em — 1.2× the design's badges (12px text on a 156px tile), with
    their offsets and the alert ring kept at the design's size. */
-.atrium-orb-photo { font-size: calc(var(--orb-size, 156px) * .0769 * 1.6); }
-.atrium-orb-badge-lit { position: absolute; left: .208em; top: .417em; display: inline-flex; align-items: center; gap: .167em; padding: .333em .667em .333em .5em; border-radius: 999px; background: #f6c14b; color: #1b1506; font-size: 1em; font-weight: 800; line-height: 1; }
+.atrium-orb-photo { font-size: calc(var(--orb-size, 156px) * .0769 * 1.2); }
+.atrium-orb-badge-lit { position: absolute; left: .278em; top: .556em; display: inline-flex; align-items: center; gap: .167em; padding: .333em .667em .333em .5em; border-radius: 999px; background: #f6c14b; color: #1b1506; font-size: 1em; font-weight: 800; line-height: 1; }
 .atrium-orb-badge-lit ha-icon { --mdc-icon-size: 1.083em; }
-.atrium-orb-badge-alert { position: absolute; right: .208em; top: .417em; width: 2.167em; height: 2.167em; border-radius: 50%; background: #ff5d5d; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 .156em var(--a-bg); }
+.atrium-orb-badge-alert { position: absolute; right: .278em; top: .556em; width: 2.167em; height: 2.167em; border-radius: 50%; background: #ff5d5d; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 .208em var(--a-bg); }
 .atrium-orb-badge-alert ha-icon { --mdc-icon-size: 1.167em; }
 .atrium-orb-badge-lit[hidden], .atrium-orb-badge-alert[hidden] { display: none; }
 
