@@ -29,11 +29,8 @@ class AtriumStrategy {
       : null;
     const allFloors = otherFloor ? [...floors, otherFloor] : floors;
 
-    const welcomeName = hass.user?.name?.split(" ")?.[0] || "home";
-
     const headerCard = (floorScope, title) => ({
       type: "custom:atrium-header",
-      welcome_name: welcomeName,
       ...(title ? { title } : {}),
       floor: floorScope,
     });

@@ -284,7 +284,8 @@ button.atrium-badge { cursor: pointer; }
 .atrium-auto-play.flash { background: #8cc1ff; color: #0c1a2b; }
 
 .atrium-auto-row.is-script .atrium-auto-swatch { border-radius: 11px; background: color-mix(in srgb, #79d99a 16%, transparent); color: #79d99a; box-shadow: none; }
-.atrium-auto-row.is-script .atrium-auto-play { background: color-mix(in srgb, #79d99a 16%, transparent); color: #79d99a; }
+.atrium-auto-row.is-script { cursor: pointer; }
+.atrium-auto-row.is-script .atrium-auto-play { pointer-events: none; background: color-mix(in srgb, #79d99a 16%, transparent); color: #79d99a; }
 .atrium-auto-row.is-script .atrium-auto-play.flash { background: #79d99a; color: #0b2414; }
 .atrium-routine-drawers { display: flex; flex-wrap: wrap; gap: 8px; }
 .atrium-alist[hidden] { display: none; }

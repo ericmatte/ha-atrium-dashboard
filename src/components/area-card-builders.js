@@ -685,7 +685,10 @@ export function _buildAutomationRow(area, item) {
   const body = document.createElement("button");
   body.type = "button";
   body.className = "atrium-auto-body";
-  body.addEventListener("click", () => this._moreInfo(item.entity_id));
+  // A script's whole row (▶ included) opens its details — HA's own way to run
+  // it, with its fields if it has any. An automation's name does the same.
+  if (isScript) row.addEventListener("click", () => this._moreInfo(item.entity_id));
+  else body.addEventListener("click", () => this._moreInfo(item.entity_id));
   const titleLine = document.createElement("span");
   titleLine.className = "atrium-auto-title";
   const name = document.createElement("span");
@@ -698,8 +701,10 @@ export function _buildAutomationRow(area, item) {
   sub.className = "atrium-auto-last";
   body.append(titleLine, sub);
 
-  const play = document.createElement("button");
-  play.type = "button";
+  // For a script, ▶ is only a visual cue: clicks pass through to the row.
+  const play = document.createElement(isScript ? "span" : "button");
+  if (isScript) play.setAttribute("aria-hidden", "true");
+  else play.type = "button";
   play.className = "atrium-auto-play";
   play.setAttribute("aria-label", `${isScript ? "Run" : "Trigger"} ${displayName}`);
   play.innerHTML = haIcon(ICONS.play, 15);
@@ -707,15 +712,16 @@ export function _buildAutomationRow(area, item) {
   row.append(swatch, body, play);
 
   const ref = { row, swatch, name, sub, labels, play, isScript, flashUntil: 0 };
-  play.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (play.classList.contains("disabled")) return;
-    if (isScript) this._call("script", "turn_on", { entity_id: item.entity_id });
-    else this._call("automation", "trigger", { entity_id: item.entity_id });
-    ref.flashUntil = Date.now() + FLASH_MS;
-    this._updateAutomationRef(ref, item.entity_id);
-    setTimeout(() => this._updateAutomationRef(ref, item.entity_id), FLASH_MS);
-  });
+  if (!isScript) {
+    play.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (play.classList.contains("disabled")) return;
+      this._call("automation", "trigger", { entity_id: item.entity_id });
+      ref.flashUntil = Date.now() + FLASH_MS;
+      this._updateAutomationRef(ref, item.entity_id);
+      setTimeout(() => this._updateAutomationRef(ref, item.entity_id), FLASH_MS);
+    });
+  }
 
   this._refs.areas.get(area.area_id).automations.set(item.entity_id, ref);
   this._updateAutomationRef(ref, item.entity_id);

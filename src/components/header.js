@@ -35,7 +35,6 @@ const MAX_PLAUSIBLE_TEMP_C = 60;
 class AtriumHeader extends HTMLElement {
   constructor() {
     super();
-    this._welcomeName = "home";
     this._floorId = ALL_FLOOR_KEY;
     this._built = false;
   }
@@ -45,7 +44,6 @@ class AtriumHeader extends HTMLElement {
     // `floor: null` → orphan areas; ALL_FLOOR_KEY → "All" view rolling up
     // every floor; otherwise a specific floor_id.
     this._floorId = config.floor === ALL_FLOOR_KEY ? ALL_FLOOR_KEY : config.floor;
-    this._welcomeName = config.welcome_name || "home";
     // The default (home) tab greets the user; every other tab labels itself.
     this._title = config.title || null;
   }
@@ -85,7 +83,7 @@ class AtriumHeader extends HTMLElement {
     top.className = "atrium-shell-header-top";
     top.innerHTML = `
       <div class="atrium-shell-header-greeting">
-        <div class="atrium-shell-welcome" title="${this._welcomeTitle()}">${this._title || `${shellGreeting(new Date().getHours())}, ${this._welcomeName}`}</div>
+        <div class="atrium-shell-welcome" title="${this._welcomeTitle()}">${this._title || shellGreeting(new Date().getHours())}</div>
       </div>
       <button type="button" class="atrium-shell-weather" hidden></button>
       <div class="atrium-shell-header-people"></div>
