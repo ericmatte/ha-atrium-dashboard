@@ -7,6 +7,9 @@ import {
   classifyAreaEntities,
   areaIsEmpty,
   areaHasAlert,
+  areaAlertIcon,
+  sensorTone,
+  areaPanelSignature,
 } from "./area-data.js";
 
 test("entitiesForArea: drops hidden entities and ones outside the area", () => {
@@ -112,4 +115,45 @@ test("areaIsEmpty: a room whose only entity is a button is not empty", () => {
   const data = emptyAreaData();
   data.buttons = [{ entity_id: "button.fan_power" }];
   assert.equal(areaIsEmpty(data), false);
+});
+
+test("areaAlertIcon: a leak outranks an open door, and an open door alone still flags the area", () => {
+  const data = emptyAreaData();
+  data.doors.push({ entity_id: "binary_sensor.front_door" });
+  data.sensors.leak.push({ entity_id: "binary_sensor.sink_leak" });
+  const hass = {
+    states: {
+      "binary_sensor.front_door": { state: "on", attributes: { device_class: "door" } },
+      "binary_sensor.sink_leak": { state: "off", attributes: { device_class: "moisture" } },
+    },
+  };
+  assert.equal(areaAlertIcon(hass, data), "mdi:door-open");
+  hass.states["binary_sensor.sink_leak"].state = "on";
+  assert.equal(areaAlertIcon(hass, data), "mdi:water-alert");
+});
+
+test("areaAlertIcon: nothing wrong → null", () => {
+  assert.equal(areaAlertIcon({ states: {} }, emptyAreaData()), null);
+});
+
+test("sensorTone: alarms red, open doors and low batteries amber, motion blue, idle nothing", () => {
+  const st = (entity_id, state, device_class) => ({ entity_id, state, attributes: { device_class } });
+  assert.equal(sensorTone(st("binary_sensor.leak", "on", "moisture")), "alert");
+  assert.equal(sensorTone(st("binary_sensor.leak", "off", "moisture")), null);
+  assert.equal(sensorTone(st("binary_sensor.door", "on", "door")), "warn");
+  assert.equal(sensorTone(st("binary_sensor.motion", "on", "motion")), "info");
+  assert.equal(sensorTone(st("sensor.remote_battery", "12", "battery")), "warn");
+  assert.equal(sensorTone(st("sensor.remote_battery", "80", "battery")), null);
+  assert.equal(sensorTone(st("sensor.lux", "310", "illuminance")), null);
+  assert.equal(sensorTone(undefined), null);
+});
+
+test("areaPanelSignature: stable across state changes, changes when an entity is added", () => {
+  const area = { area_id: "kitchen", name: "Kitchen", picture: null };
+  const data = emptyAreaData();
+  data.lights.push({ entity_id: "light.main" });
+  const before = areaPanelSignature(area, data);
+  assert.equal(areaPanelSignature(area, data), before);
+  data.switches.push({ entity_id: "switch.coffee" });
+  assert.notEqual(areaPanelSignature(area, data), before);
 });

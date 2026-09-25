@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "../../tools/register.mjs";
 
-const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _wireClimateMode, _updateAutomationRef } = await import("./area-card-updaters.js");
+const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _wireClimateMode, _updateAutomationRef, divaVisual } = await import("./area-card-updaters.js");
 
 // Minimal fakes for the DOM surface _bindDivaTrack/_updateDivaRef touch.
 // Pointer event listeners are captured directly so tests can invoke them
@@ -119,7 +119,8 @@ test("dimmable light track: dragging to a level previews and commits a brightnes
     _bindDivaTrack.call(ctx, ref, entityId, "light");
     ref.track.handlers.pointerdown({ clientY: 100, pointerId: 1 });
     win.listeners.pointermove({ clientY: 73, pointerId: 1 }); // 50% up the track
-    assert.equal(ref.fill.style.height, "50%"); // live preview, no service call yet
+    assert.equal(ref.pctTop.textContent, "50%"); // live preview, no service call yet
+    assert.equal(ref.thumb.style.bottom, "calc((100% - 46px) * 0.500 + 6px)");
     assert.equal(ctx.calls.length, 0);
 
     win.listeners.pointerup({ clientY: 73, pointerId: 1 });
@@ -184,27 +185,75 @@ test("_updateDivaRef: a dimmable light on renders a fill height, thumb, and cros
   const ref = makeDivaRef();
   const entityId = "light.living_room";
   const ctx = makeContext({
-    [entityId]: { state: "on", attributes: { supported_color_modes: ["brightness"], brightness: 128 }, last_updated: "2024-01-01T00:00:00Z" },
+    [entityId]: { state: "on", attributes: { supported_color_modes: ["brightness"], brightness: 128 }, last_changed: "2024-01-01T00:00:00Z" },
   });
 
   _updateDivaRef.call(ctx, ref, entityId, "light");
 
-  assert.equal(ref.fill.style.height, "50%");
-  assert.equal(ref.thumb.classList.contains("on"), true);
+  assert.equal(ref.fill.style.height, "calc((100% - 46px) * 0.500 * 1.000 + 29.0px)");
+  assert.equal(ref.track.classList.contains("on"), true);
   assert.equal(ref.pctTop.textContent, "50%");
   assert.equal(ref.pctTop.style.display, "");
+  assert.equal(ref.pctTop.style.opacity, "0.50");
+  assert.equal(ref.pctBottom.style.opacity, "0.50");
 });
 
-test("_updateDivaRef: a switch on renders a full, solid fill with no pct label", () => {
+test("_updateDivaRef: a switch on renders a full, solid fill with no pct label and a time-ago line", () => {
   const ref = makeDivaRef();
   const entityId = "switch.fan";
-  const ctx = makeContext({ [entityId]: { state: "on", attributes: {} } });
+  const ctx = makeContext({ [entityId]: { state: "on", attributes: {}, last_changed: new Date(Date.now() - 12 * 60000).toISOString() } });
 
   _updateDivaRef.call(ctx, ref, entityId, "switch");
 
   assert.equal(ref.fill.style.height, "100%");
   assert.equal(ref.pctTop.style.display, "none");
-  assert.equal(ref.ago.textContent, "On");
+  assert.equal(ref.ago.textContent, "12m ago");
+});
+
+test("_updateDivaRef: a state that just changed reads 'Just now'", () => {
+  const ref = makeDivaRef();
+  const ctx = makeContext({ "switch.fan": { state: "off", attributes: {}, last_changed: new Date().toISOString() } });
+  _updateDivaRef.call(ctx, ref, "switch.fan", "switch");
+  assert.equal(ref.ago.textContent, "Just now");
+});
+
+test("switch track: while dragging, the thumb rubber-bands but the fill stays on its notch", () => {
+  withWindow((win) => {
+    const ref = makeDivaRef();
+    const ctx = makeContext({ "switch.fan": { state: "off", attributes: {} } });
+    _bindDivaTrack.call(ctx, ref, "switch.fan", "switch");
+    ref.track.handlers.pointerdown({ clientY: 100, pointerId: 1 });
+    win.listeners.pointermove({ clientY: 50, pointerId: 1 });
+    assert.equal(ref.fill.style.height, "0%");
+    assert.notEqual(ref.thumb.style.bottom, "calc((100% - 46px) * 0.000 + 6px)");
+    win.listeners.pointerup({ clientY: 50, pointerId: 1 });
+  });
+});
+
+test("divaVisual: a light at 100% fills to the top of the track with a solid (unfaded) end", () => {
+  const v = divaVisual({ kind: "light", on: true, level: 100, dimmable: true, color: "#f6c14b" });
+  assert.equal(v.fillHeight, "calc((100% - 46px) * 1.000 * 1.000 + 46.0px)");
+  assert.ok(v.fillBackground.endsWith("color-mix(in srgb, #f6c14b 90%, transparent) 100%)"));
+  assert.equal(v.pctTopOpacity, "0.00");
+  assert.equal(v.pctBottomOpacity, "1.00");
+});
+
+test("divaVisual: a light near 0% shrinks its fill toward nothing instead of jumping", () => {
+  const v = divaVisual({ kind: "light", on: true, level: 5, dimmable: true, color: "#f6c14b" });
+  assert.equal(v.fillHeight, "calc((100% - 46px) * 0.050 * 0.500 + 14.5px)");
+});
+
+test("divaVisual: a cover gets a solid fill centred on its icon", () => {
+  const v = divaVisual({ kind: "cover", on: true, level: 40, dimmable: true, color: "#8cc1ff" });
+  assert.equal(v.fillBackground, "color-mix(in srgb, #8cc1ff 90%, transparent)");
+  assert.equal(v.fillHeight, "calc((100% - 46px) * 0.400 * 1.000 + 23.0px)");
+});
+
+test("divaVisual: an off dimmable light has no fill and no pct label", () => {
+  const v = divaVisual({ kind: "light", on: false, level: 0, dimmable: true, color: "#f6c14b" });
+  assert.equal(v.fillHeight, "0px");
+  assert.equal(v.showPct, false);
+  assert.equal(v.thumbBottom, "calc((100% - 46px) * 0.000 + 6px)");
 });
 
 test("_updateDivaRef: an unavailable entity disables the track with no fill", () => {
@@ -294,47 +343,47 @@ test("_wireClimateMode: a multi-hvac-mode entity wires the mode menu, and pickin
 function makeAutomationRef(isScript) {
   return {
     isScript,
+    flashUntil: 0,
     row: { classList: makeClassList() },
-    name: { classList: makeClassList() },
-    status: isScript ? null : { textContent: "" },
-    last: { textContent: "" },
+    swatch: { tagName: isScript ? "SPAN" : "BUTTON", setAttribute() {} },
+    sub: { textContent: "" },
     labels: { innerHTML: "" },
     play: { classList: makeClassList() },
   };
 }
 
-test("_updateAutomationRef: an enabled automation shows an 'On' status line and just the relative timestamp", () => {
+test("_updateAutomationRef: an enabled automation shows 'On · <relative time>'", () => {
   const ref = makeAutomationRef(false);
   const ctx = makeContext({
     "automation.motion": { state: "on", attributes: { last_triggered: new Date(Date.now() - 5 * 60000).toISOString() } },
   });
-  ctx._hass.entities = {};
   _updateAutomationRef.call(ctx, ref, "automation.motion");
-  assert.equal(ref.status.textContent, "On");
-  assert.equal(ref.last.textContent.includes("Last triggered"), false);
-  assert.ok(ref.row.classList.contains("disabled") === false);
+  assert.equal(ref.sub.textContent, "On · 5 minutes ago");
+  assert.equal(ref.row.classList.contains("off"), false);
 });
 
-test("_updateAutomationRef: a disabled automation shows 'Off' and disables the row/play button", () => {
+test("_updateAutomationRef: a disabled automation shows 'Off · never' and disables the row/play button", () => {
   const ref = makeAutomationRef(false);
   const ctx = makeContext({ "automation.motion": { state: "off", attributes: {} } });
-  ctx._hass.entities = {};
   _updateAutomationRef.call(ctx, ref, "automation.motion");
-  assert.equal(ref.status.textContent, "Off");
-  assert.equal(ref.last.textContent, "Never triggered");
-  assert.equal(ref.row.classList.contains("disabled"), true);
+  assert.equal(ref.sub.textContent, "Off · never");
+  assert.equal(ref.row.classList.contains("off"), true);
   assert.equal(ref.play.classList.contains("disabled"), true);
 });
 
-test("_updateAutomationRef: a labeled automation gets one chip per label, with an icon only when the label has one", () => {
+test("_updateAutomationRef: right after a run the line confirms it and the play button flashes", () => {
+  const ref = makeAutomationRef(false);
+  ref.flashUntil = Date.now() + 1000;
+  const ctx = makeContext({ "automation.motion": { state: "on", attributes: {} } });
+  _updateAutomationRef.call(ctx, ref, "automation.motion");
+  assert.equal(ref.sub.textContent, "Triggered just now");
+  assert.equal(ref.play.classList.contains("flash"), true);
+});
+
+test("_updateAutomationRef: a labeled automation gets one tinted chip per label, a star when the label has no icon", () => {
   const prevDocument = globalThis.document;
-  const chips = [];
   globalThis.document = {
-    createElement: () => {
-      const chip = { className: "", style: {}, innerHTML: "" };
-      chips.push(chip);
-      return chip;
-    },
+    createElement: () => ({ className: "", style: {}, innerHTML: "", lastChild: { textContent: "" } }),
   };
   try {
     const ref = makeAutomationRef(false);
@@ -350,19 +399,19 @@ test("_updateAutomationRef: a labeled automation gets one chip per label, with a
     _updateAutomationRef.call(ctx, ref, "automation.motion");
 
     assert.equal(appended.length, 2);
-    assert.equal(chips[0].innerHTML, "Important");
-    assert.ok(chips[1].innerHTML.includes("Silent"));
-    assert.ok(chips[1].innerHTML.includes("mdi:volume-off"));
+    assert.equal(appended[0].lastChild.textContent, "Important");
+    assert.ok(appended[0].innerHTML.includes("mdi:star-outline"));
+    assert.ok(appended[1].innerHTML.includes("mdi:volume-off"));
+    assert.ok(appended[1].style.background.startsWith("color-mix("));
   } finally {
     globalThis.document = prevDocument;
   }
 });
 
-test("_updateAutomationRef: a script has no status line to update", () => {
+test("_updateAutomationRef: a script shows when it last ran, with no on/off status", () => {
   const ref = makeAutomationRef(true);
   const ctx = makeContext({ "script.good_night": { state: "off", attributes: {} } });
-  ctx._hass.entities = {};
   _updateAutomationRef.call(ctx, ref, "script.good_night");
-  assert.equal(ref.status, null);
-  assert.equal(ref.last.textContent, "Never triggered");
+  assert.equal(ref.sub.textContent, "Never run");
+  assert.equal(ref.row.classList.contains("off"), false);
 });

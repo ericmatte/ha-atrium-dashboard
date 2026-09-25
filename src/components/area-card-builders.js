@@ -1,13 +1,13 @@
 import { openPopover, closePopoverFor, openListPopover } from "../lib/popover.js";
-import { haIcon, tint, bindLongPress, readSceneGradient, writeSceneGradient } from "../lib/dom-utils.js";
+import { haIcon, bindLongPress, readSceneGradient, writeSceneGradient } from "../lib/dom-utils.js";
 import {
-  TONE, ICONS,
-  iconForScene, iconForSensor,
+  ICONS,
   nameWithoutAreaPrefix,
   ensurePopoverItemStyle,
-  fmtSensorValue,
+  fmtCoverPct,
   computeSceneGradient,
 } from "./area-card-shared.js";
+import { FLASH_MS } from "./area-card-updaters.js";
 
 // Panel content for one selected room, in the order the design settled on:
 // climate (own full-width card), scenes/buttons (a pill strip), lights +
@@ -38,17 +38,9 @@ export function _buildRoomSections(area, data) {
 export function _section(title, children) {
   const wrap = document.createElement("div");
   wrap.className = "atrium-section";
-  if (title) {
-    const head = document.createElement("div");
-    head.className = "atrium-shead";
-    head.textContent = title;
-    wrap.appendChild(head);
-  }
-  const inner = document.createElement("div");
-  inner.className = "atrium-section-body";
-  if (Array.isArray(children)) children.forEach((c) => inner.appendChild(c));
-  else inner.appendChild(children);
-  wrap.appendChild(inner);
+  if (title) wrap.appendChild(this._sectionHead(title));
+  if (Array.isArray(children)) wrap.append(...children);
+  else wrap.appendChild(children);
   return wrap;
 }
 
@@ -160,67 +152,66 @@ export function _openClimateMenu(anchor, items, current, onPick) {
 export function _buildDeviceGroupsRow(area, lights, switches, deviceSensors) {
   const row = document.createElement("div");
   row.className = "atrium-groups-row";
-  if (lights.length) row.appendChild(this._buildDeviceGroup(area, "Lights", lights, deviceSensors, {
-    hasAction: lights.length > 1,
-    isOn: (l) => this._hass.states?.[l.entity_id]?.state === "on",
-    toggleAll: () => this._toggleAllLights(lights),
-  }));
-  if (switches.length) row.appendChild(this._buildDeviceGroup(area, "Devices", switches, deviceSensors));
+  if (lights.length) {
+    const group = document.createElement("div");
+    group.className = "atrium-group";
+    group.append(
+      this._sectionHead("Lights", lights.length > 1 ? this._bulkButton(() => this._toggleAllLights(lights), () => (lights.some((l) => this._hass.states?.[l.entity_id]?.state === "on") ? "All off" : "All on")) : null),
+      this._divaGrid(area, lights, "light", deviceSensors),
+    );
+    row.appendChild(group);
+  }
+  if (switches.length) {
+    const group = document.createElement("div");
+    group.className = "atrium-group";
+    group.append(this._sectionHead("Devices"), this._divaGrid(area, switches, "switch", deviceSensors));
+    row.appendChild(group);
+  }
   return this._section(null, row);
 }
 
-export function _buildDeviceGroup(area, title, entities, deviceSensors, bulk) {
-  const group = document.createElement("div");
-  group.className = "atrium-group";
-
+export function _sectionHead(title, action) {
   const head = document.createElement("div");
   head.className = "atrium-shead";
   const label = document.createElement("span");
   label.textContent = title;
   head.appendChild(label);
-  if (bulk?.hasAction) {
-    const anyOn = entities.some((e) => bulk.isOn(e));
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "atrium-act-btn";
-    btn.textContent = anyOn ? "All off" : "All on";
-    btn.addEventListener("click", (e) => { e.stopPropagation(); bulk.toggleAll(); });
-    head.appendChild(btn);
-  }
-  group.appendChild(head);
+  if (action) head.appendChild(action);
+  return head;
+}
 
+// "All off" / "Close all" style buttons: the label follows live state, so
+// it's registered for the panel's in-place refresh.
+export function _bulkButton(onClick, label) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "atrium-act-btn";
+  btn.textContent = label();
+  btn.addEventListener("click", (e) => { e.stopPropagation(); onClick(); });
+  this._refs.bulk.push({ btn, label });
+  return btn;
+}
+
+const DIVA_KIND = {
+  light: { icon: ICONS.bulb, refKey: "lights" },
+  switch: { icon: ICONS.toggle, refKey: "switches" },
+  cover: { icon: "mdi:blinds-horizontal", refKey: "covers" },
+};
+
+export function _divaGrid(area, entities, kind, deviceSensors) {
   const grid = document.createElement("div");
   grid.className = "atrium-diva-grid";
-  const kind = title === "Lights" ? "light" : "switch";
-  const icon = kind === "light" ? ICONS.bulb : ICONS.toggle;
-  for (const entity of entities) grid.appendChild(this._buildDivaTile(area, entity, { kind, icon, refKey: kind === "light" ? "lights" : "switches" }, deviceSensors));
-  group.appendChild(grid);
-
-  return group;
+  for (const entity of entities) grid.appendChild(this._buildDivaTile(area, entity, { kind, ...DIVA_KIND[kind] }, deviceSensors));
+  return grid;
 }
 
 export function _buildCoversSection(area, covers) {
-  const anyOpen = covers.some((c) => this._hass.states?.[c.entity_id]?.attributes?.current_position > 5);
-  const head = document.createElement("div");
-  head.className = "atrium-shead";
-  const label = document.createElement("span");
-  label.textContent = "Covers";
-  head.appendChild(label);
-  if (covers.length > 1) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "atrium-act-btn";
-    btn.textContent = anyOpen ? "Close all" : "Open all";
-    btn.addEventListener("click", (e) => { e.stopPropagation(); this._toggleAllCovers(covers); });
-    head.appendChild(btn);
-  }
-  const grid = document.createElement("div");
-  grid.className = "atrium-diva-grid";
-  for (const cover of covers) grid.appendChild(this._buildDivaTile(area, cover, { kind: "cover", icon: "mdi:blinds-horizontal", refKey: "covers" }));
-
+  const action = covers.length > 1
+    ? this._bulkButton(() => this._toggleAllCovers(covers), () => (covers.some((c) => fmtCoverPct(this._hass.states?.[c.entity_id] || { attributes: {} }) > 5) ? "Close all" : "Open all"))
+    : null;
   const wrap = document.createElement("div");
   wrap.className = "atrium-section";
-  wrap.append(head, grid);
+  wrap.append(this._sectionHead("Covers", action), this._divaGrid(area, covers, "cover"));
   return wrap;
 }
 
@@ -244,12 +235,13 @@ export function _buildDivaTile(area, entity, { kind, icon, refKey }, deviceSenso
   const fill = document.createElement("span");
   fill.className = "atrium-diva-fill";
   const pctTop = document.createElement("span");
-  pctTop.className = "atrium-diva-pct top";
+  pctTop.className = "atrium-diva-pct";
   const pctBottom = document.createElement("span");
   pctBottom.className = "atrium-diva-pct bottom";
   const thumb = document.createElement("span");
   thumb.className = "atrium-diva-thumb";
-  thumb.innerHTML = haIcon(icon, 17);
+  const customIcon = this._hass.entities?.[entity.entity_id]?.icon ?? this._hass.states?.[entity.entity_id]?.attributes?.icon;
+  thumb.innerHTML = haIcon(customIcon || icon, 17);
   track.append(fill, pctTop, pctBottom, thumb);
 
   const name = document.createElement("div");
@@ -260,7 +252,7 @@ export function _buildDivaTile(area, entity, { kind, icon, refKey }, deviceSenso
 
   wrap.append(track, name, ago);
 
-  const ref = { wrap, track, fill, pctTop, pctBottom, thumb, name, ago, iconEl: thumb.querySelector("ha-icon") };
+  const ref = { wrap, track, fill, pctTop, pctBottom, thumb, name, ago, kind };
   this._refs.areas.get(area.area_id)[refKey].set(entity.entity_id, ref);
   this._bindDivaTrack(ref, entity.entity_id, kind);
   this._updateDivaRef(ref, entity.entity_id, kind);
@@ -279,6 +271,7 @@ export function _buildDeviceSensorCaret(area, entity, sensors) {
   const caret = document.createElement("button");
   caret.type = "button";
   caret.className = "atrium-diva-caret";
+  caret.setAttribute("aria-label", `${this._entityName(entity)} sensors`);
   caret.innerHTML = haIcon("mdi:menu-down");
   caret.addEventListener("pointerdown", (e) => e.stopPropagation());
 
@@ -305,182 +298,122 @@ export function _buildDeviceSensorCaret(area, entity, sensors) {
 
 export function _buildSensorsSection(area, sensors) {
   const grid = document.createElement("div");
-  grid.className = "atrium-grid " + (sensors.length > 1 ? "cols-2" : "cols-1");
-  grid.style.gap = "8px";
+  grid.className = "atrium-readings";
   for (const s of sensors) grid.appendChild(this._buildSensorTile(area, s));
   return this._section("Sensors", grid);
 }
 
 export function _buildSensorTile(area, sensor, mapKey = sensor.entity_id) {
-  const tile = document.createElement("div");
-  tile.className = "atrium-sensor";
+  const tile = document.createElement("button");
+  tile.type = "button";
+  tile.className = "atrium-reading";
   tile.dataset.entity = sensor.entity_id;
   tile.addEventListener("click", () => this._moreInfo(sensor.entity_id));
 
-  const row = document.createElement("div");
-  row.className = "atrium-sensor-row";
   const icon = document.createElement("ha-icon");
-  icon.className = "atrium-sensor-icon";
-  const st = this._hass.states?.[sensor.entity_id];
-  icon.setAttribute("icon", iconForSensor(st));
-  const name = document.createElement("div");
-  name.className = "atrium-sensor-name";
+  icon.className = "atrium-reading-icon";
+  const name = document.createElement("span");
+  name.className = "atrium-reading-name";
   name.textContent = nameWithoutAreaPrefix(this._entityName(sensor), area);
-  const value = document.createElement("div");
-  value.className = "atrium-sensor-value";
-  value.textContent = fmtSensorValue(st);
-  row.append(icon, name, value);
-  tile.appendChild(row);
+  const value = document.createElement("span");
+  value.className = "atrium-reading-value";
+  tile.append(icon, name, value);
 
-  const ref = { tile, value, entityId: sensor.entity_id };
+  const ref = { tile, icon, value, entityId: sensor.entity_id };
   this._refs.areas.get(area.area_id).sensors.set(mapKey, ref);
+  this._updateSensorRef(ref);
   return tile;
 }
 
+// Each input_select is a labelled row of chips — every option one tap away,
+// like the design's "Modes" section, instead of a dropdown.
 export function _buildInputSelectsSection(area, inputSelects) {
-  const tiles = inputSelects.map((s) => this._buildInputSelectTile(area, s));
-  return this._section("Modes", tiles);
+  return this._section("Modes", inputSelects.map((s) => this._buildInputSelectTile(area, s)));
 }
 
 export function _buildInputSelectTile(area, entity) {
-  const hass = this._hass;
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "atrium-select";
-  btn.dataset.entity = entity.entity_id;
+  const st = this._hass.states?.[entity.entity_id];
+  const wrap = document.createElement("div");
+  wrap.className = "atrium-mode";
+  wrap.dataset.entity = entity.entity_id;
 
-  const iconEl = document.createElement("ha-icon");
-  iconEl.className = "atrium-select-icon";
-  const icon =
-    hass.entities?.[entity.entity_id]?.icon ??
-    hass.states?.[entity.entity_id]?.attributes?.icon ??
-    "mdi:form-select";
-  iconEl.setAttribute("icon", icon);
-
-  const name = document.createElement("div");
-  name.className = "atrium-select-name";
+  const name = document.createElement("button");
+  name.type = "button";
+  name.className = "atrium-mode-name";
   name.textContent = nameWithoutAreaPrefix(this._entityName(entity), area);
+  name.addEventListener("click", () => this._moreInfo(entity.entity_id));
 
-  const value = document.createElement("div");
-  value.className = "atrium-select-value";
+  const chips = new Map();
+  const row = document.createElement("div");
+  row.className = "atrium-mode-chips";
+  const options = Array.isArray(st?.attributes?.options) ? st.attributes.options : [];
+  for (const option of options) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "atrium-mode-chip";
+    chip.textContent = option;
+    chip.addEventListener("click", () => this._call("input_select", "select_option", { entity_id: entity.entity_id, option }));
+    chips.set(option, chip);
+    row.appendChild(chip);
+  }
+  wrap.append(name, row);
 
-  const caret = document.createElement("ha-icon");
-  caret.className = "atrium-select-caret";
-  caret.setAttribute("icon", "mdi:menu-down");
-
-  btn.append(iconEl, name, value, caret);
-
-  let cachedItems = [], cachedCurrent = null;
-  bindLongPress(btn, {
-    onTap: () =>
-      this._openClimateMenu(btn, cachedItems, cachedCurrent, (option) =>
-        this._call("input_select", "select_option", { entity_id: entity.entity_id, option })
-      ),
-    onLongPress: () => this._moreInfo(entity.entity_id),
-  });
-
-  const setItems = (items, current) => {
-    cachedItems = items;
-    cachedCurrent = current;
-  };
-
-  const ref = { btn, value, setItems };
+  const ref = { wrap, chips };
   this._refs.areas.get(area.area_id).inputSelects.set(entity.entity_id, ref);
   this._updateInputSelectRef(ref, entity.entity_id);
-  return btn;
+  return wrap;
 }
 
+// Scenes and buttons share one wrapping row of pills, each marked by a color
+// dot (a scene's last-seen light colors, when known).
 export function _buildPillsSection(area, scenes, buttons) {
   const wrap = document.createElement("div");
   wrap.className = "atrium-pills";
-  wrap.append(
-    this._buildBadgeRow(area, scenes, {
-      icon: (s, name) => iconForScene(s, name),
-      bg: (s) => readSceneGradient(s.entity_id),
-      onPress: (s, btn) => {
-        this._call("scene", "turn_on", { entity_id: s.entity_id });
-        this._refreshSceneGradient(s.entity_id, btn);
+  for (const scene of scenes) {
+    wrap.appendChild(this._buildPill(area, scene, {
+      dot: readSceneGradient(scene.entity_id) || computeSceneGradient(this._hass, scene.entity_id),
+      onPress: (pill) => {
+        this._call("scene", "turn_on", { entity_id: scene.entity_id });
+        this._refreshSceneGradient(scene.entity_id, pill.querySelector(".atrium-pill-dot"));
       },
-    }),
-    this._buildBadgeRow(area, buttons, {
-      icon: (b) =>
-        this._hass.entities?.[b.entity_id]?.icon ??
-        this._hass.states?.[b.entity_id]?.attributes?.icon ??
-        "mdi:gesture-tap-button",
-      onPress: (b) => this._call("button", "press", { entity_id: b.entity_id }),
-      onHold: (b) => this._moreInfo(b.entity_id),
-    })
-  );
-  return wrap;
+    }));
+  }
+  for (const button of buttons) {
+    wrap.appendChild(this._buildPill(area, button, {
+      onPress: () => this._call("button", "press", { entity_id: button.entity_id }),
+    }));
+  }
+  return this._section(null, wrap);
 }
 
-export function _refreshSceneGradient(entityId, btn) {
+export function _buildPill(area, entity, { dot, onPress }) {
+  const pill = document.createElement("button");
+  pill.type = "button";
+  pill.className = "atrium-pill";
+  pill.dataset.entity = entity.entity_id;
+  pill.innerHTML = `<span class="atrium-pill-dot"></span><span class="atrium-pill-name"></span>`;
+  if (dot) pill.firstChild.style.background = dot;
+  pill.lastChild.textContent = nameWithoutAreaPrefix(this._entityName(entity), area);
+  let flashTimer = 0;
+  bindLongPress(pill, {
+    onTap: () => {
+      onPress(pill);
+      pill.classList.add("flash");
+      clearTimeout(flashTimer);
+      flashTimer = setTimeout(() => pill.classList.remove("flash"), FLASH_MS);
+    },
+    onLongPress: () => this._moreInfo(entity.entity_id),
+  });
+  return pill;
+}
+
+export function _refreshSceneGradient(entityId, dot) {
   setTimeout(() => {
     const gradient = computeSceneGradient(this._hass, entityId);
     if (!gradient) return;
-    btn.style.background = gradient;
+    dot.style.background = gradient;
     writeSceneGradient(entityId, gradient);
   }, 700);
-}
-
-export function _buildBadgeRow(area, entities, { icon, onPress, onHold, bg }) {
-  const wrap = document.createElement("div");
-  wrap.className = "atrium-scenes";
-  if (!entities.length) return wrap;
-
-  let isDragging = false;
-  let startX = 0;
-  let scrollStart = 0;
-  let dragMoved = false;
-
-  wrap.addEventListener("pointerdown", (e) => {
-    dragMoved = false;
-    if (e.target === wrap || e.target.closest(".atrium-scene-btn") === null) {
-      isDragging = true;
-      startX = e.clientX;
-      scrollStart = wrap.scrollLeft;
-      wrap.classList.add("dragging");
-      wrap.setPointerCapture(e.pointerId);
-    }
-  });
-  wrap.addEventListener("pointermove", (e) => {
-    if (!isDragging) return;
-    const dx = e.clientX - startX;
-    if (Math.abs(dx) > 4) dragMoved = true;
-    wrap.scrollLeft = scrollStart - dx;
-  });
-  wrap.addEventListener("pointerup", (e) => {
-    if (isDragging && e.target === wrap) {
-      wrap.releasePointerCapture(e.pointerId);
-    }
-    isDragging = false;
-    wrap.classList.remove("dragging");
-  });
-
-  for (const entity of entities) {
-    const btn = document.createElement("button");
-    btn.className = "atrium-scene-btn";
-    btn.dataset.entity = entity.entity_id;
-    const name = this._entityName(entity);
-    btn.title = name;
-    btn.innerHTML = `${haIcon(icon(entity, name))}<span class="atrium-scene-btn-name"></span>`;
-    btn.querySelector(".atrium-scene-btn-name").textContent = nameWithoutAreaPrefix(name, area);
-    const initialBg = bg?.(entity);
-    if (initialBg) btn.style.background = initialBg;
-    if (onHold) {
-      bindLongPress(btn, {
-        onTap: () => onPress(entity, btn),
-        onLongPress: () => onHold(entity),
-      });
-    } else {
-      btn.addEventListener("click", (e) => {
-        if (dragMoved) { e.preventDefault(); return; }
-        onPress(entity, btn);
-      });
-    }
-    wrap.appendChild(btn);
-  }
-  return wrap;
 }
 
 export function _buildAutomationsSection(area, automations, scripts) {
@@ -493,29 +426,30 @@ export function _buildAutomationsSection(area, automations, scripts) {
   else title = automations.length > 1 ? "Automations" : "Automation";
 
   const list = document.createElement("div");
-  list.style.cssText = `background:${tint(TONE.text, 6)};border-radius:16px;overflow:hidden`;
+  list.className = "atrium-alist";
   for (const item of items) list.appendChild(this._buildAutomationRow(area, item));
   return this._section(title, list);
 }
 
+// Toggle swatch left, name + labels / "On · 42 minutes ago" in the middle,
+// run button right. Tapping the name opens more-info.
 export function _buildAutomationRow(area, item) {
   const hass = this._hass;
   const state = hass.states?.[item.entity_id];
   const isScript = item.entity_id.startsWith("script.");
-  const enabled = isScript ? true : state?.state !== "off";
   const customIcon = hass.entities?.[item.entity_id]?.icon ?? state?.attributes?.icon ?? null;
+  const displayName = this._entityName(item);
 
   const row = document.createElement("div");
-  row.className = "atrium-auto-row" + (!enabled ? " disabled" : "") + (isScript ? " is-clickable" : "");
+  row.className = "atrium-auto-row";
   row.dataset.entity = item.entity_id;
-  if (isScript) row.addEventListener("click", () => this._moreInfo(item.entity_id));
 
-  const swatch = document.createElement(isScript ? "div" : "button");
+  const swatch = document.createElement(isScript ? "span" : "button");
   swatch.className = "atrium-auto-swatch" + (isScript ? " script" : "");
-  swatch.innerHTML = haIcon(customIcon || (isScript ? ICONS.script : ICONS.auto), 22);
+  swatch.innerHTML = haIcon(customIcon || (isScript ? ICONS.script : ICONS.auto), 17);
   if (!isScript) {
     swatch.type = "button";
-    swatch.setAttribute("aria-label", `Toggle ${this._entityName(item)}`);
+    swatch.setAttribute("aria-label", `Toggle ${displayName}`);
     swatch.addEventListener("click", (e) => {
       e.stopPropagation();
       const isOn = this._hass.states?.[item.entity_id]?.state !== "off";
@@ -524,43 +458,40 @@ export function _buildAutomationRow(area, item) {
   }
 
   const body = document.createElement("button");
+  body.type = "button";
   body.className = "atrium-auto-body";
-  if (!isScript) body.addEventListener("click", () => this._moreInfo(item.entity_id));
-  const name = document.createElement("div");
-  name.className = "atrium-auto-name" + (enabled ? "" : " disabled");
-  name.textContent = this._entityName(item);
-  const labels = document.createElement("div");
-  labels.className = "atrium-auto-labels";
-  const titleLine = document.createElement("div");
+  body.addEventListener("click", () => this._moreInfo(item.entity_id));
+  const titleLine = document.createElement("span");
   titleLine.className = "atrium-auto-title";
+  const name = document.createElement("span");
+  name.className = "atrium-auto-name";
+  name.textContent = displayName;
+  const labels = document.createElement("span");
+  labels.className = "atrium-auto-labels";
   titleLine.append(name, labels);
-  const lastLine = document.createElement("div");
-  lastLine.className = "atrium-auto-last";
-  let status = null;
-  let last = lastLine;
-  if (!isScript) {
-    status = document.createElement("span");
-    status.className = "atrium-auto-status";
-    last = document.createElement("span");
-    lastLine.append(status, document.createTextNode(" · "), last);
-  }
-  body.append(titleLine, lastLine);
+  const sub = document.createElement("span");
+  sub.className = "atrium-auto-last";
+  body.append(titleLine, sub);
 
   const play = document.createElement("button");
-  play.className = "atrium-auto-play" + (!enabled ? " disabled" : "");
-  play.title = isScript ? "" : "Trigger automation";
-  play.innerHTML = haIcon(isScript ? ICONS.play_circle : ICONS.play, isScript ? 16 : 13);
-  play.addEventListener("click", (e) => {
-    if (isScript) return;
-    e.stopPropagation();
-    const isOn = this._hass.states?.[item.entity_id]?.state !== "off";
-    if (!isOn) return;
-    this._call("automation", "trigger", { entity_id: item.entity_id });
-  });
+  play.type = "button";
+  play.className = "atrium-auto-play";
+  play.setAttribute("aria-label", `${isScript ? "Run" : "Trigger"} ${displayName}`);
+  play.innerHTML = haIcon(ICONS.play, 15);
 
   row.append(swatch, body, play);
 
-  const ref = { row, swatch, name, status, last, labels, play, isScript };
+  const ref = { row, swatch, name, sub, labels, play, isScript, flashUntil: 0 };
+  play.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (play.classList.contains("disabled")) return;
+    if (isScript) this._call("script", "turn_on", { entity_id: item.entity_id });
+    else this._call("automation", "trigger", { entity_id: item.entity_id });
+    ref.flashUntil = Date.now() + FLASH_MS;
+    this._updateAutomationRef(ref, item.entity_id);
+    setTimeout(() => this._updateAutomationRef(ref, item.entity_id), FLASH_MS);
+  });
+
   this._refs.areas.get(area.area_id).automations.set(item.entity_id, ref);
   this._updateAutomationRef(ref, item.entity_id);
   return row;

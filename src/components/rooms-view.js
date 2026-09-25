@@ -1,9 +1,8 @@
-// `set hass()` fires on every state change. A full `_build()` only runs when
-// the registries changed or a relevant entity's state actually moved
-// (`_relevantIds`/`unchangedStates`) — see area-card-builders.js/
-// area-card-updaters.js for why a full rebuild is cheap here: at most one
-// room's content is ever on screen at a time, so there's no need for the
-// old accordion's per-tile incremental refresh.
+// `set hass()` fires on every state change. The DOM is never torn down on a
+// state change: orbs and the open panel's tiles are updated in place, since
+// the design leans on CSS transitions (panel slide, orb resize, track fills)
+// that a rebuilt element would skip. Only a change in *which* areas/entities
+// are shown rebuilds the floors or the panel content.
 
 import { closePopoverFor } from "../lib/popover.js";
 import { sameRegistries, unchangedStates, areaIdForEntity, entityDisplayName } from "../lib/hass-utils.js";
@@ -15,11 +14,16 @@ import {
   hiddenRoutinesForArea,
   classifyAreaEntities,
   areaIsEmpty,
-  areaHasAlert,
+  areaAlertIcon,
+  areaPanelSignature,
 } from "../lib/area-data.js";
 import * as buildersMod from "./area-card-builders.js";
 import * as updatersMod from "./area-card-updaters.js";
 import { subscribeLabelsLoaded } from "../lib/label-registry.js";
+
+// Matches the design's exit animations (pinOut .24s / sheetOut .28s) so the
+// selection is only dropped once they've played.
+const CLOSE_MS = 280;
 
 class AtriumRooms extends HTMLElement {
   constructor() {
@@ -27,6 +31,8 @@ class AtriumRooms extends HTMLElement {
     this._dragState = new Map();
     this._openAnchors = new Set();
     this._selectedAreaId = null;
+    this._closing = false;
+    this._orbRefs = new Map();
   }
 
   setConfig(config) {
@@ -38,28 +44,26 @@ class AtriumRooms extends HTMLElement {
 
   connectedCallback() {
     this.style.display = "block";
-    this._unsubLabels = subscribeLabelsLoaded(() => this._build());
+    this._unsubLabels = subscribeLabelsLoaded(() => {
+      this._floorsSig = null;
+      this._panelSig = null;
+      this._render();
+    });
   }
 
   disconnectedCallback() {
-    for (const a of this._openAnchors) closePopoverFor(a);
-    this._openAnchors.clear();
+    this._closeOpenPopovers();
+    document.documentElement.style.removeProperty("--atrium-panel-open");
     this._unsubLabels?.();
     this._unsubLabels = null;
   }
 
   set hass(hass) {
     this._hass = hass;
-    if (!this._built) {
-      this._built = true;
-      this._build();
-      return;
-    }
-    if (this._dragState.size) return; // a pointer gesture owns the visuals
     const registriesChanged = !sameRegistries(this, "_reg", hass);
-    if (registriesChanged || !unchangedStates(this, "_stateSnap", hass, this._relevantIds())) {
-      this._build();
-    }
+    const statesChanged = !unchangedStates(this, "_stateSnap", hass, this._relevantIds());
+    if (registriesChanged) this._panelSig = null;
+    if (!this._root || registriesChanged || statesChanged) this._render();
   }
 
   // Every entity anchored to any area on any of our floors — cheap enough
@@ -128,80 +132,197 @@ class AtriumRooms extends HTMLElement {
     this._call("climate", "set_temperature", { entity_id: entityId, temperature: next });
   }
 
+  // Tapping the open room again, the close button, or another room while
+  // closing all route through here; `null` closes.
   _select(areaId) {
-    this._selectedAreaId = this._selectedAreaId === areaId ? null : areaId;
-    this._build();
+    if (areaId == null || areaId === this._selectedAreaId) this._closePanel();
+    else this._openPanel(areaId);
   }
 
-  _build() {
-    if (!this._hass) return;
-    for (const a of this._openAnchors) closePopoverFor(a);
-    this._openAnchors.clear();
+  _openPanel(areaId) {
+    clearTimeout(this._closeTimer);
+    const reopening = !this._selectedAreaId || this._closing;
+    this._closing = false;
+    this._selectedAreaId = areaId;
+    this._renderPanel({ replayPanelIn: reopening });
+    this._syncLayout();
+  }
 
+  // The panel plays its exit animation first; only then is the selection
+  // dropped, so the side column / sheet collapses with its content still in it.
+  _closePanel() {
+    if (!this._selectedAreaId || this._closing) return;
+    this._closing = true;
+    this._syncLayout();
+    clearTimeout(this._closeTimer);
+    this._closeTimer = setTimeout(() => {
+      this._closing = false;
+      this._selectedAreaId = null;
+      this._renderPanel();
+      this._syncLayout();
+    }, CLOSE_MS);
+  }
+
+  _syncLayout() {
+    if (!this._root) return;
+    const open = !!this._selectedAreaId;
+    this._root.classList.toggle("has-sel", open);
+    this._root.classList.toggle("closing", this._closing);
+    for (const [areaId, ref] of this._orbRefs) {
+      const sel = areaId === this._selectedAreaId;
+      ref.btn.classList.toggle("sel", sel);
+      ref.btn.setAttribute("aria-pressed", String(sel));
+    }
+    // The header is a separate card; it reads these to keep its content
+    // clear of the fixed side panel and aligned with the room grid.
+    const docStyle = document.documentElement.style;
+    if (open && !this._closing) docStyle.setProperty("--atrium-panel-open", "1");
+    else docStyle.removeProperty("--atrium-panel-open");
+  }
+
+  _render() {
+    if (!this._hass) return;
+    if (!this._root) this._buildShell();
+    const floors = this._floorsData();
+    const sig = floors.map((f) => f.floor.name + ":" + f.areas.map(({ area }) => `${area.area_id}/${area.name}/${area.picture || ""}/${area.icon || ""}`).join(",")).join(";");
+    if (sig !== this._floorsSig) {
+      this._floorsSig = sig;
+      this._buildFloors(floors);
+    } else {
+      for (const f of floors) for (const { area, data } of f.areas) this._updateOrb(this._orbRefs.get(area.area_id), area, data);
+    }
+    if (this._selectedAreaId && !this._hass.areas?.[this._selectedAreaId]) {
+      this._selectedAreaId = null;
+      this._closing = false;
+    }
+    this._renderPanel();
+    this._syncLayout();
+  }
+
+  _buildShell() {
     this.innerHTML = "";
     const styleEl = document.createElement("style");
     styleEl.textContent = STYLE;
     this.appendChild(styleEl);
 
-    const selected = this._selectedAreaId ? this._hass.areas?.[this._selectedAreaId] : null;
+    this._root = document.createElement("div");
+    this._root.className = "atrium-rooms";
+    this._content = document.createElement("div");
+    this._content.className = "atrium-rooms-content";
+    this._panel = document.createElement("aside");
+    this._panel.className = "atrium-panel";
+    this._root.append(this._content, this._panel);
+    this.appendChild(this._root);
+  }
 
-    const root = document.createElement("div");
-    root.className = "atrium-rooms" + (selected ? " has-sel" : "");
-    this._refs = { areas: new Map() };
-
-    const content = document.createElement("div");
-    content.className = "atrium-rooms-content";
+  _floorsData() {
+    const out = [];
     for (const floor of this._floors) {
-      const areas = this._areasOnFloor(floor.floor_id ?? null);
-      const rendered = [];
-      for (const area of areas) {
+      const areas = [];
+      for (const area of this._areasOnFloor(floor.floor_id ?? null)) {
         const data = this._dataForArea(area);
-        if (areaIsEmpty(data)) continue;
-        rendered.push(this._buildOrb(area, data));
+        if (!areaIsEmpty(data)) areas.push({ area, data });
       }
-      if (!rendered.length) continue;
-      const group = document.createElement("div");
+      if (areas.length) out.push({ floor, areas });
+    }
+    return out;
+  }
+
+  _buildFloors(floors) {
+    this._orbRefs = new Map();
+    this._content.innerHTML = "";
+    let index = 0;
+    for (const { floor, areas } of floors) {
+      const group = document.createElement("section");
       group.className = "atrium-floor-group";
       const label = document.createElement("div");
       label.className = "atrium-floor-name";
       label.textContent = floor.name;
       const row = document.createElement("div");
       row.className = "atrium-orb-row";
-      row.append(...rendered);
+      for (const { area, data } of areas) row.appendChild(this._buildOrb(area, data, index++));
       group.append(label, row);
-      content.appendChild(group);
+      this._content.appendChild(group);
     }
-    root.appendChild(content);
-
-    const scrim = document.createElement("div");
-    scrim.className = "atrium-panel-scrim" + (selected ? " open" : "");
-    scrim.addEventListener("click", () => this._select(null));
-    root.appendChild(scrim);
-
-    const panel = document.createElement("aside");
-    panel.className = "atrium-panel" + (selected ? " open" : "");
-    if (selected) {
-      const data = this._dataForArea(selected);
-      const inner = document.createElement("div");
-      inner.className = "atrium-panel-inner";
-      inner.appendChild(this._buildHero(selected, data));
-      for (const section of this._buildRoomSections(selected, data)) inner.appendChild(section);
-      panel.appendChild(inner);
-    }
-    root.appendChild(panel);
-
-    this.appendChild(root);
   }
 
-  _buildOrb(area, data) {
-    const lightsOn = data.lights.filter((l) => this._hass.states?.[l.entity_id]?.state === "on").length;
-    const alert = areaHasAlert(this._hass, data);
-    const selected = this._selectedAreaId === area.area_id;
+  _renderPanel({ replayPanelIn = false } = {}) {
+    const areaId = this._selectedAreaId;
+    const area = areaId ? this._hass.areas?.[areaId] : null;
+    if (!area) {
+      this._closeOpenPopovers();
+      this._panel.innerHTML = "";
+      this._panel.removeAttribute("aria-label");
+      this._panelSig = null;
+      this._panelAreaId = null;
+      this._pin = null;
+      return;
+    }
+    const data = this._dataForArea(area);
+    const sig = areaPanelSignature(area, data);
+    if (sig === this._panelSig && this._pin) {
+      this._updatePanel(area, data);
+      return;
+    }
+    // A rebuild for the same room (an entity was added/removed) swaps the
+    // content without replaying the entrance animations.
+    const sameRoom = this._panelAreaId === area.area_id;
+    this._panelSig = sig;
+    this._panelAreaId = area.area_id;
+    this._closeOpenPopovers();
+    if (!this._pin || replayPanelIn) {
+      this._panel.innerHTML = "";
+      this._pin = document.createElement("div");
+      this._pin.className = "atrium-panel-inner";
+      this._panel.appendChild(this._pin);
+    }
+    this._pin.classList.toggle("settled", !!sameRoom && !replayPanelIn);
+    this._pin.innerHTML = "";
+    this._pin.scrollTop = 0;
+    this._panel.setAttribute("aria-label", area.name);
+    this._refs = {
+      areas: new Map([[area.area_id, {
+        lights: new Map(), switches: new Map(), covers: new Map(),
+        climates: new Map(), automations: new Map(), inputSelects: new Map(), sensors: new Map(),
+      }]]),
+      bulk: [],
+    };
+    this._pin.appendChild(this._buildHero(area, data));
+    for (const section of this._buildRoomSections(area, data)) this._pin.appendChild(section);
+  }
 
+  // Same entities as last render: refresh every tile where it stands so its
+  // CSS transitions (fill height, thumb position, colors) animate.
+  _updatePanel(area, data) {
+    const refs = this._refs.areas.get(area.area_id);
+    for (const key of ["lights", "switches", "covers"]) {
+      for (const [entityId, ref] of refs[key]) {
+        if (!this._dragState.has(entityId)) this._updateDivaRef(ref, entityId, ref.kind);
+      }
+    }
+    for (const [entityId, ref] of refs.climates) this._updateClimateRef(ref, entityId);
+    for (const [entityId, ref] of refs.automations) this._updateAutomationRef(ref, entityId);
+    for (const [entityId, ref] of refs.inputSelects) this._updateInputSelectRef(ref, entityId);
+    for (const ref of refs.sensors.values()) this._updateSensorRef(ref);
+    for (const { btn, label } of this._refs.bulk) btn.textContent = label();
+    this._heroRefs.photo.classList.toggle("gray", this._allLightsOff(data));
+    this._heroRefs.badges.replaceChildren(...this._buildHeroBadges(area, data));
+  }
+
+  _closeOpenPopovers() {
+    for (const a of this._openAnchors) closePopoverFor(a);
+    this._openAnchors.clear();
+  }
+
+  _allLightsOff(data) {
+    return data.lights.length > 0 && !data.lights.some((l) => this._hass.states?.[l.entity_id]?.state === "on");
+  }
+
+  _buildOrb(area, data, index) {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "atrium-orb" + (lightsOn > 0 ? " lit" : "") + (lightsOn === 0 && data.lights.length ? " gray" : "") + (selected ? " sel" : "");
-    btn.setAttribute("aria-pressed", String(selected));
+    btn.className = "atrium-orb";
+    btn.style.setProperty("--i", String(index));
     btn.addEventListener("click", () => this._select(area.area_id));
 
     const photo = document.createElement("span");
@@ -210,30 +331,41 @@ class AtriumRooms extends HTMLElement {
     art.className = "atrium-orb-art" + (area.picture ? " has-img" : "");
     if (area.picture) art.style.backgroundImage = `url("${area.picture}")`;
     else art.innerHTML = haIcon(iconForArea(area));
-    photo.appendChild(art);
-    if (lightsOn > 0) {
-      const badge = document.createElement("span");
-      badge.className = "atrium-orb-badge-lit";
-      badge.innerHTML = `${haIcon("mdi:lightbulb", 12)}${lightsOn}`;
-      photo.appendChild(badge);
-    }
-    if (alert) {
-      const badge = document.createElement("span");
-      badge.className = "atrium-orb-badge-alert";
-      badge.innerHTML = haIcon("mdi:alert", 12);
-      photo.appendChild(badge);
-    }
+    const litBadge = document.createElement("span");
+    litBadge.className = "atrium-orb-badge-lit";
+    const alertBadge = document.createElement("span");
+    alertBadge.className = "atrium-orb-badge-alert";
+    photo.append(art, litBadge, alertBadge);
 
     const name = document.createElement("span");
     name.className = "atrium-orb-name";
     name.textContent = area.name;
-
     const meta = document.createElement("span");
     meta.className = "atrium-orb-meta";
-    meta.textContent = this._areaMeta(area, data);
 
     btn.append(photo, name, meta);
+    const ref = { btn, litBadge, alertBadge, meta };
+    this._orbRefs.set(area.area_id, ref);
+    this._updateOrb(ref, area, data);
     return btn;
+  }
+
+  _updateOrb(ref, area, data) {
+    const lightsOn = data.lights.filter((l) => this._hass.states?.[l.entity_id]?.state === "on").length;
+    ref.btn.classList.toggle("lit", lightsOn > 0);
+    ref.btn.classList.toggle("gray", this._allLightsOff(data));
+    ref.litBadge.hidden = lightsOn === 0;
+    if (lightsOn > 0 && ref.litBadge.dataset.count !== String(lightsOn)) {
+      ref.litBadge.dataset.count = String(lightsOn);
+      ref.litBadge.innerHTML = `${haIcon("mdi:lightbulb-outline", 13)}${lightsOn}`;
+    }
+    const alertIcon = areaAlertIcon(this._hass, data);
+    ref.alertBadge.hidden = !alertIcon;
+    if (alertIcon && ref.alertBadge.dataset.icon !== alertIcon) {
+      ref.alertBadge.dataset.icon = alertIcon;
+      ref.alertBadge.innerHTML = haIcon(alertIcon, 14);
+    }
+    ref.meta.textContent = this._areaMeta(area, data) || " ";
   }
 
   _areaMeta(area, data) {
@@ -246,18 +378,16 @@ class AtriumRooms extends HTMLElement {
   }
 
   _buildHero(area, data) {
-    this._refs.areas.set(area.area_id, {
-      lights: new Map(), switches: new Map(), covers: new Map(),
-      climates: new Map(), automations: new Map(), inputSelects: new Map(), sensors: new Map(),
-    });
-
     const hero = document.createElement("div");
     hero.className = "atrium-panel-hero";
 
     const photo = document.createElement("span");
-    photo.className = "atrium-panel-hero-photo" + (area.picture ? " has-img" : "");
-    if (area.picture) photo.style.backgroundImage = `url("${area.picture}")`;
-    else photo.innerHTML = haIcon(iconForArea(area), 26);
+    photo.className = "atrium-panel-hero-photo" + (this._allLightsOff(data) ? " gray" : "");
+    const art = document.createElement("span");
+    art.className = "atrium-orb-art" + (area.picture ? " has-img" : "");
+    if (area.picture) art.style.backgroundImage = `url("${area.picture}")`;
+    else art.innerHTML = haIcon(iconForArea(area), 26);
+    photo.appendChild(art);
 
     const mid = document.createElement("div");
     mid.className = "atrium-panel-hero-mid";
@@ -277,6 +407,7 @@ class AtriumRooms extends HTMLElement {
     close.addEventListener("click", () => this._select(null));
 
     hero.append(photo, mid, close);
+    this._heroRefs = { photo, badges };
     return hero;
   }
 

@@ -40,21 +40,24 @@ export function buildFixtures() {
     showcase: { floor_id: "showcase", name: "Showcase", icon: "mdi:flask", level: 100 },
   };
 
+  // Real area photos in HA come from /api/image/serve/…; the demo uses Unsplash
+  // stock photos so the round tiles show what a configured home looks like.
+  const stockPhoto = (id) => `https://images.unsplash.com/photo-${id}?w=512&h=512&fit=crop&q=70`;
   const areas = {
-    living_room: { area_id: "living_room", floor_id: "ground", name: "Living Room", icon: "mdi:sofa", picture: null, temperature_entity_id: "sensor.living_room_temperature", humidity_entity_id: "sensor.living_room_humidity" },
-    kitchen: { area_id: "kitchen", floor_id: "ground", name: "Kitchen", icon: "mdi:countertop", picture: null, temperature_entity_id: "sensor.kitchen_temperature", humidity_entity_id: null },
-    entrance: { area_id: "entrance", floor_id: "ground", name: "Entrance", icon: "mdi:door", picture: null, temperature_entity_id: null, humidity_entity_id: null },
-    bathroom: { area_id: "bathroom", floor_id: "ground", name: "Bathroom", icon: "mdi:bathtub", picture: null, temperature_entity_id: null, humidity_entity_id: "sensor.bathroom_humidity" },
+    living_room: { area_id: "living_room", floor_id: "ground", name: "Living Room", icon: "mdi:sofa", picture: stockPhoto("1600210492486-724fe5c67fb0"), temperature_entity_id: "sensor.living_room_temperature", humidity_entity_id: "sensor.living_room_humidity" },
+    kitchen: { area_id: "kitchen", floor_id: "ground", name: "Kitchen", icon: "mdi:countertop", picture: stockPhoto("1556911220-bff31c812dba"), temperature_entity_id: "sensor.kitchen_temperature", humidity_entity_id: null },
+    entrance: { area_id: "entrance", floor_id: "ground", name: "Entrance", icon: "mdi:door", picture: stockPhoto("1502005229762-cf1b2da7c5d6"), temperature_entity_id: null, humidity_entity_id: null },
+    bathroom: { area_id: "bathroom", floor_id: "ground", name: "Bathroom", icon: "mdi:bathtub", picture: stockPhoto("1552321554-5fefe8c9ef14"), temperature_entity_id: null, humidity_entity_id: "sensor.bathroom_humidity" },
 
-    workshop: { area_id: "workshop", floor_id: "basement", name: "Workshop", icon: "mdi:wrench", picture: null, temperature_entity_id: null, humidity_entity_id: "sensor.workshop_humidity" },
-    media_room: { area_id: "media_room", floor_id: "basement", name: "Media Room", icon: "mdi:television-classic", picture: null, temperature_entity_id: null, humidity_entity_id: null },
+    workshop: { area_id: "workshop", floor_id: "basement", name: "Workshop", icon: "mdi:wrench", picture: stockPhoto("1581783898377-1c85bf937427"), temperature_entity_id: null, humidity_entity_id: "sensor.workshop_humidity" },
+    media_room: { area_id: "media_room", floor_id: "basement", name: "Media Room", icon: "mdi:television-classic", picture: stockPhoto("1478720568477-152d9b164e26"), temperature_entity_id: null, humidity_entity_id: null },
 
     // Orphan areas (no floor_id) surface under the strategy's virtual "Other"
     // floor — here they just live outside every real floor id.
-    garden: { area_id: "garden", floor_id: null, name: "Garden", icon: "mdi:flower", picture: null, temperature_entity_id: "sensor.garden_temperature", humidity_entity_id: null },
-    garage: { area_id: "garage", floor_id: null, name: "Garage", icon: "mdi:garage", picture: null, temperature_entity_id: null, humidity_entity_id: null },
+    garden: { area_id: "garden", floor_id: null, name: "Garden", icon: "mdi:flower", picture: stockPhoto("1585320806297-9794b3e4eeae"), temperature_entity_id: "sensor.garden_temperature", humidity_entity_id: null },
+    garage: { area_id: "garage", floor_id: null, name: "Garage", icon: "mdi:garage", picture: stockPhoto("1600566753190-17f0baa2a6c3"), temperature_entity_id: null, humidity_entity_id: null },
 
-    showcase_room: { area_id: "showcase_room", floor_id: "showcase", name: "Showcase Room", icon: "mdi:flask", picture: null, temperature_entity_id: "sensor.showcase_temperature", humidity_entity_id: "sensor.showcase_humidity" },
+    showcase_room: { area_id: "showcase_room", floor_id: "showcase", name: "Showcase Room", icon: "mdi:flask", picture: stockPhoto("1586023492125-27b2c045efd7"), temperature_entity_id: "sensor.showcase_temperature", humidity_entity_id: "sensor.showcase_humidity" },
   };
 
   const devices = {

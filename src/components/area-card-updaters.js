@@ -1,8 +1,10 @@
 import { haIcon, tint, vibrate } from "../lib/dom-utils.js";
+import { sensorTone } from "../lib/area-data.js";
 import {
   TONE, ICONS,
   CLIMATE_ACCENT, CLIMATE_LABELS, CLIMATE_ICONS,
   canDimLight, fmtBrightnessPct, fmtCoverPct, fmtTimeAgoShort, fmtTimeAgoLong,
+  fmtSensorValue, iconForSensor,
   lightRgbTriple,
   labelDescriptor,
 } from "./area-card-shared.js";
@@ -11,6 +13,15 @@ import {
 // around a round 34px icon thumb, 6px of padding top/bottom.
 const THUMB = 34;
 const PAD = 6;
+// A light's fill fades out across the icon: solid up to 1/3 of its height,
+// transparent at 2/3, so the fill reads as glowing from under the icon.
+const FADE_START = Math.round(THUMB / 3);
+const FADE_END = Math.round((THUMB * 2) / 3);
+// Over the last 10 %, the fill grows to the top of the track and its fade
+// turns solid, so 99 % → 100 % has no visible jump; mirrored under 10 % so
+// 1 % → 0 % has none either.
+const TOP_BLEND_FROM = 0.9;
+const BOTTOM_BLEND_TO = 0.1;
 // Slop before a press counts as a drag rather than a tap.
 const DRAG_SLOP = 3;
 // On/off tiles have two notches (closed/open); a press stretches the thumb
@@ -23,14 +34,22 @@ const FLICK_MS = 450;
 // levels, crossfading in between so it's never covered by the icon.
 const PCT_SWAP_FROM = 40;
 const PCT_SWAP_TO = 60;
+// Kept in sync with the `.flash` state in area-card.css.
+export const FLASH_MS = 1400;
+
+const COVER_COLOR = "#8cc1ff";
+const SWITCH_COLOR = "#79d99a";
+
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const alpha = (color, pct) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
 function isDimmableFor(kind, st) {
   return kind === "cover" || (kind === "light" && canDimLight(st));
 }
 
 function accentFor(kind, st) {
-  if (kind === "cover") return TONE.curtain;
-  if (kind === "switch") return TONE.good;
+  if (kind === "cover") return COVER_COLOR;
+  if (kind === "switch") return SWITCH_COLOR;
   const rgb = lightRgbTriple(st);
   return rgb ? `rgb(${rgb[0]},${rgb[1]},${rgb[2]})` : TONE.light;
 }
@@ -46,6 +65,44 @@ function onOffAndLevel(kind, st) {
   return { on, level, dimmable };
 }
 
+// Everything a Diva track draws, from its state alone — a port of the
+// design's divaVM. `thumbFrac` is where the icon rides (the rubber-banded
+// drag position for on/off tiles); the fill of an on/off tile only ever
+// snaps between empty and full.
+export function divaVisual({ kind, on, level, dimmable, thumbFrac, color }) {
+  const frac = on ? (dimmable ? level / 100 : 1) : 0;
+  const thumb = thumbFrac ?? frac;
+  const solid = kind === "cover" || !dimmable;
+  const fillTop = solid ? THUMB / 2 : FADE_END;
+  const topBlend = clamp01((frac - TOP_BLEND_FROM) / (1 - TOP_BLEND_FROM));
+  const bottomBlend = clamp01(frac / BOTTOM_BLEND_TO);
+  const travel = THUMB + PAD * 2;
+
+  let fillHeight;
+  if (!dimmable) fillHeight = on ? "100%" : "0%";
+  else if (!on) fillHeight = "0px";
+  else {
+    const extra = (PAD + fillTop + topBlend * (PAD + THUMB - fillTop)) * bottomBlend;
+    fillHeight = `calc((100% - ${travel}px) * ${frac.toFixed(3)} * ${bottomBlend.toFixed(3)} + ${extra.toFixed(1)}px)`;
+  }
+  const fillBackground = solid
+    ? alpha(color, 90)
+    : `linear-gradient(to top, ${alpha(color, 90)} 0, ${alpha(color, 90)} calc(100% - ${((FADE_END - FADE_START) * (1 - topBlend)).toFixed(1)}px), ${alpha(color, +(90 * topBlend).toFixed(1))} 100%)`;
+
+  const showPct = on && dimmable;
+  const pctBelow = clamp01((level - PCT_SWAP_FROM) / (PCT_SWAP_TO - PCT_SWAP_FROM));
+  return {
+    on,
+    thumbBottom: `calc((100% - ${travel}px) * ${clamp01(thumb).toFixed(3)} + ${PAD}px)`,
+    fillHeight,
+    fillBackground,
+    showPct,
+    pctLabel: showPct ? `${level}%` : "",
+    pctTopOpacity: (1 - pctBelow).toFixed(2),
+    pctBottomOpacity: pctBelow.toFixed(2),
+  };
+}
+
 export function _toggleEntity(entityId, kind, wantOn) {
   if (kind === "light") {
     if (!wantOn) this._call("light", "turn_off", { entity_id: entityId });
@@ -58,57 +115,49 @@ export function _toggleEntity(entityId, kind, wantOn) {
   }
 }
 
-// Renders a Diva track from the entity's real current state — called once
-// right after building it, and again (via a fresh build) whenever the panel
-// re-renders. `frac`/`showPct` can be overridden by the live drag preview in
-// `_bindDivaTrack`; absent that, they're derived from `kind`+`entityId`.
+// Renders a Diva track from the entity's real current state, or from the
+// live drag preview in `override` ({ on, level, thumbFrac }) while a pointer
+// owns it.
 export function _updateDivaRef(ref, entityId, kind, override) {
   const st = this._hass.states?.[entityId];
   if (!st) return;
   const unavailable = st.state === "unavailable";
-  const { on, level, dimmable } = override ?? onOffAndLevel(kind, unavailable ? { ...st, state: "off" } : st);
-  const frac = override?.frac ?? (unavailable ? 0 : on ? (dimmable ? level / 100 : 1) : 0);
+  const real = onOffAndLevel(kind, unavailable ? { ...st, state: "off" } : st);
+  const { on, level } = override ?? real;
+  const v = divaVisual({ kind, on, level, dimmable: real.dimmable, thumbFrac: override?.thumbFrac, color: accentFor(kind, st) });
 
   ref.track.classList.toggle("un", unavailable);
-  ref.track.classList.toggle("dim", dimmable);
-  ref.track.classList.toggle("onoff", !dimmable);
+  ref.track.classList.toggle("dim", real.dimmable);
+  ref.track.classList.toggle("onoff", !real.dimmable);
+  ref.track.classList.toggle("on", v.on);
   ref.track.disabled = unavailable;
   ref.track.setAttribute(
     "aria-label",
     kind === "cover"
       ? `${ref.name.textContent}, ${level === 0 ? "closed" : level + "% open"}. Drag to set position, tap to open or close.`
-      : `${ref.name.textContent}, ${unavailable ? "unavailable" : on ? (dimmable ? level + "%" : "on") : "off"}.`
+      : `${ref.name.textContent}, ${unavailable ? "unavailable" : on ? (real.dimmable ? level + "%" : "on") : "off"}.` + (real.dimmable ? " Drag to dim, tap to toggle." : " Tap to toggle.")
   );
 
-  const color = accentFor(kind, st);
-  const solid = tint(color, 85);
-  const faded = tint(color, 15);
-  ref.fill.style.height = `${Math.round(Math.max(0, frac) * 100)}%`;
-  ref.fill.style.background = dimmable ? `linear-gradient(to top, ${solid} 0%, ${solid} calc(100% - 22px), ${faded} 100%)` : solid;
-  ref.thumb.style.bottom = `calc((100% - ${THUMB + PAD * 2}px) * ${Math.max(0, Math.min(1, frac)).toFixed(4)} + ${PAD}px)`;
-  ref.thumb.classList.toggle("on", frac > 0.001);
+  ref.fill.style.height = v.fillHeight;
+  ref.fill.style.background = v.fillBackground;
+  ref.thumb.style.bottom = v.thumbBottom;
+  ref.pctTop.style.display = ref.pctBottom.style.display = v.showPct ? "" : "none";
+  ref.pctTop.textContent = ref.pctBottom.textContent = v.pctLabel;
+  ref.pctTop.style.opacity = v.pctTopOpacity;
+  ref.pctBottom.style.opacity = v.pctBottomOpacity;
 
-  const showPct = (override?.showPct ?? (on && dimmable)) && !unavailable;
-  ref.pctTop.style.display = ref.pctBottom.style.display = showPct ? "" : "none";
-  if (showPct) {
-    const label = `${level}%`;
-    ref.pctTop.textContent = label;
-    ref.pctBottom.textContent = label;
-    const pctBelow = Math.max(0, Math.min(1, (level - PCT_SWAP_FROM) / (PCT_SWAP_TO - PCT_SWAP_FROM)));
-    ref.pctTop.style.opacity = String(1 - pctBelow);
-    ref.pctBottom.style.opacity = String(pctBelow);
+  if (unavailable) ref.ago.textContent = "Unavailable";
+  else {
+    const since = fmtTimeAgoShort(st.last_changed || st.last_updated);
+    ref.ago.textContent = since === "now" ? "Just now" : `${since} ago`;
   }
-
-  ref.ago.textContent = unavailable
-    ? "Unavailable"
-    : (on ? (dimmable ? `${level}%` : "On") : "Off") + (st.last_updated ? ` · ${fmtTimeAgoShort(st.last_updated)}` : "");
 }
 
 // Pointer physics for one Diva track. Dimmable entities (lights with
 // brightness, covers) drop anywhere along the track; on/off-only entities
 // (switches, non-dimmable lights) rubber-band toward whichever end the press
 // started nearer, and flick to the other end only once pulled 80% of the way
-// there (hysteresis both ways) — see the design rationale in memory.
+// there (hysteresis both ways).
 export function _bindDivaTrack(ref, entityId, kind) {
   const { track } = ref;
 
@@ -122,10 +171,7 @@ export function _bindDivaTrack(ref, entityId, kind) {
 
     const drag = { pointerId: e.pointerId, y: e.clientY, startFrac, dimmable, held: false, notch: null, rect, flickTimer: 0 };
     const usable = rect.height - THUMB - PAD * 2;
-    const fracFromPointer = (clientY) => {
-      const fromBottom = rect.bottom - clientY - PAD - THUMB / 2;
-      return Math.max(0, Math.min(1, fromBottom / usable));
-    };
+    const fracFromPointer = (clientY) => clamp01((rect.bottom - clientY - PAD - THUMB / 2) / usable);
 
     const onMove = (ev) => {
       if (ev.pointerId !== drag.pointerId) return;
@@ -136,24 +182,24 @@ export function _bindDivaTrack(ref, entityId, kind) {
         track.classList.add("dragging");
       }
       if (drag.dimmable) {
-        const raw = fracFromPointer(ev.clientY);
-        drag.finalLevel = Math.round(raw * 100);
-        this._updateDivaRef(ref, entityId, kind, { on: true, level: drag.finalLevel, dimmable: true, frac: raw, showPct: true });
+        drag.finalLevel = Math.round(fracFromPointer(ev.clientY) * 100);
+        this._updateDivaRef(ref, entityId, kind, { on: drag.finalLevel > 0, level: drag.finalLevel, thumbFrac: drag.finalLevel / 100 });
         return;
       }
       // Measured from where the press started, so pressing anywhere on the
       // track never flips it by itself.
-      const rel = Math.max(0, Math.min(1, drag.startFrac + (drag.y - ev.clientY) / usable));
+      const rel = clamp01(drag.startFrac + (drag.y - ev.clientY) / usable);
       const prevNotch = drag.notch == null ? Math.round(drag.startFrac) : drag.notch;
       drag.notch = prevNotch === 1 ? (rel <= 1 - NOTCH_FLICK_AT ? 0 : 1) : rel >= NOTCH_FLICK_AT ? 1 : 0;
       if (drag.notch !== prevNotch) {
+        vibrate(8);
         track.classList.add("flick");
         clearTimeout(drag.flickTimer);
         drag.flickTimer = setTimeout(() => track.classList.remove("flick"), FLICK_MS);
       }
       const pull = rel - drag.notch;
       const stretchedFrac = drag.notch + Math.sign(pull) * NOTCH_STRETCH * (1 - Math.exp(-Math.abs(pull) * NOTCH_STIFFNESS));
-      this._updateDivaRef(ref, entityId, kind, { on: drag.notch === 1, level: drag.notch === 1 ? 100 : 0, dimmable: false, frac: stretchedFrac, showPct: false });
+      this._updateDivaRef(ref, entityId, kind, { on: drag.notch === 1, level: drag.notch === 1 ? 100 : 0, thumbFrac: stretchedFrac });
     };
 
     const finish = (ev, commit) => {
@@ -166,30 +212,30 @@ export function _bindDivaTrack(ref, entityId, kind) {
       track.classList.remove("flick", "dragging");
       this._dragState.delete(entityId);
 
-      let handled = false;
-      if (commit && drag.held) {
-        if (drag.dimmable) {
-          const pct = drag.finalLevel;
-          if (kind === "cover") {
-            if (pct <= 0) this._call("cover", "close_cover", { entity_id: entityId });
-            else if (pct >= 100) this._call("cover", "open_cover", { entity_id: entityId });
-            else this._call("cover", "set_cover_position", { entity_id: entityId, position: pct });
-          } else if (pct <= 0) this._call("light", "turn_off", { entity_id: entityId });
-          else this._call("light", "turn_on", { entity_id: entityId, brightness_pct: pct });
-          handled = true;
-        } else if (drag.notch != null) {
-          const wantOn = drag.notch === 1;
-          if (wantOn !== on) {
-            this._toggleEntity(entityId, kind, wantOn);
-            handled = true;
-          }
-        }
-      } else if (commit && !drag.held) {
+      if (commit && drag.held && drag.dimmable) {
+        const pct = drag.finalLevel;
+        if (kind === "cover") {
+          if (pct <= 0) this._call("cover", "close_cover", { entity_id: entityId });
+          else if (pct >= 100) this._call("cover", "open_cover", { entity_id: entityId });
+          else this._call("cover", "set_cover_position", { entity_id: entityId, position: pct });
+        } else if (pct <= 0) this._call("light", "turn_off", { entity_id: entityId });
+        else this._call("light", "turn_on", { entity_id: entityId, brightness_pct: pct });
+        return;
+      }
+      if (commit && drag.held && drag.notch != null) {
+        // The thumb settles on its notch right away; HA's state change then
+        // confirms it (or snaps it back if the call fails).
+        const wantOn = drag.notch === 1;
+        this._updateDivaRef(ref, entityId, kind, { on: wantOn, level: wantOn ? 100 : 0 });
+        if (wantOn !== on) this._toggleEntity(entityId, kind, wantOn);
+        return;
+      }
+      if (commit && !drag.held) {
         vibrate(8);
         this._toggleEntity(entityId, kind, !on);
-        handled = true;
+        return;
       }
-      if (!handled) this._updateDivaRef(ref, entityId, kind);
+      this._updateDivaRef(ref, entityId, kind);
     };
     const onUp = (ev) => finish(ev, true);
     const onCancel = (ev) => finish(ev, false);
@@ -246,18 +292,19 @@ export function _wireClimateMode(ref, entityId, attrs, mode) {
 export function _updateInputSelectRef(ref, entityId) {
   const st = this._hass.states?.[entityId];
   if (!st) return;
-  const options = Array.isArray(st.attributes?.options) ? st.attributes.options : [];
-  const unavailable = st.state === "unavailable" || st.state === "unknown";
-  const current = unavailable ? null : st.state;
-  ref.value.textContent = unavailable ? "—" : st.state;
-  ref.setItems(
-    options.map((opt) => ({
-      id: opt,
-      label: opt,
-      icon: opt === current ? "mdi:check" : "mdi:circle-small",
-    })),
-    current,
-  );
+  const current = st.state === "unavailable" || st.state === "unknown" ? null : st.state;
+  for (const [option, chip] of ref.chips) {
+    chip.classList.toggle("sel", option === current);
+    chip.setAttribute("aria-pressed", String(option === current));
+  }
+}
+
+export function _updateSensorRef(ref) {
+  const st = this._hass.states?.[ref.entityId];
+  ref.value.textContent = fmtSensorValue(st);
+  ref.icon.setAttribute("icon", iconForSensor(st));
+  const tone = sensorTone(st);
+  for (const t of ["alert", "warn", "info"]) ref.tile.classList.toggle(`t-${t}`, tone === t);
 }
 
 export function _updateAutomationRef(ref, entityId) {
@@ -265,22 +312,27 @@ export function _updateAutomationRef(ref, entityId) {
   const st = hass.states?.[entityId];
   if (!st) return;
   const enabled = ref.isScript ? true : st.state !== "off";
-  ref.row.classList.toggle("disabled", !enabled);
-  ref.name.classList.toggle("disabled", !enabled);
-  if (ref.status) ref.status.textContent = enabled ? "On" : "Off";
+  const flashing = ref.flashUntil > Date.now();
+  ref.row.classList.toggle("off", !enabled);
+  if (ref.swatch.tagName === "BUTTON") ref.swatch.setAttribute("aria-pressed", String(enabled));
   const lastTs = st.attributes?.last_triggered;
-  ref.last.textContent = lastTs ? fmtTimeAgoLong(lastTs) : "Never triggered";
+  const when = lastTs ? fmtTimeAgoLong(lastTs) : "never";
+  if (flashing) ref.sub.textContent = ref.isScript ? "Running…" : "Triggered just now";
+  else if (ref.isScript) ref.sub.textContent = lastTs ? when : "Never run";
+  else ref.sub.textContent = `${enabled ? "On" : "Off"} · ${when}`;
+
   ref.labels.innerHTML = "";
-  const ent = hass.entities[entityId];
-  const labelIds = ent?.labels || [];
-  for (const lid of labelIds) {
+  for (const lid of hass.entities[entityId]?.labels || []) {
     const desc = labelDescriptor(hass, lid);
     if (!desc) continue;
     const chip = document.createElement("span");
     chip.className = "atrium-auto-label";
     chip.style.color = desc.color;
-    chip.innerHTML = desc.icon ? `${haIcon(desc.icon, 9)}${desc.name}` : desc.name;
+    chip.style.background = tint(desc.color, 16);
+    chip.innerHTML = `${haIcon(desc.icon || "mdi:star-outline", 11)}<span></span>`;
+    chip.lastChild.textContent = desc.name;
     ref.labels.appendChild(chip);
   }
   ref.play.classList.toggle("disabled", !enabled);
+  ref.play.classList.toggle("flash", flashing);
 }

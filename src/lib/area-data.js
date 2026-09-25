@@ -120,20 +120,60 @@ export function classifyAreaEntities(hass, area, entities) {
   return out;
 }
 
-// Drives the orb's red alert dot and the panel hero's alert/warn badges:
-// any active leak or "problem" binary_sensor, or an unavailable entity in a
-// domain where that's actually meaningful (mirrors the header's own
-// PROBLEM_UNAVAILABLE_DOMAINS notion of "worth flagging").
+// Drives the orb's red alert dot: any active leak or "problem"
+// binary_sensor, an open door, or an unavailable entity in a domain where
+// that's actually meaningful (mirrors the header's own
+// PROBLEM_UNAVAILABLE_DOMAINS notion of "worth flagging"). Returns the icon
+// for the most serious one so the dot says what's wrong, or null.
 const ALERT_UNAVAILABLE_DOMAINS = new Set(["light", "switch", "cover", "climate", "vacuum"]);
-export function areaHasAlert(hass, data) {
-  if (data.sensors.leak.some((e) => hass.states?.[e.entity_id]?.state === "on")) return true;
+export function areaAlertIcon(hass, data) {
+  const isOn = (e) => hass.states?.[e.entity_id]?.state === "on";
+  if (data.sensors.leak.some(isOn)) return "mdi:water-alert";
   const problemLike = [...data.sensors.other, ...data.doors];
-  if (problemLike.some((e) => {
-    const st = hass.states?.[e.entity_id];
-    return st?.attributes?.device_class === "problem" && st.state === "on";
-  })) return true;
+  if (problemLike.some((e) => isOn(e) && hass.states[e.entity_id].attributes?.device_class === "problem")) return "mdi:alert";
   const controllable = [...data.lights, ...data.switches, ...data.covers, ...data.climates, ...data.vacuums];
-  return controllable.some((e) => ALERT_UNAVAILABLE_DOMAINS.has(e.entity_id.split(".")[0]) && hass.states?.[e.entity_id]?.state === "unavailable");
+  if (controllable.some((e) => ALERT_UNAVAILABLE_DOMAINS.has(e.entity_id.split(".")[0]) && hass.states?.[e.entity_id]?.state === "unavailable")) return "mdi:alert";
+  if (data.doors.some(isOn)) return "mdi:door-open";
+  return null;
+}
+
+export function areaHasAlert(hass, data) {
+  return areaAlertIcon(hass, data) != null;
+}
+
+// Colors a sensor reading in the panel: alarms red, things that need a look
+// (open door, low battery) amber, live activity (motion) blue.
+const ALERT_DEVICE_CLASSES = new Set(["moisture", "problem", "smoke", "gas", "carbon_monoxide", "safety", "tamper"]);
+const WARN_DEVICE_CLASSES = new Set(["door", "garage_door", "window", "opening"]);
+const INFO_DEVICE_CLASSES = new Set(["motion", "occupancy", "presence"]);
+const LOW_BATTERY_PCT = 20;
+export function sensorTone(state) {
+  if (!state) return null;
+  const dc = state.attributes?.device_class;
+  const domain = (state.entity_id || "").split(".")[0];
+  if (domain === "binary_sensor") {
+    if (state.state !== "on") return null;
+    if (ALERT_DEVICE_CLASSES.has(dc)) return "alert";
+    if (WARN_DEVICE_CLASSES.has(dc)) return "warn";
+    if (INFO_DEVICE_CLASSES.has(dc)) return "info";
+    return null;
+  }
+  if (dc === "battery" && parseFloat(state.state) <= LOW_BATTERY_PCT) return "warn";
+  return null;
+}
+
+// Every entity the details panel draws for an area, in a stable order. Two
+// equal signatures mean the panel's structure is unchanged, so a state
+// change only needs its tiles updated in place (keeping their transitions)
+// rather than a rebuild.
+export function areaPanelSignature(area, data) {
+  const ids = [
+    ...data.climates, ...data.scenes, ...data.buttons, ...data.lights, ...data.switches,
+    ...data.inputSelects, ...data.covers, ...data.sensors.extras, ...data.sensors.other,
+    ...data.automations, ...data.scripts, ...(data.hiddenRoutines || []),
+  ].map((e) => e.entity_id);
+  for (const [target, sensors] of data.deviceSensors) ids.push(`${target}>${sensors.map((s) => s.entity_id).join(",")}`);
+  return [area.area_id, area.name, area.picture || "", ...ids].join("|");
 }
 
 export function areaIsEmpty(d) {

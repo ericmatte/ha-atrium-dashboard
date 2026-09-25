@@ -60,13 +60,3 @@ view.className = "dev-view is-active";
 document.getElementById("views").appendChild(view);
 mount("atrium-header", { floor: ALL_FLOOR_KEY, welcome_name: "Eric" }, view);
 mount("atrium-rooms", { floors: FLOORS }, view);
-
-const tabbar = document.getElementById("tabbar");
-const note = document.createElement("div");
-note.className = "dev-tabbar-note";
-note.textContent = "Atrium dev · edit src/ and reload";
-tabbar.appendChild(note);
-
-// atrium-header sticks itself at `top: var(--header-height, 0px)` — publish
-// our tab bar's height there so it parks just below it instead of under it.
-document.documentElement.style.setProperty("--header-height", `${tabbar.offsetHeight}px`);
