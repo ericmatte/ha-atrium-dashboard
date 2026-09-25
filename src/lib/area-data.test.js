@@ -239,3 +239,22 @@ test("areaStatusDot: motion beats an alert; without motion the alert comes back"
   assert.equal(areaStatusDot(null, door).kind, "warn");
   assert.equal(areaStatusDot(null, null), null);
 });
+
+test("classifyAreaEntities: a switched-off automation goes to disabledAutomations", () => {
+  const hass = {
+    states: { "automation.on": { state: "on", attributes: {} }, "automation.off": { state: "off", attributes: {} } },
+    entities: {}, devices: {},
+  };
+  const out = classifyAreaEntities(hass, { area_id: "k" }, [{ entity_id: "automation.on" }, { entity_id: "automation.off" }]);
+  assert.deepEqual(out.automations.map((e) => e.entity_id), ["automation.on"]);
+  assert.deepEqual(out.disabledAutomations.map((e) => e.entity_id), ["automation.off"]);
+});
+
+test("areaPanelSignature: moving an automation between enabled and disabled changes it", () => {
+  const area = { area_id: "k", name: "K" };
+  const a = emptyAreaData();
+  a.automations.push({ entity_id: "automation.x" });
+  const b = emptyAreaData();
+  b.disabledAutomations.push({ entity_id: "automation.x" });
+  assert.notEqual(areaPanelSignature(area, a), areaPanelSignature(area, b));
+});

@@ -274,7 +274,14 @@ button.atrium-badge { cursor: pointer; }
 .atrium-auto-play.disabled { background: var(--a-knob); color: color-mix(in srgb, var(--a-dim) 75%, transparent); cursor: not-allowed; }
 .atrium-auto-play.flash { background: #8cc1ff; color: #0c1a2b; }
 
-.atrium-autos-trigger { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; border: none; cursor: pointer; background: var(--a-surface); color: var(--a-dim); font-family: inherit; align-self: flex-start; }
+.atrium-routine-drawers { display: flex; flex-wrap: wrap; gap: 8px; }
+.atrium-auto-row.arriving { animation: atrium-row-arrive .7s var(--a-ease) both; }
+@keyframes atrium-row-arrive {
+  0% { opacity: 0; transform: translateY(14px) scale(.96); box-shadow: 0 0 0 2px transparent; }
+  45% { opacity: 1; transform: none; box-shadow: 0 0 0 2px color-mix(in srgb, #8cc1ff 70%, transparent); }
+  100% { box-shadow: 0 0 0 2px transparent; }
+}
+.atrium-autos-trigger { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 10px; border-radius: 999px; border: none; cursor: pointer; background: var(--a-surface); color: var(--a-dim); font-family: inherit; }
 .atrium-autos-trigger:hover, .atrium-autos-trigger.atrium-pop-open { background: var(--a-surface-2); }
 .atrium-autos-trigger-iconwrap { display: inline-flex; --mdc-icon-size: 16px; }
 .atrium-autos-trigger-label { font-size: 13px; font-weight: 600; color: var(--a-text); }

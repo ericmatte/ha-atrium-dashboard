@@ -23,6 +23,7 @@ export function emptyAreaData() {
     inputSelects: [],
     sensors: { motion: [], leak: [], soil: [], propane: [], temp: null, humid: null, extras: [], other: [] },
     automations: [],
+    disabledAutomations: [],
     scripts: [],
     deviceSensors: new Map(),
   };
@@ -70,7 +71,9 @@ export function classifyAreaEntities(hass, area, entities) {
     // would drown the room panel — only surface primary ones, like switches.
     else if (domain === "button") { if (!e.entity_category) out.buttons.push(e); }
     else if (domain === "input_select") out.inputSelects.push(e);
-    else if (domain === "automation") out.automations.push(e);
+    // A switched-off automation leaves the routines list for its "N disabled"
+    // drawer until it's turned back on.
+    else if (domain === "automation") (st?.state === "off" ? out.disabledAutomations : out.automations).push(e);
     else if (domain === "script") out.scripts.push(e);
     else if (domain === "binary_sensor") {
       if (dc === "motion" || dc === "occupancy" || dc === "presence") out.sensors.motion.push(e);
@@ -227,8 +230,8 @@ export function areaPanelSignature(area, data) {
   const ids = [
     ...data.climates, ...data.mediaPlayers, ...data.scenes, ...data.buttons, ...data.lights, ...data.switches,
     ...data.inputSelects, ...data.covers, ...data.sensors.extras, ...data.sensors.other,
-    ...data.automations, ...data.scripts, ...(data.hiddenRoutines || []),
-  ].map((e) => e.entity_id);
+    ...data.automations, ...data.scripts, "disabled:", ...data.disabledAutomations, "hidden:", ...(data.hiddenRoutines || []),
+  ].map((e) => (typeof e === "string" ? e : e.entity_id));
   for (const [target, sensors] of data.deviceSensors) ids.push(`${target}>${sensors.map((s) => s.entity_id).join(",")}`);
   return [area.area_id, area.name, area.picture || "", ...ids].join("|");
 }
@@ -246,6 +249,7 @@ export function areaIsEmpty(d) {
     d.buttons.length === 0 &&
     d.inputSelects.length === 0 &&
     d.automations.length === 0 &&
+    d.disabledAutomations.length === 0 &&
     d.scripts.length === 0 &&
     !d.sensors.temp &&
     !d.sensors.humid &&

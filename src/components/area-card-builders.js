@@ -29,9 +29,8 @@ export function _buildRoomSections(area, data) {
   const genericSensors = [...data.sensors.extras, ...data.sensors.other];
   if (genericSensors.length) sections.push(this._buildSensorsSection(area, genericSensors));
 
-  const routines = this._buildAutomationsSection(area, data.automations, data.scripts);
+  const routines = this._buildAutomationsSection(area, data.automations, data.scripts, data.disabledAutomations, data.hiddenRoutines || []);
   if (routines) sections.push(routines);
-  if (data.hiddenRoutines?.length) sections.push(this._buildHiddenRoutinesBtn(area, data.hiddenRoutines));
 
   return sections;
 }
@@ -524,14 +523,27 @@ export function _captureSceneColors(sceneId, lightIds, pill) {
   }, SCENE_SETTLE_MS);
 }
 
-export function _buildAutomationsSection(area, automations, scripts) {
+// Enabled automations and scripts are listed; switched-off automations and
+// hidden routines each collapse into a drawer badge at the bottom.
+export function _buildAutomationsSection(area, automations, scripts, disabled, hidden) {
   const items = [...automations, ...scripts];
-  if (!items.length) return null;
+  if (!items.length && !disabled.length && !hidden.length) return null;
 
-  const list = document.createElement("div");
-  list.className = "atrium-alist";
-  for (const item of items) list.appendChild(this._buildAutomationRow(area, item));
-  return this._section("Routines", list);
+  const children = [];
+  if (items.length) {
+    const list = document.createElement("div");
+    list.className = "atrium-alist";
+    for (const item of items) list.appendChild(this._buildAutomationRow(area, item));
+    children.push(list);
+  }
+  if (disabled.length || hidden.length) {
+    const drawers = document.createElement("div");
+    drawers.className = "atrium-routine-drawers";
+    if (disabled.length) drawers.appendChild(this._buildRoutinesDrawer(area, disabled, { icon: "mdi:pause-circle-outline", label: "disabled", title: "Disabled routines" }));
+    if (hidden.length) drawers.appendChild(this._buildRoutinesDrawer(area, hidden, { icon: "mdi:eye-off-outline", label: "hidden", title: "Hidden routines" }));
+    children.push(drawers);
+  }
+  return this._section("Routines", children);
 }
 
 // Toggle swatch left, name + labels / "On · 42 minutes ago" in the middle,
@@ -546,6 +558,10 @@ export function _buildAutomationRow(area, item) {
   const row = document.createElement("div");
   row.className = "atrium-auto-row";
   row.dataset.entity = item.entity_id;
+  if (this._routineArriving === item.entity_id && state?.state !== "off") {
+    this._routineArriving = null;
+    row.classList.add("arriving");
+  }
 
   const swatch = document.createElement(isScript ? "span" : "button");
   swatch.className = "atrium-auto-swatch" + (isScript ? " script" : "");
@@ -556,6 +572,9 @@ export function _buildAutomationRow(area, item) {
     swatch.addEventListener("click", (e) => {
       e.stopPropagation();
       const isOn = this._hass.states?.[item.entity_id]?.state !== "off";
+      // Re-enabling moves it from the drawer back into the list; the rebuilt
+      // row plays an arrival animation (see _buildAutomationRow).
+      if (!isOn) this._routineArriving = item.entity_id;
       this._call("automation", isOn ? "turn_off" : "turn_on", { entity_id: item.entity_id });
     });
   }
@@ -600,16 +619,17 @@ export function _buildAutomationRow(area, item) {
   return row;
 }
 
-export function _buildHiddenRoutinesBtn(area, hiddenItems) {
-  const rows = hiddenItems.map((item) => this._buildAutomationRow(area, item));
+// A "N disabled" / "N hidden" badge opening a popover of those routines.
+export function _buildRoutinesDrawer(area, routineItems, { icon, label, title }) {
+  const rows = routineItems.map((item) => this._buildAutomationRow(area, item));
 
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "atrium-autos-trigger";
-  const count = hiddenItems.length;
+  const count = routineItems.length;
   btn.innerHTML =
-    `<span class="atrium-autos-trigger-iconwrap">${haIcon("mdi:eye-off-outline", 20)}</span>` +
-    `<span class="atrium-autos-trigger-label">${count} hidden</span>`;
+    `<span class="atrium-autos-trigger-iconwrap">${haIcon(icon, 20)}</span>` +
+    `<span class="atrium-autos-trigger-label">${count} ${label}</span>`;
 
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -617,7 +637,7 @@ export function _buildHiddenRoutinesBtn(area, hiddenItems) {
     this._openAnchors.add(btn);
     openListPopover({
       anchor: btn,
-      title: "Hidden routines",
+      title,
       countLabel: String(count),
       items: rows,
       buildItem: (row) => row,
