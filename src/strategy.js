@@ -1,5 +1,6 @@
 import "./components/rooms-view.js";
 import "./components/header.js";
+import "./components/padded-stack.js";
 import { ALL_FLOOR_KEY } from "./lib/shell.js";
 
 class AtriumStrategy {
@@ -109,10 +110,11 @@ class AtriumStrategy {
         cards: [
           stack([
             headerCard(ALL_FLOOR_KEY, title),
-            stack([
-              entitiesCard(tab.entities_title || title, cfgList(tab.entities)),
-              ...cfgList(tab.cards),
-            ]),
+            // Padded so the tab's cards line up with the header above them.
+            {
+              type: "custom:atrium-padded-stack",
+              cards: [entitiesCard(tab.entities_title || title, cfgList(tab.entities)), ...cfgList(tab.cards)].filter(Boolean),
+            },
           ]),
         ],
       });
