@@ -7,7 +7,7 @@
 Atrium is a fully dynamic Lovelace dashboard for Home Assistant.
 No YAML editing, no per-room configuration.
 
-- **Home** — every floor and area as a photo tile. Tap one to open its details panel: lights, switches and covers as swipe-to-dim tiles, the room's thermostat, scenes, sensor readings, and its automations & scripts — all in one place, no separate Routines tab.
+- **Home** — every floor and area as a photo tile. Tap one to open its details panel: lights, switches and covers as swipe-to-dim tiles, the room's thermostat, scenes, sensor readings, and its routines (scripts & automations) — all in one place, no separate Routines tab.
 - Any number of **custom tabs** — fully config-driven, for things the strategy can't auto-discover (energy monitoring, system health, etc.).
 
 ![Atrium dashboard Home view, dark theme, showing floors, areas, and per-room lights, climate, and sensors](images/preview-dark.png)
@@ -61,7 +61,7 @@ This repository isn't in the default HACS store yet, so add it as a custom repos
 
 ## Custom tabs
 
-`Home` and `Routines` are auto-discovered from your HA floors/areas. Anything beyond that (energy monitoring, system health, etc.) is manual and config-driven via a `tabs` list on the strategy — there are zero of these until you add some, and each one you add is appended as its own tab, in order, after `Routines`:
+`Home` is auto-discovered from your HA floors/areas. Anything beyond that (energy monitoring, system health, etc.) is manual and config-driven via a `tabs` list on the strategy — there are zero of these until you add some, and each one you add is appended as its own tab, in order, after `Home`:
 
 ```yaml
 strategy:

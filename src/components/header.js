@@ -73,7 +73,8 @@ class AtriumHeader extends HTMLElement {
     this.appendChild(style);
 
     const root = document.createElement("div");
-    root.className = "atrium-shell-root";
+    // Only the Home tab (no title) sits above the rooms grid it lines up with.
+    root.className = "atrium-shell-root" + (this._title ? "" : " is-home");
     this._root = root;
     this.appendChild(root);
 

@@ -76,16 +76,16 @@
 }
 .atrium-shell-person.is-home .atrium-shell-avatar-dot { background: var(--success-color, #7dc97a); }
 
-/* Desktop: line the greeting up with the room grid's gutter (80px, 40px
+/* Desktop, Home tab: line the greeting up with the room grid's gutter (80px, 40px
    while a room is open) and keep it clear of the rooms view's fixed side
    panel. atrium-rooms sets --atrium-panel-open on <html> (it inherits into
    every card's shadow root) — see _syncLayout in rooms-view.js. */
 @media (min-width: 861px) {
-  .atrium-shell-header {
+  .atrium-shell-root.is-home .atrium-shell-header {
     --atrium-open: var(--atrium-panel-open, 0);
     padding-left: calc(62px - 40px * var(--atrium-open));
     padding-right: calc(62px - 40px * var(--atrium-open) + 580px * var(--atrium-open));
     transition: padding .55s cubic-bezier(.32,.72,0,1);
   }
-  .atrium-shell-pills { padding-inline: 18px; }
+  .atrium-shell-root.is-home .atrium-shell-pills { padding-inline: 18px; }
 }

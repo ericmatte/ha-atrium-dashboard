@@ -579,7 +579,8 @@ class AtriumRooms extends HTMLElement {
     }
     for (const v of data.vacuums) {
       const st = hass.states?.[v.entity_id];
-      if (st?.state === "cleaning" || st?.state === "returning") add("mdi:robot-vacuum", this._entityName(v), "info", v.entity_id);
+      // Green like the tile's spinning vacuum badge.
+      if (st?.state === "cleaning" || st?.state === "returning") add("mdi:robot-vacuum", this._entityName(v), "good", v.entity_id);
     }
     return badges;
   }
