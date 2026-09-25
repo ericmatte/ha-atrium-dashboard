@@ -167,7 +167,7 @@ button.atrium-badge { cursor: pointer; }
 .atrium-diva-track.onoff.dragging.flick .atrium-diva-fill { transition: height .36s var(--a-ease); }
 .atrium-diva-pct { position: absolute; left: 0; right: 0; top: 6px; text-align: center; font-size: 10px; font-weight: 800; line-height: 12px; color: rgba(255,255,255,.75); pointer-events: none; }
 .atrium-diva-pct.bottom { top: auto; bottom: 6px; color: rgba(20,16,6,.72); }
-.atrium-diva-name { max-width: 72px; font-size: 13px; font-weight: 700; line-height: 1.2; color: var(--a-text); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.atrium-diva-name { max-width: 72px; padding: 0; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 13px; font-weight: 700; line-height: 1.2; color: var(--a-text); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .atrium-diva-ago { margin-top: -6px; font-size: 11px; font-weight: 600; color: var(--a-dim); text-align: center; white-space: nowrap; }
 /* Sits on the track's bottom-right corner (track: 58×108, centred in the
    72px tile). */
