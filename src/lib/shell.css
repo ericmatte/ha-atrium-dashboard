@@ -30,7 +30,7 @@
   width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
 }
 .atrium-shell-weather-icon ha-icon { --mdc-icon-size: 18px; }
-.atrium-shell-welcome { font-size: 27px; font-weight: 700; letter-spacing: -.4px; color: var(--primary-text-color, #e8e9ec); }
+.atrium-shell-welcome { font-size: 27px; font-weight: 700; letter-spacing: -.4px; color: var(--primary-text-color, #e8e9ec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .atrium-shell-pills { display: flex; gap: 6px; padding: 4px 12px; overflow-x: auto; scrollbar-width: none; }
 .atrium-shell-pills::-webkit-scrollbar { display: none; }

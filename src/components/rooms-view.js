@@ -15,6 +15,8 @@ import {
   classifyAreaEntities,
   areaIsEmpty,
   areaAlert,
+  areaPresence,
+  areaActivity,
   areaMetaLine,
   areaPanelSignature,
 } from "../lib/area-data.js";
@@ -26,6 +28,14 @@ import { orbGrid, orbBadgeFont } from "../lib/orb-grid.js";
 // Matches the design's exit animations (pinOut .24s / sheetOut .28s) so the
 // selection is only dropped once they've played.
 const CLOSE_MS = 280;
+
+// Screen-reader label of the bottom-right "what's running" badge, by kind.
+const ACTIVITY_LABEL = {
+  media: (name) => `Play/pause ${name}`,
+  vacuum: (name) => `Pause ${name}`,
+  heating: (name) => `${name} heating`,
+  cooling: (name) => `${name} cooling`,
+};
 
 class AtriumRooms extends HTMLElement {
   constructor() {
@@ -179,8 +189,8 @@ class AtriumRooms extends HTMLElement {
     this._root.classList.toggle("closing", this._closing);
     for (const [areaId, ref] of this._orbRefs) {
       const sel = areaId === this._selectedAreaId;
-      ref.btn.classList.toggle("sel", sel);
-      ref.btn.setAttribute("aria-pressed", String(sel));
+      ref.tile.classList.toggle("sel", sel);
+      ref.open.setAttribute("aria-pressed", String(sel));
     }
     // The header is a separate card; it reads these to keep its content
     // clear of the fixed side panel and aligned with the room grid.
@@ -343,55 +353,105 @@ class AtriumRooms extends HTMLElement {
     return data.lights.length > 0 && !data.lights.some((l) => this._hass.states?.[l.entity_id]?.state === "on");
   }
 
+  // A tile is a container, not a button: its photo is the button that opens
+  // the room, and each corner badge is its own button (a button can't hold
+  // buttons). Clicking the name/meta below opens the room too.
   _buildOrb(area, data, index) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "atrium-orb";
-    btn.style.setProperty("--i", String(index));
-    btn.addEventListener("click", () => this._select(area.area_id));
+    const tile = document.createElement("div");
+    tile.className = "atrium-orb";
+    tile.style.setProperty("--i", String(index));
+    tile.addEventListener("click", (e) => {
+      if (!e.target.closest(".atrium-orb-badge")) this._select(area.area_id);
+    });
 
-    const photo = document.createElement("span");
+    const photo = document.createElement("div");
     photo.className = "atrium-orb-photo";
+    const open = document.createElement("button");
+    open.type = "button";
+    open.className = "atrium-orb-open";
+    open.setAttribute("aria-label", area.name);
     const art = document.createElement("span");
     art.className = "atrium-orb-art" + (area.picture ? " has-img" : "");
     if (area.picture) art.style.backgroundImage = `url("${area.picture}")`;
     else art.innerHTML = haIcon(iconForArea(area));
-    const litBadge = document.createElement("span");
-    litBadge.className = "atrium-orb-badge-lit";
-    const alertBadge = document.createElement("span");
-    alertBadge.className = "atrium-orb-badge-alert";
-    photo.append(art, litBadge, alertBadge);
+    open.appendChild(art);
+
+    const ref = { tile, open, meta: null, area, lightsOn: [], alert: null, presence: null, activity: null };
+    const badge = (cls, onTap) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = `atrium-orb-badge ${cls}`;
+      b.hidden = true;
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onTap();
+      });
+      photo.appendChild(b);
+      return b;
+    };
+    photo.appendChild(open);
+    ref.litBadge = badge("atrium-orb-badge-lit tl", () => {
+      if (ref.lightsOn.length) this._call("light", "turn_off", { entity_id: ref.lightsOn });
+    });
+    ref.alertBadge = badge("atrium-orb-badge-alert dot tr", () => ref.alert && this._moreInfo(ref.alert.entityId));
+    ref.presenceBadge = badge("atrium-orb-badge-presence dot bl", () => ref.presence && this._moreInfo(ref.presence.entityId));
+    ref.activityBadge = badge("atrium-orb-badge-activity dot br", () => {
+      const act = ref.activity;
+      if (!act) return;
+      if (act.action) this._call(act.action[0], act.action[1], { entity_id: act.entityId });
+      else this._moreInfo(act.entityId);
+    });
 
     const name = document.createElement("span");
     name.className = "atrium-orb-name";
     name.textContent = area.name;
     const meta = document.createElement("span");
     meta.className = "atrium-orb-meta";
+    ref.meta = meta;
 
-    btn.append(photo, name, meta);
-    const ref = { btn, litBadge, alertBadge, meta };
+    tile.append(photo, name, meta);
     this._orbRefs.set(area.area_id, ref);
     this._updateOrb(ref, area, data);
-    return btn;
+    return tile;
   }
 
   _updateOrb(ref, area, data) {
-    const lightsOn = data.lights.filter((l) => this._hass.states?.[l.entity_id]?.state === "on").length;
-    ref.btn.classList.toggle("lit", lightsOn > 0);
-    ref.btn.classList.toggle("gray", this._allLightsOff(data));
+    const hass = this._hass;
+    ref.lightsOn = data.lights.filter((l) => hass.states?.[l.entity_id]?.state === "on").map((l) => l.entity_id);
+    const lightsOn = ref.lightsOn.length;
+    ref.tile.classList.toggle("lit", lightsOn > 0);
+    ref.tile.classList.toggle("gray", this._allLightsOff(data));
     ref.litBadge.hidden = lightsOn === 0;
     if (lightsOn > 0 && ref.litBadge.dataset.count !== String(lightsOn)) {
       ref.litBadge.dataset.count = String(lightsOn);
       ref.litBadge.innerHTML = `${haIcon("mdi:lightbulb-outline")}${lightsOn}`;
+      ref.litBadge.setAttribute("aria-label", `Turn off ${lightsOn} ${lightsOn === 1 ? "light" : "lights"} in ${area.name}`);
     }
-    const alert = areaAlert(this._hass, data);
-    ref.alertBadge.hidden = !alert;
+
+    const alert = areaAlert(hass, data);
+    ref.alert = alert;
+    this._setDotBadge(ref.alertBadge, alert, alert && `${alert.label} — ${area.name}`);
     ref.alertBadge.classList.toggle("warn", alert?.tone === "warn");
-    if (alert && ref.alertBadge.dataset.icon !== alert.icon) {
-      ref.alertBadge.dataset.icon = alert.icon;
-      ref.alertBadge.innerHTML = haIcon(alert.icon);
+
+    ref.presence = areaPresence(hass, data);
+    this._setDotBadge(ref.presenceBadge, ref.presence, `Motion in ${area.name}`);
+
+    const activity = areaActivity(hass, data);
+    ref.activity = activity;
+    this._setDotBadge(ref.activityBadge, activity, activity && ACTIVITY_LABEL[activity.kind](this._entityName(hass.entities?.[activity.entityId] || { entity_id: activity.entityId })));
+    for (const kind of Object.keys(ACTIVITY_LABEL)) ref.activityBadge.classList.toggle(`is-${kind}`, activity?.kind === kind);
+
+    ref.meta.textContent = this._areaMeta(area, data, alert) || " ";
+  }
+
+  _setDotBadge(el, info, label) {
+    el.hidden = !info;
+    if (!info) return;
+    if (el.dataset.icon !== info.icon) {
+      el.dataset.icon = info.icon;
+      el.innerHTML = haIcon(info.icon);
     }
-    ref.meta.textContent = this._areaMeta(area, data, alert) || "\u00a0";
+    el.setAttribute("aria-label", label);
   }
 
   _areaMeta(area, data, alert) {

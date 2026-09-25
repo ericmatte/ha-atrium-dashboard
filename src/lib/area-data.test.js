@@ -9,6 +9,8 @@ import {
   areaHasAlert,
   areaAlertIcon,
   areaAlert,
+  areaPresence,
+  areaActivity,
   areaMetaLine,
   sensorTone,
   areaPanelSignature,
@@ -164,7 +166,7 @@ test("areaAlert: names what's wrong for the text under the tile", () => {
   const data = emptyAreaData();
   data.doors.push({ entity_id: "binary_sensor.patio" });
   const hass = { states: { "binary_sensor.patio": { state: "on", attributes: { device_class: "window" } } } };
-  assert.deepEqual(areaAlert(hass, data), { icon: "mdi:door-open", label: "Window open", tone: "warn" });
+  assert.deepEqual(areaAlert(hass, data), { icon: "mdi:door-open", label: "Window open", tone: "warn", entityId: "binary_sensor.patio" });
   hass.states["binary_sensor.patio"].attributes.device_class = "door";
   assert.equal(areaAlert(hass, data).label, "Door open");
 });
@@ -182,4 +184,44 @@ test("areaAlert: a leak is red (alert), an open door orange (warn)", () => {
   data.sensors.leak.push({ entity_id: "binary_sensor.leak" });
   const hass = { states: { "binary_sensor.leak": { state: "on", attributes: { device_class: "moisture" } } } };
   assert.equal(areaAlert(hass, data).tone, "alert");
+});
+
+test("areaPresence: only motion detected right now counts", () => {
+  const data = emptyAreaData();
+  data.sensors.motion.push({ entity_id: "binary_sensor.a" }, { entity_id: "binary_sensor.b" });
+  const hass = { states: { "binary_sensor.a": { state: "off" }, "binary_sensor.b": { state: "on" } } };
+  assert.deepEqual(areaPresence(hass, data), { icon: "mdi:walk", entityId: "binary_sensor.b" });
+  hass.states["binary_sensor.b"].state = "off";
+  assert.equal(areaPresence(hass, data), null);
+});
+
+test("areaActivity: media playing beats a vacuum cleaning, which beats climate heating", () => {
+  const data = emptyAreaData();
+  data.mediaPlayers.push({ entity_id: "media_player.tv" });
+  data.vacuums.push({ entity_id: "vacuum.roby" });
+  data.climates.push({ entity_id: "climate.hp" });
+  const hass = {
+    states: {
+      "media_player.tv": { state: "playing", attributes: { device_class: "tv" } },
+      "vacuum.roby": { state: "cleaning", attributes: {} },
+      "climate.hp": { state: "heat", attributes: { hvac_action: "heating" } },
+    },
+  };
+  assert.deepEqual(areaActivity(hass, data), { kind: "media", icon: "mdi:television-play", entityId: "media_player.tv", action: ["media_player", "media_play_pause"] });
+  hass.states["media_player.tv"].state = "paused";
+  assert.equal(areaActivity(hass, data).kind, "vacuum");
+  hass.states["vacuum.roby"].state = "docked";
+  assert.equal(areaActivity(hass, data).kind, "heating");
+  hass.states["climate.hp"].attributes.hvac_action = "idle";
+  assert.equal(areaActivity(hass, data), null);
+});
+
+test("areaActivity: a speaker gets a music icon, cooling a snowflake", () => {
+  const data = emptyAreaData();
+  data.mediaPlayers.push({ entity_id: "media_player.sonos" });
+  data.climates.push({ entity_id: "climate.hp" });
+  const hass = { states: { "media_player.sonos": { state: "playing", attributes: { device_class: "speaker" } }, "climate.hp": { state: "cool", attributes: { hvac_action: "cooling" } } } };
+  assert.equal(areaActivity(hass, data).icon, "mdi:music");
+  hass.states["media_player.sonos"].state = "idle";
+  assert.equal(areaActivity(hass, data).icon, "mdi:snowflake");
 });

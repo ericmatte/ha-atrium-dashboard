@@ -24,8 +24,8 @@
 .atrium-rooms :is(button, [tabindex]):focus-visible { outline: 2px solid var(--a-focus); outline-offset: 2px; }
 /* A room tile is a tall rectangle; the ring goes around its round photo,
    outside the selection ring. */
-.atrium-rooms .atrium-orb:focus-visible { outline: none; }
-.atrium-orb:focus-visible .atrium-orb-photo { outline: 2px solid var(--a-focus); outline-offset: 8px; }
+/* The photo button's ring goes outside the selection ring. */
+.atrium-rooms .atrium-orb-open:focus-visible { outline-offset: 8px; border-radius: 50%; }
 /* Text-only buttons get a rounded ring rather than a hard rectangle. */
 .atrium-auto-body, .atrium-climate-top, .atrium-mode-name { border-radius: 8px; }
 
@@ -37,12 +37,13 @@
 .atrium-floor-name { font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: color-mix(in srgb, var(--a-dim) 75%, transparent); }
 .atrium-orb-row { display: grid; grid-template-columns: repeat(var(--orb-cols, 3), var(--orb-size, minmax(0, 1fr))); gap: calc(var(--orb-gap, 24px) * .8) var(--orb-gap, 24px); }
 
-.atrium-orb { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; border: 0; background: none; color: inherit; font: inherit; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; animation: atrium-room-in-b .45s var(--a-ease) both; animation-delay: calc(var(--i, 0) * 28ms); }
+.atrium-orb { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; animation: atrium-room-in-b .45s var(--a-ease) both; animation-delay: calc(var(--i, 0) * 28ms); }
 .atrium-orb-photo { position: relative; width: 100%; aspect-ratio: 1; border-radius: 50%; flex-shrink: 0; box-shadow: 0 14px 30px rgba(0,0,0,.45); transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .3s, opacity .4s; }
 .atrium-orb:hover .atrium-orb-photo { transform: scale(1.04); }
 .atrium-orb.lit .atrium-orb-photo { box-shadow: 0 0 0 3px rgba(246,193,75,.5), 0 0 34px rgba(246,193,75,.2), 0 14px 30px rgba(0,0,0,.45); }
 .atrium-orb.sel .atrium-orb-photo { box-shadow: 0 0 0 3px var(--a-bg), 0 0 0 6px var(--a-text), 0 14px 30px rgba(0,0,0,.45); }
 
+.atrium-orb-open { position: absolute; inset: 0; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
 .atrium-orb-art { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--a-text) 22%, transparent) 0%, color-mix(in srgb, var(--a-text) 7%, transparent) 70%); color: color-mix(in srgb, var(--a-text) 40%, transparent); transition: filter .5s ease; }
 .atrium-orb-art.has-img { background-size: cover; background-position: center; }
 .atrium-orb-row .atrium-orb-art ha-icon { --mdc-icon-size: calc(var(--orb-size, 100px) * .28); }
@@ -53,13 +54,25 @@
    sets their text size from the tile (orbBadgeFont in orb-grid.js); each
    badge is sized in em off it. */
 .atrium-orb-photo { font-size: var(--orb-badge-font, 14px); }
-.atrium-orb-badge-lit, .atrium-orb-badge-alert { position: absolute; top: 14.6%; transform: translate(-50%, -50%); }
-.atrium-orb-badge-lit { left: 14.6%; box-sizing: border-box; height: 1.75em; display: inline-flex; align-items: center; gap: .167em; padding: 0 .667em 0 .5em; border-radius: 999px; background: #f6c14b; color: #1b1506; font-size: 1em; font-weight: 800; line-height: 1; white-space: nowrap; }
+.atrium-orb-badge { position: absolute; transform: translate(-50%, -50%); padding: 0; border: 0; font: inherit; cursor: pointer; transition: transform .15s; }
+.atrium-orb-badge:active { transform: translate(-50%, -50%) scale(.9); }
+/* Scoped one level up so it outranks the badges' own display rules. */
+.atrium-orb .atrium-orb-badge[hidden] { display: none; }
+.atrium-orb-badge.tl { left: 14.6%; top: 14.6%; }
+.atrium-orb-badge.tr { left: 85.4%; top: 14.6%; }
+.atrium-orb-badge.bl { left: 14.6%; top: 85.4%; }
+.atrium-orb-badge.br { left: 85.4%; top: 85.4%; }
+.atrium-orb-badge.dot { width: 2.167em; height: 2.167em; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.atrium-orb-badge.dot ha-icon { --mdc-icon-size: 1.167em; }
+.atrium-orb-badge-lit { box-sizing: border-box; height: 1.75em; display: inline-flex; align-items: center; gap: .167em; padding: 0 .667em 0 .5em; border-radius: 999px; background: #f6c14b; color: #1b1506; font-size: 1em; font-weight: 800; line-height: 1; white-space: nowrap; }
 .atrium-orb-badge-lit ha-icon { --mdc-icon-size: 1.083em; }
-.atrium-orb-badge-alert { left: 85.4%; width: 2.167em; height: 2.167em; border-radius: 50%; background: #ff5d5d; color: #fff; display: flex; align-items: center; justify-content: center; }
-.atrium-orb-badge-alert ha-icon { --mdc-icon-size: 1.167em; }
+.atrium-orb-badge-alert { background: #ff5d5d; color: #fff; }
 .atrium-orb-badge-alert.warn { background: #ffa94d; color: #2a1605; }
-.atrium-orb-badge-lit[hidden], .atrium-orb-badge-alert[hidden] { display: none; }
+.atrium-orb-badge-presence { background: #8cc1ff; color: #0c1a2b; }
+.atrium-orb-badge-activity.is-media { background: #c9a3ff; color: #1c1030; }
+.atrium-orb-badge-activity.is-vacuum { background: #79d99a; color: #0b2414; }
+.atrium-orb-badge-activity.is-heating { background: #ff9a6b; color: #1d0f08; }
+.atrium-orb-badge-activity.is-cooling { background: #5cc6ff; color: #04202e; }
 
 .atrium-orb-name { font-size: 13px; font-weight: 700; line-height: 1.2; text-align: center; color: var(--a-text); transition: font-size .55s var(--a-ease); }
 .atrium-orb-meta { font-size: 11px; font-weight: 600; text-align: center; color: var(--a-dim); margin-top: -6px; }
@@ -262,7 +275,7 @@ button.atrium-badge { cursor: pointer; }
   .atrium-panel-inner { width: 580px; gap: 24px; padding: 26px 28px 40px; animation: atrium-pin-in .5s .1s var(--a-ease) both; }
   .closing .atrium-panel-inner { animation: atrium-pin-out .24s ease both; }
   .atrium-panel-hero-photo { width: 72px; height: 72px; }
-  .atrium-panel-hero-photo .atrium-orb-row .atrium-orb-art ha-icon { --mdc-icon-size: calc(var(--orb-size, 100px) * .28); }
+  .atrium-panel-hero-photo .atrium-orb-art ha-icon { --mdc-icon-size: 30px; }
   .atrium-panel-hero-name { font-size: 28px; }
 }
 

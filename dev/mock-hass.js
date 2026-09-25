@@ -134,6 +134,9 @@ export function createMockHass({ onToast } = {}) {
           patchState(id, { attributes: { last_triggered: new Date().toISOString() } });
           toast(`Automation triggered · ${id}`);
           break;
+        case "media_player.media_play_pause":
+          patchState(id, { state: hass.states[id]?.state === "playing" ? "paused" : "playing" });
+          break;
         case "vacuum.start":
           patchState(id, { state: "cleaning" });
           break;

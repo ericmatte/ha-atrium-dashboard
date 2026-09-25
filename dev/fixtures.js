@@ -161,7 +161,7 @@ export function buildFixtures() {
   // temperature. Unlike the heat pump, its swatch has no mode dropdown.
   add("climate.bathroom_thermostat", "bathroom", "heat", {
     current_temperature: 19.8, temperature: 21, target_temp_step: 0.5, min_temp: 10, max_temp: 30,
-    hvac_modes: ["heat"],
+    hvac_modes: ["heat"], hvac_action: "heating",
     friendly_name: "Thermostat",
   });
 
@@ -178,11 +178,15 @@ export function buildFixtures() {
   // bathroom's — no mode dropdown, just a target temperature.
   add("climate.workshop_thermostat", "workshop", "heat", {
     current_temperature: 15.5, temperature: 18, target_temp_step: 1, min_temp: 5, max_temp: 25,
-    hvac_modes: ["heat"],
+    hvac_modes: ["heat"], hvac_action: "idle",
     friendly_name: "Thermostat",
   });
 
   // ---- Media Room (basement) -------------------------------------------------
+  // Media players feed the tiles' bottom-right "what's running" badge:
+  // the TV is playing (tap = pause), the living room speaker is paused.
+  add("media_player.media_room_tv", "media_room", "playing", { device_class: "tv", media_title: "Dune: Part Two", friendly_name: "TV" });
+  add("media_player.living_room_sonos", "living_room", "paused", { device_class: "speaker", friendly_name: "Sonos" });
   add("light.media_room_main", "media_room", "off", { supported_color_modes: ["brightness"], color_mode: "brightness" });
   add("light.media_room_accent", "media_room", "on", { supported_color_modes: ["rgb"], color_mode: "rgb", rgb_color: [90, 140, 255], brightness: 77 }, { icon: "mdi:led-strip-variant" });
   add("switch.media_room_projector", "media_room", "off", {});

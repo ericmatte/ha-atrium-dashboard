@@ -17,6 +17,7 @@ export function emptyAreaData() {
     doors: [],
     climates: [],
     vacuums: [],
+    mediaPlayers: [],
     scenes: [],
     buttons: [],
     inputSelects: [],
@@ -63,6 +64,7 @@ export function classifyAreaEntities(hass, area, entities) {
     else if (domain === "cover") out.covers.push(e);
     else if (domain === "climate") out.climates.push(e);
     else if (domain === "vacuum") out.vacuums.push(e);
+    else if (domain === "media_player") out.mediaPlayers.push(e);
     else if (domain === "scene") out.scenes.push(e);
     // Devices expose config/diagnostic buttons ("Restart", "Identify") that
     // would drown the room panel — only surface primary ones, like switches.
@@ -124,20 +126,52 @@ export function classifyAreaEntities(hass, area, entities) {
 // active leak or "problem" binary_sensor, an unavailable entity in a domain
 // where that's actually meaningful (mirrors the header's own
 // PROBLEM_UNAVAILABLE_DOMAINS notion of "worth flagging"), or an open door.
-// Returns the most serious one as { icon, label, tone }, or null — tone
-// "alert" (red) for things that are wrong, "warn" (orange) for an opening.
+// Returns the most serious one as { icon, label, tone, entityId }, or null —
+// tone "alert" (red) for things that are wrong, "warn" (orange) for an
+// opening; entityId is what tapping the dot opens.
 const ALERT_UNAVAILABLE_DOMAINS = new Set(["light", "switch", "cover", "climate", "vacuum"]);
 const OPEN_LABEL = { window: "Window open", garage_door: "Garage open" };
 export function areaAlert(hass, data) {
   const st = (e) => hass.states?.[e.entity_id];
   const isOn = (e) => st(e)?.state === "on";
-  if (data.sensors.leak.some(isOn)) return { icon: "mdi:water-alert", label: "Leak!", tone: "alert" };
-  const problemLike = [...data.sensors.other, ...data.doors];
-  if (problemLike.some((e) => isOn(e) && st(e).attributes?.device_class === "problem")) return { icon: "mdi:alert", label: "Problem", tone: "alert" };
+  const found = (e, alert) => (e ? { ...alert, entityId: e.entity_id } : null);
+  const leak = data.sensors.leak.find(isOn);
+  if (leak) return found(leak, { icon: "mdi:water-alert", label: "Leak!", tone: "alert" });
+  const problem = [...data.sensors.other, ...data.doors].find((e) => isOn(e) && st(e).attributes?.device_class === "problem");
+  if (problem) return found(problem, { icon: "mdi:alert", label: "Problem", tone: "alert" });
   const controllable = [...data.lights, ...data.switches, ...data.covers, ...data.climates, ...data.vacuums];
-  if (controllable.some((e) => ALERT_UNAVAILABLE_DOMAINS.has(e.entity_id.split(".")[0]) && st(e)?.state === "unavailable")) return { icon: "mdi:alert", label: "Unavailable", tone: "alert" };
+  const down = controllable.find((e) => ALERT_UNAVAILABLE_DOMAINS.has(e.entity_id.split(".")[0]) && st(e)?.state === "unavailable");
+  if (down) return found(down, { icon: "mdi:alert", label: "Unavailable", tone: "alert" });
   const open = data.doors.find(isOn);
-  if (open) return { icon: "mdi:door-open", label: OPEN_LABEL[st(open).attributes?.device_class] || "Door open", tone: "warn" };
+  if (open) return found(open, { icon: "mdi:door-open", label: OPEN_LABEL[st(open).attributes?.device_class] || "Door open", tone: "warn" });
+  return null;
+}
+
+// Someone is in the room right now: the first motion/occupancy/presence
+// sensor that's on, or null.
+export function areaPresence(hass, data) {
+  const e = data.sensors.motion.find((m) => hass.states?.[m.entity_id]?.state === "on");
+  return e ? { icon: "mdi:walk", entityId: e.entity_id } : null;
+}
+
+// The one thing actively running in the room, by priority: media playing,
+// then a vacuum cleaning, then climate actually heating or cooling (not
+// merely switched on). `action` is what tapping it does.
+const TV_DEVICE_CLASSES = new Set(["tv", "receiver"]);
+export function areaActivity(hass, data) {
+  const st = (e) => hass.states?.[e.entity_id];
+  const media = data.mediaPlayers.find((e) => st(e)?.state === "playing");
+  if (media) {
+    const isTv = TV_DEVICE_CLASSES.has(st(media).attributes?.device_class);
+    return { kind: "media", icon: isTv ? "mdi:television-play" : "mdi:music", entityId: media.entity_id, action: ["media_player", "media_play_pause"] };
+  }
+  const vacuum = data.vacuums.find((e) => st(e)?.state === "cleaning");
+  if (vacuum) return { kind: "vacuum", icon: "mdi:robot-vacuum", entityId: vacuum.entity_id, action: ["vacuum", "pause"] };
+  for (const e of data.climates) {
+    const action = st(e)?.attributes?.hvac_action;
+    if (action === "heating") return { kind: "heating", icon: "mdi:fire", entityId: e.entity_id, action: null };
+    if (action === "cooling") return { kind: "cooling", icon: "mdi:snowflake", entityId: e.entity_id, action: null };
+  }
   return null;
 }
 
@@ -198,6 +232,7 @@ export function areaIsEmpty(d) {
     d.doors.length === 0 &&
     d.climates.length === 0 &&
     d.vacuums.length === 0 &&
+    d.mediaPlayers.length === 0 &&
     d.scenes.length === 0 &&
     d.buttons.length === 0 &&
     d.inputSelects.length === 0 &&
