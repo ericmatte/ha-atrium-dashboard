@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "../../tools/register.mjs";
 
-const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _updateAutomationRef, _renderAutomationLabels, divaVisual, climateView, mediaView, fanModeIcon, swingModeIcon, noteScroll } = await import("./area-card-updaters.js");
+const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _updateAutomationRef, _renderAutomationLabels, divaVisual, climateView, mediaView, fanModeIcon, swingModeIcon, noteScroll, coverVisual, coverLevelFromPointer } = await import("./area-card-updaters.js");
 
 // Minimal fakes for the DOM surface _bindDivaTrack/_updateDivaRef touch.
 // Pointer event listeners are captured directly so tests can invoke them
@@ -30,7 +30,7 @@ function makeTrack() {
     setPointerCapture() {},
     releasePointerCapture() {},
     setAttribute() {},
-    getBoundingClientRect: () => ({ bottom: 146, height: 146 }),
+    getBoundingClientRect: () => ({ top: 0, bottom: 146, height: 146 }),
   };
 }
 
@@ -45,6 +45,8 @@ function makeDivaRef() {
     pctTop: makeStyleEl(),
     pctBottom: makeStyleEl(),
     thumb: { style: {}, classList: makeClassList() },
+    bar: makeStyleEl(),
+    coverLabel: makeStyleEl(),
     name: { textContent: "Fan" },
     ago: { textContent: "", innerHTML: "", classList: makeClassList(), querySelector() { return this.innerHTML.includes("ha-icon") ? {} : null; } },
   };
@@ -138,8 +140,8 @@ test("cover track: dragging to the very top commits open_cover rather than a 100
 
     _bindDivaTrack.call(ctx, ref, entityId, "cover");
     ref.track.handlers.pointerdown({ clientY: 100, pointerId: 1 });
-    win.listeners.pointermove({ clientY: 23, pointerId: 1 }); // 100% up the track
-    win.listeners.pointerup({ clientY: 23, pointerId: 1 });
+    win.listeners.pointermove({ clientY: 0, pointerId: 1 }); // the very top of the track
+    win.listeners.pointerup({ clientY: 0, pointerId: 1 });
 
     assert.deepEqual(ctx.calls, [["cover", "open_cover", { entity_id: entityId }]]);
   });
@@ -590,4 +592,32 @@ test("touch: while the page is still scrolling, a touch neither drags nor toggle
 test("climateView: the status shown is the device's hvac_action, when it reports one", () => {
   assert.equal(climateView({ state: "heat", attributes: { current_temperature: 20, hvac_action: "heating", hvac_modes: ["heat"] } }).now, "Now 20° · heating");
   assert.equal(climateView({ state: "off", attributes: { current_temperature: 20, hvac_modes: ["off", "heat"] } }).now, "Now 20°");
+});
+
+test("coverVisual: the shade comes down as the cover closes; the label says Closed or the open %", () => {
+  assert.deepEqual(coverVisual(0), { shadeHeight: "calc((100% - 20px) * 1.000)", barTop: "max(6px, calc((100% - 20px) * 1.000 - 6px))", label: "Closed" });
+  assert.equal(coverVisual(40).shadeHeight, "calc((100% - 20px) * 0.600)");
+  assert.equal(coverVisual(40).label, "40%");
+  assert.equal(coverVisual(100).shadeHeight, "calc((100% - 20px) * 0.000)");
+  assert.equal(coverVisual(100).label, "100%");
+});
+
+test("coverLevelFromPointer: top of the track = open, top of the label strip = closed", () => {
+  const rect = { top: 0, height: 120 };
+  assert.equal(coverLevelFromPointer(0, rect), 100);
+  assert.equal(coverLevelFromPointer(50, rect), 50);
+  assert.equal(coverLevelFromPointer(100, rect), 0);
+  assert.equal(coverLevelFromPointer(118, rect), 0);
+});
+
+test("cover track: pulling the bar down past the middle sets a partial position", () => {
+  withWindow((win) => {
+    const ref = makeDivaRef();
+    const ctx = makeContext({ "cover.blind": { state: "open", attributes: { current_position: 100 } } });
+    _bindDivaTrack.call(ctx, ref, "cover.blind", "cover");
+    ref.track.handlers.pointerdown({ clientY: 10, pointerId: 1 });
+    win.listeners.pointermove({ clientY: 63, pointerId: 1 }); // half of the 126px travel
+    win.listeners.pointerup({ clientY: 63, pointerId: 1 });
+    assert.deepEqual(ctx.calls, [["cover", "set_cover_position", { entity_id: "cover.blind", position: 50 }]]);
+  });
 });
