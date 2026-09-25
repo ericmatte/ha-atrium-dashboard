@@ -202,22 +202,22 @@ button.atrium-badge { cursor: pointer; }
 .atrium-climate.off .atrium-climate-dd, .atrium-climate.off .atrium-climate-mid { opacity: .45; }
 .atrium-climate.off .atrium-climate-target { color: var(--a-dim); }
 
-/* Media: one card per player — artwork, what's playing and a power button,
-   then transport controls and volume. Purple like the tile's media badge. */
+/* Media: one card per player — artwork, what's playing (truncated to fit),
+   transport controls and power on one line, volume below. Purple like the tile's media badge. */
 .atrium-media-list { display: flex; flex-direction: column; gap: 8px; }
-.atrium-media { --m-accent: #c9a3ff; display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; grid-template-areas: "art info power" "controls controls controls" "volume volume volume"; align-items: center; gap: 10px 12px; padding: 12px 14px; border-radius: 18px; background: linear-gradient(135deg, color-mix(in srgb, var(--m-accent) 11%, var(--a-panel)), var(--a-surface) 70%); }
+.atrium-media { --m-accent: #c9a3ff; display: grid; grid-template-columns: 56px minmax(0, 1fr) auto auto; grid-template-areas: "art info controls power" "volume volume volume volume"; align-items: center; gap: 10px 12px; padding: 12px 14px; border-radius: 18px; background: linear-gradient(135deg, color-mix(in srgb, var(--m-accent) 11%, var(--a-panel)), var(--a-surface) 70%); }
 .atrium-media-art { grid-area: art; width: 56px; height: 56px; border-radius: 12px; background: var(--a-knob) center / cover no-repeat; color: var(--a-dim); display: flex; align-items: center; justify-content: center; }
 .atrium-media-art.has-img ha-icon { display: none; }
 .atrium-media-info { grid-area: info; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 0; border: 0; border-radius: 8px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.atrium-media-name { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--a-dim); }
+.atrium-media-name { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--a-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .atrium-media-title { font-size: 15px; font-weight: 800; color: var(--a-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .atrium-media-sub { font-size: 13px; font-weight: 600; color: color-mix(in srgb, var(--a-text) 70%, transparent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .atrium-media-power { grid-area: power; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 12px; background: var(--a-knob); color: var(--a-dim); display: flex; align-items: center; justify-content: center; cursor: pointer; --mdc-icon-size: 16px; }
 .atrium-media:not(.off) .atrium-media-power { background: var(--m-accent); color: #1c1030; }
-.atrium-media-controls { grid-area: controls; display: flex; align-items: center; justify-content: center; gap: 18px; }
-.atrium-media-btn { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: var(--a-knob); color: var(--a-text); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform .15s; }
+.atrium-media-controls { grid-area: controls; display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.atrium-media-btn { width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: var(--a-knob); color: var(--a-text); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform .15s; }
 .atrium-media-btn:active { transform: scale(.92); }
-.atrium-media-btn.play { width: 48px; height: 48px; background: var(--m-accent); color: #1c1030; }
+.atrium-media-btn.play { width: 44px; height: 44px; background: var(--m-accent); color: #1c1030; }
 .atrium-media-volume { grid-area: volume; display: flex; align-items: center; gap: 10px; }
 .atrium-media-mute { flex-shrink: 0; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--a-dim); display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .atrium-media-slider { flex: 1; min-width: 0; height: 24px; margin: 0; background: none; cursor: pointer; -webkit-appearance: none; appearance: none; }
