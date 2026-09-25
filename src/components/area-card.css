@@ -308,7 +308,9 @@ button.atrium-badge { cursor: pointer; }
   .closing .atrium-rooms-content { opacity: .5; transition: opacity .25s; }
   .has-sel .atrium-floor-group { gap: 8px; flex-shrink: 0; }
   .has-sel .atrium-floor-group + .atrium-floor-group { padding-left: 14px; border-left: 1px solid color-mix(in srgb, var(--a-text) 10%, transparent); }
-  .has-sel .atrium-floor-label { min-height: 0; gap: 6px; }
+  /* While its floor scrolls by in the strip, the floor's name stays pinned
+     to the strip's left edge (until the floor itself scrolls out). */
+  .has-sel .atrium-floor-label { min-height: 0; gap: 6px; position: sticky; left: 0; align-self: flex-start; }
   .has-sel .atrium-floor-label > ha-icon { --mdc-icon-size: 13px; }
   .has-sel .atrium-floor-name { font-size: 11px; }
   .has-sel .atrium-floor-toggle { display: none; }
