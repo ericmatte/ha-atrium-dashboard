@@ -38,6 +38,7 @@ const PCT_SWAP_TO = 60;
 export const FLASH_MS = 1400;
 
 const SWITCH_COLOR = "#79d99a";
+const TOGGLE_COLOR = "#8cc1ff";
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const alpha = (color, pct) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
@@ -49,6 +50,7 @@ function isDimmableFor(kind, st) {
 function accentFor(kind, st) {
   if (kind === "cover") return TONE.curtain;
   if (kind === "switch") return SWITCH_COLOR;
+  if (kind === "input_boolean") return TOGGLE_COLOR;
   const rgb = lightRgbTriple(st);
   return rgb ? `rgb(${rgb[0]},${rgb[1]},${rgb[2]})` : TONE.light;
 }
@@ -107,8 +109,8 @@ export function _toggleEntity(entityId, kind, wantOn) {
     if (!wantOn) this._call("light", "turn_off", { entity_id: entityId });
     else if (canDimLight(this._hass.states?.[entityId])) this._call("light", "turn_on", { entity_id: entityId, brightness_pct: 100 });
     else this._call("light", "turn_on", { entity_id: entityId });
-  } else if (kind === "switch") {
-    this._call("switch", wantOn ? "turn_on" : "turn_off", { entity_id: entityId });
+  } else if (kind === "switch" || kind === "input_boolean") {
+    this._call(kind, wantOn ? "turn_on" : "turn_off", { entity_id: entityId });
   } else if (kind === "cover") {
     this._call("cover", wantOn ? "open_cover" : "close_cover", { entity_id: entityId });
   }

@@ -478,3 +478,11 @@ test("climateView: each dropdown knows the icon of every option and of its curre
   assert.equal(fan.icon, "mdi:fan-speed-1");
   assert.equal(swing.icon, "mdi:arrow-oscillating-off");
 });
+
+test("_toggleEntity: an input_boolean uses its own turn_on/turn_off services", () => {
+  const calls = [];
+  const ctx = { _hass: { states: {} }, _call: (...a) => calls.push(a) };
+  _toggleEntity.call(ctx, "input_boolean.guest", "input_boolean", true);
+  _toggleEntity.call(ctx, "input_boolean.guest", "input_boolean", false);
+  assert.deepEqual(calls, [["input_boolean", "turn_on", { entity_id: "input_boolean.guest" }], ["input_boolean", "turn_off", { entity_id: "input_boolean.guest" }]]);
+});

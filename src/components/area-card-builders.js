@@ -21,8 +21,8 @@ export function _buildRoomSections(area, data) {
 
   if (data.scenes.length || data.buttons.length) sections.push(this._buildPillsSection(area, data.scenes, data.buttons, data.lights));
 
-  if (data.lights.length || data.switches.length || data.covers.length) {
-    sections.push(this._buildDeviceGroupsRow(area, data.lights, data.switches, data.covers, data.deviceSensors));
+  if (data.lights.length || data.switches.length || data.covers.length || data.inputBooleans.length) {
+    sections.push(this._buildDeviceGroupsRow(area, data));
   }
   if (data.inputSelects.length) sections.push(this._buildInputSelectsSection(area, data.inputSelects));
 
@@ -252,10 +252,10 @@ export function _buildMediaCard(area, player) {
   return card;
 }
 
-// Lights, switches and covers sit side by side as independently headed
-// groups in one wrapping row rather than stacked sections — a room's
+// Lights, switches, covers and toggle helpers sit side by side as
+// independently headed groups in one wrapping row rather than stacked sections — a room's
 // dimmers, plain on/off devices and blinds read as one glance.
-export function _buildDeviceGroupsRow(area, lights, switches, covers, deviceSensors) {
+export function _buildDeviceGroupsRow(area, { lights, switches, covers, inputBooleans, deviceSensors }) {
   const row = document.createElement("div");
   row.className = "atrium-groups-row";
   const group = (title, action, grid) => {
@@ -269,6 +269,7 @@ export function _buildDeviceGroupsRow(area, lights, switches, covers, deviceSens
     group("Lights", lights.length > 1 ? this._bulkButton(() => this._toggleAllLights(lights), () => (anyOn() ? "All off" : "All on")) : null, this._divaGrid(area, lights, "light", deviceSensors));
   }
   if (switches.length) group("Devices", null, this._divaGrid(area, switches, "switch", deviceSensors));
+  if (inputBooleans.length) group("Toggles", null, this._divaGrid(area, inputBooleans, "input_boolean"));
   if (covers.length) {
     const anyOpen = () => covers.some((c) => fmtCoverPct(this._hass.states?.[c.entity_id] || { attributes: {} }) > 5);
     group("Covers", covers.length > 1 ? this._bulkButton(() => this._toggleAllCovers(covers), () => (anyOpen() ? "Close all" : "Open all")) : null, this._divaGrid(area, covers, "cover"));
@@ -302,6 +303,7 @@ const DIVA_KIND = {
   light: { icon: ICONS.bulb, refKey: "lights" },
   switch: { icon: ICONS.toggle, refKey: "switches" },
   cover: { icon: "mdi:blinds-horizontal", refKey: "covers" },
+  input_boolean: { icon: "mdi:toggle-switch-outline", refKey: "switches" },
 };
 
 export function _divaGrid(area, entities, kind, deviceSensors) {

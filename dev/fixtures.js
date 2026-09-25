@@ -204,6 +204,9 @@ export function buildFixtures() {
   add("automation.garden_sunset_lights", "garden", "on", { icon: "mdi:weather-sunset", last_triggered: isoMinutesAgo(60 * 6), friendly_name: "Sunset lights" });
   add("automation.garden_sprinkler_schedule", "garden", "off", { icon: "mdi:sprinkler", last_triggered: isoDaysAgo(3), friendly_name: "Sprinkler schedule" });
   add("sensor.garden_temperature", "garden", "15.2", { device_class: "temperature", unit_of_measurement: "°C", friendly_name: "Temperature" });
+  // Toggle helpers assigned to an area show as on/off tiles in its panel.
+  add("input_boolean.garden_summer_mode", "garden", "off", { icon: "mdi:weather-sunny", friendly_name: "Summer mode" });
+  add("input_boolean.garden_guest_mode", "garden", "on", { icon: "mdi:account-multiple", friendly_name: "Guest mode" });
   add("sensor.garden_soil_moisture", "garden", "38", { device_class: "moisture", unit_of_measurement: "%", friendly_name: "Basil soil moisture" });
 
   // ---- Garage (orphan / "Other") -----------------------------------------

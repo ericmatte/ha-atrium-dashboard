@@ -280,3 +280,10 @@ test("levelTone: red when nearly empty, amber when low, green otherwise", () => 
   assert.equal(levelTone(31), "warn");
   assert.equal(levelTone(64), "good");
 });
+
+test("classifyAreaEntities: input_boolean helpers are collected for the panel", () => {
+  const hass = { states: { "input_boolean.guest": { state: "on", attributes: {} } }, entities: {}, devices: {} };
+  const out = classifyAreaEntities(hass, { area_id: "o" }, [{ entity_id: "input_boolean.guest" }]);
+  assert.deepEqual(out.inputBooleans.map((e) => e.entity_id), ["input_boolean.guest"]);
+  assert.equal(areaIsEmpty(out), false);
+});

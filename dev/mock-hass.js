@@ -85,6 +85,12 @@ export function createMockHass({ onToast } = {}) {
         case "switch.turn_off":
           patchState(id, { state: "off" });
           break;
+        case "input_boolean.turn_on":
+          patchState(id, { state: "on" });
+          break;
+        case "input_boolean.turn_off":
+          patchState(id, { state: "off" });
+          break;
         case "switch.turn_on":
           patchState(id, { state: "on" });
           break;
