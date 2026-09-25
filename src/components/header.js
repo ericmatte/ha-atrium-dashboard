@@ -352,7 +352,6 @@ class AtriumHeader extends HTMLElement {
     }
     const dot = document.createElement("span");
     dot.className = "atrium-shell-avatar-dot";
-    dot.innerHTML = haIcon("mdi:home");
     avatar.appendChild(dot);
 
     btn.append(avatar);

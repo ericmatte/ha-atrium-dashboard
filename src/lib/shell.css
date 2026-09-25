@@ -65,25 +65,16 @@
   background-size: cover; background-position: center;
   position: relative; flex-shrink: 0;
 }
+/* Presence dot: one size, green when home, gray otherwise (away or in
+   another zone — the tooltip/more-info says where). */
 .atrium-shell-person .atrium-shell-avatar-dot {
-  position: absolute; right: -3px; bottom: -3px;
-  width: 11px; height: 11px; border-radius: 50%;
+  position: absolute; right: -2px; bottom: -2px;
+  width: 12px; height: 12px; border-radius: 50%;
   border: 2px solid var(--primary-background-color, #0e0f12);
-  background: color-mix(in srgb, var(--secondary-text-color, #9aa0aa) 70%, transparent);
+  background: color-mix(in srgb, var(--secondary-text-color, #9aa0aa) 70%, var(--primary-background-color, #0e0f12));
   box-sizing: content-box;
-  display: inline-flex; align-items: center; justify-content: center; color: #fff;
 }
-.atrium-shell-person .atrium-shell-avatar-dot ha-icon {
-  display: none;
-  --mdc-icon-size: 12px;
-}
-.atrium-shell-person.is-home .atrium-shell-avatar-dot {
-  width: 16px; height: 16px;
-  background: var(--success-color, #7dc97a);
-}
-.atrium-shell-person.is-home .atrium-shell-avatar-dot ha-icon { display: inline-flex; }
-.atrium-shell-person.is-away .atrium-shell-avatar-dot { background: color-mix(in srgb, var(--secondary-text-color, #9aa0aa) 70%, transparent); }
-.atrium-shell-person.is-zone .atrium-shell-avatar-dot { background: var(--state-climate-cool-color, #5cc6ff); }
+.atrium-shell-person.is-home .atrium-shell-avatar-dot { background: var(--success-color, #7dc97a); }
 
 /* Desktop: line the greeting up with the room grid's gutter (80px, 40px
    while a room is open) and keep it clear of the rooms view's fixed side
