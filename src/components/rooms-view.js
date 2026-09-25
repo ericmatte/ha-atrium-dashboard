@@ -14,7 +14,8 @@ import {
   hiddenRoutinesForArea,
   classifyAreaEntities,
   areaIsEmpty,
-  areaAlertIcon,
+  areaAlert,
+  areaMetaLine,
   areaPanelSignature,
 } from "../lib/area-data.js";
 import * as buildersMod from "./area-card-builders.js";
@@ -382,22 +383,22 @@ class AtriumRooms extends HTMLElement {
       ref.litBadge.dataset.count = String(lightsOn);
       ref.litBadge.innerHTML = `${haIcon("mdi:lightbulb-outline", 13)}${lightsOn}`;
     }
-    const alertIcon = areaAlertIcon(this._hass, data);
-    ref.alertBadge.hidden = !alertIcon;
-    if (alertIcon && ref.alertBadge.dataset.icon !== alertIcon) {
-      ref.alertBadge.dataset.icon = alertIcon;
-      ref.alertBadge.innerHTML = haIcon(alertIcon, 14);
+    const alert = areaAlert(this._hass, data);
+    ref.alertBadge.hidden = !alert;
+    if (alert && ref.alertBadge.dataset.icon !== alert.icon) {
+      ref.alertBadge.dataset.icon = alert.icon;
+      ref.alertBadge.innerHTML = haIcon(alert.icon, 14);
     }
-    ref.meta.textContent = this._areaMeta(area, data) || " ";
+    ref.meta.textContent = this._areaMeta(area, data, alert) || "\u00a0";
   }
 
-  _areaMeta(area, data) {
+  _areaMeta(area, data, alert) {
     const tempSt = data.sensors.temp && this._hass.states?.[data.sensors.temp.entity_id];
     const climate = data.climates[0] && this._hass.states?.[data.climates[0].entity_id];
     const temp = tempSt && tempSt.state !== "unavailable" ? parseFloat(tempSt.state) : climate?.attributes?.current_temperature;
     const humidSt = data.sensors.humid && this._hass.states?.[data.sensors.humid.entity_id];
     const humid = humidSt && humidSt.state !== "unavailable" ? Math.round(parseFloat(humidSt.state)) : null;
-    return [temp != null ? `${temp.toFixed(1)}°` : null, humid != null ? `${humid}%` : null].filter(Boolean).join(" · ");
+    return areaMetaLine({ temp: Number.isFinite(temp) ? temp : null, humid: Number.isFinite(humid) ? humid : null, alert: alert?.label });
   }
 
   _buildHero(area, data) {

@@ -5,8 +5,9 @@
 
 const clamp = (min, v, max) => Math.max(min, Math.min(max, v));
 
-// Past this a photo stops being a tile and starts being a poster.
-export const MAX_ORB_SIZE = 320;
+// Past this a photo stops being a tile and starts being a poster; the row
+// then simply ends short of the right edge.
+export const MAX_ORB_SIZE = 175;
 
 export function orbGrid(width, maxAreasPerFloor) {
   const gap = Math.round(clamp(18, width * 0.035, 48));

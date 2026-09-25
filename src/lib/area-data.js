@@ -120,21 +120,34 @@ export function classifyAreaEntities(hass, area, entities) {
   return out;
 }
 
-// Drives the orb's red alert dot: any active leak or "problem"
-// binary_sensor, an open door, or an unavailable entity in a domain where
-// that's actually meaningful (mirrors the header's own
-// PROBLEM_UNAVAILABLE_DOMAINS notion of "worth flagging"). Returns the icon
-// for the most serious one so the dot says what's wrong, or null.
+// Drives the orb's red alert dot and the alert text under the tile: any
+// active leak or "problem" binary_sensor, an unavailable entity in a domain
+// where that's actually meaningful (mirrors the header's own
+// PROBLEM_UNAVAILABLE_DOMAINS notion of "worth flagging"), or an open door.
+// Returns the most serious one as { icon, label }, or null.
 const ALERT_UNAVAILABLE_DOMAINS = new Set(["light", "switch", "cover", "climate", "vacuum"]);
-export function areaAlertIcon(hass, data) {
-  const isOn = (e) => hass.states?.[e.entity_id]?.state === "on";
-  if (data.sensors.leak.some(isOn)) return "mdi:water-alert";
+const OPEN_LABEL = { window: "Window open", garage_door: "Garage open" };
+export function areaAlert(hass, data) {
+  const st = (e) => hass.states?.[e.entity_id];
+  const isOn = (e) => st(e)?.state === "on";
+  if (data.sensors.leak.some(isOn)) return { icon: "mdi:water-alert", label: "Leak!" };
   const problemLike = [...data.sensors.other, ...data.doors];
-  if (problemLike.some((e) => isOn(e) && hass.states[e.entity_id].attributes?.device_class === "problem")) return "mdi:alert";
+  if (problemLike.some((e) => isOn(e) && st(e).attributes?.device_class === "problem")) return { icon: "mdi:alert", label: "Problem" };
   const controllable = [...data.lights, ...data.switches, ...data.covers, ...data.climates, ...data.vacuums];
-  if (controllable.some((e) => ALERT_UNAVAILABLE_DOMAINS.has(e.entity_id.split(".")[0]) && hass.states?.[e.entity_id]?.state === "unavailable")) return "mdi:alert";
-  if (data.doors.some(isOn)) return "mdi:door-open";
+  if (controllable.some((e) => ALERT_UNAVAILABLE_DOMAINS.has(e.entity_id.split(".")[0]) && st(e)?.state === "unavailable")) return { icon: "mdi:alert", label: "Unavailable" };
+  const open = data.doors.find(isOn);
+  if (open) return { icon: "mdi:door-open", label: OPEN_LABEL[st(open).attributes?.device_class] || "Door open" };
   return null;
+}
+
+export function areaAlertIcon(hass, data) {
+  return areaAlert(hass, data)?.icon ?? null;
+}
+
+// The line under an area's tile. An alert replaces the humidity: it's what
+// matters right now, and the line stays one short glance.
+export function areaMetaLine({ temp, humid, alert }) {
+  return [temp != null ? `${temp.toFixed(1)}°` : null, alert ?? (humid != null ? `${humid}%` : null)].filter(Boolean).join(" · ");
 }
 
 export function areaHasAlert(hass, data) {

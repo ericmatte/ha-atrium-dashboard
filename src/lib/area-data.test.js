@@ -8,6 +8,8 @@ import {
   areaIsEmpty,
   areaHasAlert,
   areaAlertIcon,
+  areaAlert,
+  areaMetaLine,
   sensorTone,
   areaPanelSignature,
 } from "./area-data.js";
@@ -156,4 +158,21 @@ test("areaPanelSignature: stable across state changes, changes when an entity is
   assert.equal(areaPanelSignature(area, data), before);
   data.switches.push({ entity_id: "switch.coffee" });
   assert.notEqual(areaPanelSignature(area, data), before);
+});
+
+test("areaAlert: names what's wrong for the text under the tile", () => {
+  const data = emptyAreaData();
+  data.doors.push({ entity_id: "binary_sensor.patio" });
+  const hass = { states: { "binary_sensor.patio": { state: "on", attributes: { device_class: "window" } } } };
+  assert.deepEqual(areaAlert(hass, data), { icon: "mdi:door-open", label: "Window open" });
+  hass.states["binary_sensor.patio"].attributes.device_class = "door";
+  assert.equal(areaAlert(hass, data).label, "Door open");
+});
+
+test("areaMetaLine: temperature · humidity normally; an alert takes humidity's place", () => {
+  assert.equal(areaMetaLine({ temp: 23.1, humid: 46 }), "23.1° · 46%");
+  assert.equal(areaMetaLine({ temp: 23.1, humid: 46, alert: "Leak!" }), "23.1° · Leak!");
+  assert.equal(areaMetaLine({ alert: "Door open" }), "Door open");
+  assert.equal(areaMetaLine({ humid: 68 }), "68%");
+  assert.equal(areaMetaLine({}), "");
 });

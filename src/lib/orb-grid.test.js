@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import { orbGrid, MAX_ORB_SIZE } from "./orb-grid.js";
 
 test("orbGrid: never more columns than the busiest floor has areas, so rows end flush", () => {
-  const { cols, gap, size } = orbGrid(780, 4);
+  const { cols, gap, size } = orbGrid(640, 4);
   assert.equal(cols, 4);
-  assert.equal(size * cols + gap * (cols - 1) <= 780, true);
-  assert.equal(780 - (size * cols + gap * (cols - 1)) < cols, true);
+  assert.equal(size * cols + gap * (cols - 1) <= 640, true);
+  assert.equal(640 - (size * cols + gap * (cols - 1)) < cols, true);
 });
 
 test("orbGrid: a narrow phone fits three tiles at the minimum size", () => {
@@ -14,10 +14,10 @@ test("orbGrid: a narrow phone fits three tiles at the minimum size", () => {
 });
 
 test("orbGrid: tiles grow with the width but stop at the maximum size", () => {
-  const small = orbGrid(600, 4);
-  const big = orbGrid(1280, 4);
+  const small = orbGrid(400, 4);
+  const big = orbGrid(700, 4);
   assert.ok(big.size > small.size);
-  assert.equal(orbGrid(1600, 2).size, MAX_ORB_SIZE);
+  assert.equal(orbGrid(1280, 4).size, MAX_ORB_SIZE);
 });
 
 test("orbGrid: gaps scale with the width between 18 and 48px", () => {
