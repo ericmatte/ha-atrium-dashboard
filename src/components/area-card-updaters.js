@@ -34,6 +34,26 @@ const FLICK_MS = 450;
 // levels, crossfading in between so it's never covered by the icon.
 const PCT_SWAP_FROM = 40;
 const PCT_SWAP_TO = 60;
+// Touch: the tiles are vertical sliders on a vertically scrolling page, so
+// a touch first has to say which it is. A finger that moves off within the
+// first TOUCH_INTENT_MS is a scroll (the browser takes it); one that stays
+// put that long and then moves is a drag. While the page is still scrolling
+// (momentum, a swipe that just ended) a touch only stops/continues the
+// scroll: no drag, no toggle. Mice drag right away.
+const TOUCH_INTENT_MS = 100;
+const SCROLL_SLOP = 6;
+const RECENT_SCROLL_MS = 300;
+let lastScrollAt = -Infinity;
+export function noteScroll(timeStamp) {
+  lastScrollAt = timeStamp;
+}
+let watchingScroll = false;
+function watchScroll() {
+  if (watchingScroll || typeof document === "undefined" || !document.addEventListener) return;
+  watchingScroll = true;
+  document.addEventListener("scroll", (e) => noteScroll(e.timeStamp), { capture: true, passive: true });
+}
+
 // Kept in sync with the `.flash` state in area-card.css.
 export const FLASH_MS = 1400;
 
@@ -169,23 +189,50 @@ export function _bindDivaTrack(ref, entityId, kind) {
     this._toggleEntity(entityId, kind, !onOffAndLevel(kind, st).on);
   });
 
+  watchScroll();
   track.addEventListener("pointerdown", (e) => {
     // A tap or drag shouldn't leave the tile focused (and ringed like a
     // keyboard focus); Tab still reaches it.
     e.preventDefault?.();
     const st = this._hass.states?.[entityId];
     if (!st || st.state === "unavailable") return;
+    const touch = e.pointerType === "touch";
+    const t0 = e.timeStamp ?? 0;
+    // Mid-scroll: this touch belongs to the scroll.
+    if (touch && t0 - lastScrollAt < RECENT_SCROLL_MS) return;
     const { on, level, dimmable } = onOffAndLevel(kind, st);
     const startFrac = on ? (dimmable ? level / 100 : 1) : 0;
     const rect = track.getBoundingClientRect();
     try { track.setPointerCapture(e.pointerId); } catch (_) {}
 
-    const drag = { pointerId: e.pointerId, y: e.clientY, startFrac, dimmable, held: false, notch: null, rect, flickTimer: 0 };
+    const drag = { pointerId: e.pointerId, y: e.clientY, startFrac, dimmable, held: false, notch: null, rect, flickTimer: 0, intent: touch ? "pending" : "drag" };
     const usable = rect.height - THUMB - PAD * 2;
     const fracFromPointer = (clientY) => clamp01((rect.bottom - clientY - PAD - THUMB / 2) / usable);
 
+    const decideIntent = (timeStamp, clientY) => {
+      if (drag.intent !== "pending") return;
+      const moved = Math.abs(clientY - drag.y);
+      if (timeStamp - t0 < TOUCH_INTENT_MS) {
+        if (moved > SCROLL_SLOP) drag.intent = "scroll";
+      } else {
+        drag.intent = "drag";
+        vibrate(6);
+      }
+    };
+    // Once it's a drag, keep the page from scrolling for the rest of the
+    // gesture (touch-action: pan-y leaves scrolling to the browser until then).
+    const onTouchMove = (te) => {
+      const t = te.touches?.[0];
+      if (t) decideIntent(te.timeStamp, t.clientY);
+      if (drag.intent === "drag") te.preventDefault();
+    };
+    if (touch) track.addEventListener("touchmove", onTouchMove, { passive: false });
+
     const onMove = (ev) => {
       if (ev.pointerId !== drag.pointerId) return;
+      decideIntent(ev.timeStamp ?? 0, ev.clientY);
+      if (drag.intent === "scroll") return finish(ev, false);
+      if (drag.intent !== "drag") return;
       if (!drag.held) {
         if (Math.abs(ev.clientY - drag.y) <= DRAG_SLOP) return;
         drag.held = true;
@@ -218,6 +265,7 @@ export function _bindDivaTrack(ref, entityId, kind) {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onCancel);
+      track.removeEventListener?.("touchmove", onTouchMove);
       try { track.releasePointerCapture(drag.pointerId); } catch (_) {}
       clearTimeout(drag.flickTimer);
       track.classList.remove("flick", "dragging");

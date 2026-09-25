@@ -156,7 +156,7 @@ button.atrium-badge { cursor: pointer; }
    track clips an unrounded fill — shape lives on the track, never the fill. */
 .atrium-diva-grid { display: flex; flex-wrap: wrap; gap: 14px 10px; }
 .atrium-diva { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 72px; }
-.atrium-diva-track { position: relative; width: 58px; height: 108px; padding: 0; border: 0; border-radius: 16px; overflow: hidden; background: color-mix(in srgb, var(--a-text) 4%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--a-text) 7%, transparent); cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.atrium-diva-track { position: relative; width: 58px; height: 108px; padding: 0; border: 0; border-radius: 16px; overflow: hidden; background: color-mix(in srgb, var(--a-text) 4%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--a-text) 7%, transparent); cursor: pointer; touch-action: pan-y; -webkit-tap-highlight-color: transparent; }
 .atrium-diva-track.dim { cursor: grab; }
 .atrium-diva-track.dragging { cursor: grabbing; }
 .atrium-diva-track.un { cursor: not-allowed; opacity: .45; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--a-text) 4%, transparent) 0 8px, color-mix(in srgb, var(--a-text) 6%, transparent) 8px 16px); }

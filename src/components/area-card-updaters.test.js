@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "../../tools/register.mjs";
 
-const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _updateAutomationRef, _renderAutomationLabels, divaVisual, climateView, mediaView, fanModeIcon, swingModeIcon } = await import("./area-card-updaters.js");
+const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _updateAutomationRef, _renderAutomationLabels, divaVisual, climateView, mediaView, fanModeIcon, swingModeIcon, noteScroll } = await import("./area-card-updaters.js");
 
 // Minimal fakes for the DOM surface _bindDivaTrack/_updateDivaRef touch.
 // Pointer event listeners are captured directly so tests can invoke them
@@ -515,5 +515,72 @@ test("diva track: a keyboard click (Enter/Space, detail 0) toggles; a pointer's 
     assert.deepEqual(ctx.calls, []);
     ref.track.handlers.click({ detail: 0 });
     assert.deepEqual(ctx.calls, [["switch", "turn_on", { entity_id: "switch.fan" }]]);
+  });
+});
+
+const touchDown = (t, y = 100) => ({ pointerId: 7, pointerType: "touch", clientY: y, timeStamp: t, preventDefault() {} });
+const touchAt = (t, y) => ({ pointerId: 7, pointerType: "touch", clientY: y, timeStamp: t });
+
+test("touch: a finger that moves off right away is a scroll — no drag, no toggle", () => {
+  withWindow((win) => {
+    const ref = makeDivaRef();
+    const ctx = makeContext({ "light.l": { state: "on", attributes: { supported_color_modes: ["brightness"], brightness: 128 } } });
+    _bindDivaTrack.call(ctx, ref, "light.l", "light");
+    ref.track.handlers.pointerdown(touchDown(1000));
+    win.listeners.pointermove(touchAt(1040, 70));
+    assert.equal(win.listeners.pointermove, undefined); // gave the gesture up
+    assert.deepEqual(ctx.calls, []);
+  });
+});
+
+test("touch: a finger held still for a moment, then moved, drags", () => {
+  withWindow((win) => {
+    const ref = makeDivaRef();
+    const ctx = makeContext({ "light.l": { state: "on", attributes: { supported_color_modes: ["brightness"], brightness: 0 } } });
+    _bindDivaTrack.call(ctx, ref, "light.l", "light");
+    ref.track.handlers.pointerdown(touchDown(2000, 100));
+    win.listeners.pointermove(touchAt(2150, 73));
+    win.listeners.pointerup(touchAt(2200, 73));
+    assert.deepEqual(ctx.calls, [["light", "turn_on", { entity_id: "light.l", brightness_pct: 50 }]]);
+  });
+});
+
+test("touch: once it's a drag the page can't scroll; before that it can", () => {
+  withWindow((win) => {
+    const ref = makeDivaRef();
+    const ctx = makeContext({ "light.l": { state: "on", attributes: { supported_color_modes: ["brightness"], brightness: 0 } } });
+    _bindDivaTrack.call(ctx, ref, "light.l", "light");
+    ref.track.handlers.pointerdown(touchDown(3000, 100));
+    let prevented = 0;
+    const tm = (t, y) => ({ timeStamp: t, touches: [{ clientY: y }], preventDefault() { prevented++; } });
+    ref.track.handlers.touchmove(tm(3020, 101));
+    assert.equal(prevented, 0);
+    ref.track.handlers.touchmove(tm(3150, 95));
+    assert.equal(prevented, 1);
+    win.listeners.pointerup(touchAt(3160, 95));
+  });
+});
+
+test("touch: a quick tap still toggles instantly", () => {
+  withWindow((win) => {
+    const ref = makeDivaRef();
+    const ctx = makeContext({ "switch.fan": { state: "off", attributes: {} } });
+    _bindDivaTrack.call(ctx, ref, "switch.fan", "switch");
+    ref.track.handlers.pointerdown(touchDown(4000));
+    win.listeners.pointerup(touchAt(4060, 100));
+    assert.deepEqual(ctx.calls, [["switch", "turn_on", { entity_id: "switch.fan" }]]);
+  });
+});
+
+test("touch: while the page is still scrolling, a touch neither drags nor toggles", () => {
+  withWindow((win) => {
+    const ref = makeDivaRef();
+    const ctx = makeContext({ "switch.fan": { state: "off", attributes: {} } });
+    _bindDivaTrack.call(ctx, ref, "switch.fan", "switch");
+    noteScroll(4900);
+    ref.track.handlers.pointerdown(touchDown(5000));
+    assert.equal(win.listeners.pointerup, undefined);
+    assert.deepEqual(ctx.calls, []);
+    noteScroll(-Infinity);
   });
 });
