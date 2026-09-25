@@ -37,7 +37,6 @@ const PCT_SWAP_TO = 60;
 // Kept in sync with the `.flash` state in area-card.css.
 export const FLASH_MS = 1400;
 
-const COVER_COLOR = "#8cc1ff";
 const SWITCH_COLOR = "#79d99a";
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -48,7 +47,7 @@ function isDimmableFor(kind, st) {
 }
 
 function accentFor(kind, st) {
-  if (kind === "cover") return COVER_COLOR;
+  if (kind === "cover") return TONE.curtain;
   if (kind === "switch") return SWITCH_COLOR;
   const rgb = lightRgbTriple(st);
   return rgb ? `rgb(${rgb[0]},${rgb[1]},${rgb[2]})` : TONE.light;
