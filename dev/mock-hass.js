@@ -124,6 +124,7 @@ export function createMockHass({ onToast } = {}) {
           }
           toast(`Scene activated · ${id}`);
           break;
+        case "input_button.press":
         case "button.press":
           toast(`Button pressed · ${id}`);
           break;

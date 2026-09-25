@@ -301,3 +301,13 @@ test("routineRows: scripts first; off automations only when shown, and then in t
 });
 
 
+
+test("classifyAreaEntities: button entities and input_button helpers are pressable pills; config buttons are left out", () => {
+  const hass = { states: {}, entities: {}, devices: {} };
+  const out = classifyAreaEntities(hass, { area_id: "k" }, [
+    { entity_id: "button.replay" },
+    { entity_id: "input_button.doorbell_test" },
+    { entity_id: "button.restart", entity_category: "config" },
+  ]);
+  assert.deepEqual(out.buttons.map((e) => e.entity_id), ["button.replay", "input_button.doorbell_test"]);
+});

@@ -485,7 +485,7 @@ export function _buildPillsSection(area, scenes, buttons, lights) {
   for (const button of buttons) {
     wrap.appendChild(this._buildPill(area, button, {
       icon: () => "mdi:gesture-tap-button",
-      onPress: () => this._call("button", "press", { entity_id: button.entity_id }),
+      onPress: () => this._call(button.entity_id.split(".")[0], "press", { entity_id: button.entity_id }),
     }));
   }
   return this._section(null, wrap);

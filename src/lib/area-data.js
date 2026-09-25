@@ -62,6 +62,8 @@ export function classifyAreaEntities(hass, area, entities) {
     // Devices expose config/diagnostic buttons ("Restart", "Identify") that
     // would drown the room panel — only surface primary ones, like switches.
     else if (domain === "button") { if (!e.entity_category) out.buttons.push(e); }
+    // "Button" helpers press the same way, with their own service domain.
+    else if (domain === "input_button") out.buttons.push(e);
     else if (domain === "input_select") out.inputSelects.push(e);
     else if (domain === "input_boolean") out.inputBooleans.push(e);
     // A switched-off automation leaves the routines list for its "N off"
