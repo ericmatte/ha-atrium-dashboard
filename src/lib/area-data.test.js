@@ -11,6 +11,7 @@ import {
   areaAlert,
   areaPresence,
   areaActivity,
+  areaStatusDot,
   areaMetaLine,
   lightsSummary,
   sensorTone,
@@ -226,4 +227,15 @@ test("lightsSummary: counts lights on out of the total", () => {
   const hass = { states: { "light.a": { state: "on" }, "light.b": { state: "off" }, "light.c": { state: "unavailable" } } };
   assert.deepEqual(lightsSummary(hass, ["light.a", "light.b", "light.c"]), { on: 1, total: 3 });
   assert.deepEqual(lightsSummary(hass, []), { on: 0, total: 0 });
+});
+
+test("areaStatusDot: motion beats an alert; without motion the alert comes back", () => {
+  const presence = { icon: "mdi:walk", entityId: "binary_sensor.motion" };
+  const leak = { icon: "mdi:water-alert", label: "Leak!", tone: "alert", entityId: "binary_sensor.leak" };
+  const door = { icon: "mdi:door-open", label: "Door open", tone: "warn", entityId: "binary_sensor.door" };
+  assert.equal(areaStatusDot(presence, leak).kind, "presence");
+  assert.equal(areaStatusDot(presence, leak).entityId, "binary_sensor.motion");
+  assert.equal(areaStatusDot(null, leak).kind, "alert");
+  assert.equal(areaStatusDot(null, door).kind, "warn");
+  assert.equal(areaStatusDot(null, null), null);
 });

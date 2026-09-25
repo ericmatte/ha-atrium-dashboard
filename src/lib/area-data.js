@@ -149,6 +149,14 @@ export function areaPresence(hass, data) {
   return e ? { icon: "mdi:walk", entityId: e.entity_id } : null;
 }
 
+// The tile's top-right dot: motion right now wins over an alert (someone is
+// there, that's the live news); when motion clears, the alert shows again.
+export function areaStatusDot(presence, alert) {
+  if (presence) return { kind: "presence", ...presence };
+  if (alert) return { kind: alert.tone === "warn" ? "warn" : "alert", ...alert };
+  return null;
+}
+
 // The one thing actively running in the room, by priority: media playing,
 // then a vacuum cleaning, then climate actually heating or cooling (not
 // merely switched on). `action` is what tapping it does.

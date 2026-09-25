@@ -65,15 +65,16 @@
 .atrium-orb .atrium-orb-badge[hidden] { display: none; }
 .atrium-orb-badge.tl { left: 14.6%; top: 14.6%; }
 .atrium-orb-badge.tr { left: 85.4%; top: 14.6%; }
-.atrium-orb-badge.bl { left: 14.6%; top: 85.4%; }
 .atrium-orb-badge.br { left: 85.4%; top: 85.4%; }
 .atrium-orb-badge.dot { width: 2.167em; height: 2.167em; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 .atrium-orb-badge.dot ha-icon { --mdc-icon-size: 1.167em; }
 .atrium-orb-badge-lit { box-sizing: border-box; height: 1.75em; display: inline-flex; align-items: center; gap: .167em; padding: 0 .667em 0 .5em; border-radius: 999px; background: #f6c14b; color: #1b1506; font-size: 1em; font-weight: 800; line-height: 1; white-space: nowrap; }
 .atrium-orb-badge-lit ha-icon { --mdc-icon-size: 1.083em; }
-.atrium-orb-badge-alert { background: #ff5d5d; color: #fff; }
-.atrium-orb-badge-alert.warn { background: #ffa94d; color: #2a1605; }
-.atrium-orb-badge-presence { background: #8cc1ff; color: #0c1a2b; }
+/* Top-right status dot: motion (blue) takes priority over an alert (red, or
+   orange for an opening) — see areaStatusDot. */
+.atrium-orb-badge-status.is-presence { background: #8cc1ff; color: #0c1a2b; }
+.atrium-orb-badge-status.is-alert { background: #ff5d5d; color: #fff; }
+.atrium-orb-badge-status.is-warn { background: #ffa94d; color: #2a1605; }
 .atrium-orb-badge-activity.is-media { background: #c9a3ff; color: #1c1030; }
 .atrium-orb-badge-activity.is-vacuum { background: #79d99a; color: #0b2414; }
 .atrium-orb-badge-activity.is-heating { background: #ff9a6b; color: #1d0f08; }

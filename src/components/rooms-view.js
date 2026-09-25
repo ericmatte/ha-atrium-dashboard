@@ -17,6 +17,7 @@ import {
   areaAlert,
   areaPresence,
   areaActivity,
+  areaStatusDot,
   areaMetaLine,
   lightsSummary,
   areaPanelSignature,
@@ -408,7 +409,7 @@ class AtriumRooms extends HTMLElement {
     else art.innerHTML = haIcon(iconForArea(area));
     open.appendChild(art);
 
-    const ref = { tile, open, meta: null, area, lightsOn: [], alert: null, presence: null, activity: null };
+    const ref = { tile, open, meta: null, area, lightsOn: [], status: null, activity: null };
     const badge = (cls, onTap) => {
       const b = document.createElement("button");
       b.type = "button";
@@ -425,8 +426,7 @@ class AtriumRooms extends HTMLElement {
     ref.litBadge = badge("atrium-orb-badge-lit tl", () => {
       if (ref.lightsOn.length) this._call("light", "turn_off", { entity_id: ref.lightsOn });
     });
-    ref.alertBadge = badge("atrium-orb-badge-alert dot tr", () => ref.alert && this._moreInfo(ref.alert.entityId));
-    ref.presenceBadge = badge("atrium-orb-badge-presence dot bl", () => ref.presence && this._moreInfo(ref.presence.entityId));
+    ref.statusBadge = badge("atrium-orb-badge-status dot tr", () => ref.status && this._moreInfo(ref.status.entityId));
     ref.activityBadge = badge("atrium-orb-badge-activity dot br", () => {
       const act = ref.activity;
       if (!act) return;
@@ -461,12 +461,10 @@ class AtriumRooms extends HTMLElement {
     }
 
     const alert = areaAlert(hass, data);
-    ref.alert = alert;
-    this._setDotBadge(ref.alertBadge, alert, alert && `${alert.label} — ${area.name}`);
-    ref.alertBadge.classList.toggle("warn", alert?.tone === "warn");
-
-    ref.presence = areaPresence(hass, data);
-    this._setDotBadge(ref.presenceBadge, ref.presence, `Motion in ${area.name}`);
+    const status = areaStatusDot(areaPresence(hass, data), alert);
+    ref.status = status;
+    this._setDotBadge(ref.statusBadge, status, status && (status.kind === "presence" ? `Motion in ${area.name}` : `${status.label} — ${area.name}`));
+    for (const kind of ["presence", "alert", "warn"]) ref.statusBadge.classList.toggle(`is-${kind}`, status?.kind === kind);
 
     const activity = areaActivity(hass, data);
     ref.activity = activity;
