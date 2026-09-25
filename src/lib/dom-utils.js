@@ -16,6 +16,12 @@ export function haIcon(icon, sizePx) {
     : `<ha-icon icon="${icon}"></ha-icon>`;
 }
 
+// Point an <ha-icon> at `icon` only when it changes: re-setting the same
+// value (or rebuilding the element) makes the icon re-render and flicker.
+export function setIcon(el, icon) {
+  if (el && el.getAttribute("icon") !== icon) el.setAttribute("icon", icon);
+}
+
 // A translucent tint of `color` over the background — the dashboard's one
 // idiom for chip/pill/swatch fills.
 export function tint(color, pct = 12) {

@@ -23,3 +23,13 @@ test("injectStyleOnce appends a keyed <style> exactly once", () => {
   assert.equal(appended[0].textContent, "a{}");
   delete globalThis.document;
 });
+
+test("setIcon: only touches the attribute when the icon changes", async () => {
+  const { setIcon } = await import("./dom-utils.js");
+  let writes = 0;
+  const el = { attrs: {}, getAttribute(k) { return this.attrs[k] ?? null; }, setAttribute(k, v) { writes++; this.attrs[k] = v; } };
+  setIcon(el, "mdi:play");
+  setIcon(el, "mdi:play");
+  setIcon(el, "mdi:pause");
+  assert.equal(writes, 2);
+});

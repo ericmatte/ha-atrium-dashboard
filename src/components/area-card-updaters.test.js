@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "../../tools/register.mjs";
 
-const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _updateAutomationRef, divaVisual, climateView, mediaView, fanModeIcon, swingModeIcon } = await import("./area-card-updaters.js");
+const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _updateAutomationRef, _renderAutomationLabels, divaVisual, climateView, mediaView, fanModeIcon, swingModeIcon } = await import("./area-card-updaters.js");
 
 // Minimal fakes for the DOM surface _bindDivaTrack/_updateDivaRef touch.
 // Pointer event listeners are captured directly so tests can invoke them
@@ -68,6 +68,7 @@ function makeContext(states) {
     _moreInfo: () => {},
     _toggleEntity,
     _updateDivaRef,
+    _renderAutomationLabels,
     calls,
   };
 }
@@ -327,7 +328,7 @@ test("_updateClimateRef: remembers the last active mode so power brings it back"
 
 test("_updateClimateRef: fills each dropdown's menu options, current value and label", () => {
   const ref = makeClimateRef();
-  const slot = () => ({ btn: { setAttribute(k, v) { this[k] = v; } }, icon: { setAttribute() {} }, value: { textContent: "" }, options: [], current: null, labelFor: (v) => v });
+  const slot = () => ({ btn: { setAttribute(k, v) { this[k] = v; } }, icon: { getAttribute() { return this.icon; }, setAttribute(k, v) { this[k] = v; } }, value: { textContent: "" }, options: [], current: null, labelFor: (v) => v });
   ref.dropdowns = new Map([["mode", slot()], ["fan", slot()], ["swing", slot()]]);
   const ctx = {
     _hass: { states: { "climate.x": { state: "heat", attributes: { hvac_modes: ["off", "heat", "cool"], fan_mode: "auto", fan_modes: ["auto", "low"], swing_mode: "swing", swing_modes: ["swing", "static"], temperature: 20 } } } },
@@ -485,4 +486,22 @@ test("_toggleEntity: an input_boolean uses its own turn_on/turn_off services", (
   _toggleEntity.call(ctx, "input_boolean.guest", "input_boolean", true);
   _toggleEntity.call(ctx, "input_boolean.guest", "input_boolean", false);
   assert.deepEqual(calls, [["input_boolean", "turn_on", { entity_id: "input_boolean.guest" }], ["input_boolean", "turn_off", { entity_id: "input_boolean.guest" }]]);
+});
+
+test("_updateAutomationRef: labels are only rebuilt when they change, so their icons don't flicker", () => {
+  const prevDocument = globalThis.document;
+  let created = 0;
+  globalThis.document = { createElement: () => { created++; return { className: "", style: {}, innerHTML: "", lastChild: { textContent: "" } }; } };
+  try {
+    const ref = makeAutomationRef(false);
+    ref.labels = { innerHTML: "", appendChild() {} };
+    const ctx = makeContext({ "automation.motion": { state: "on", attributes: {} } });
+    ctx._hass.entities = { "automation.motion": { labels: ["important"] } };
+    ctx._hass.labels = { important: { name: "Important", color: "amber" } };
+    _updateAutomationRef.call(ctx, ref, "automation.motion");
+    _updateAutomationRef.call(ctx, ref, "automation.motion");
+    assert.equal(created, 1);
+  } finally {
+    globalThis.document = prevDocument;
+  }
 });

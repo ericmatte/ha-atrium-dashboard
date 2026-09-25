@@ -32,6 +32,8 @@ import { orbGrid, orbBadgeFont } from "../lib/orb-grid.js";
 // selection is only dropped once they've played.
 const CLOSE_MS = 280;
 
+const heroBadgesKey = (els) => els.map((b) => `${b.className}|${b.textContent}|${b.querySelector("ha-icon")?.getAttribute("icon")}`).join(";");
+
 // Screen-reader label of the bottom-right "what's running" badge, by kind.
 const ACTIVITY_LABEL = {
   media: (name) => `Play/pause ${name}`,
@@ -377,7 +379,14 @@ class AtriumRooms extends HTMLElement {
     for (const ref of refs.sensors.values()) this._updateSensorRef(ref);
     for (const { btn, label } of this._refs.bulk) btn.textContent = label();
     this._heroRefs.photo.classList.toggle("gray", this._allLightsOff(data));
-    this._heroRefs.badges.replaceChildren(...this._buildHeroBadges(area, data));
+    // Only swap the badges when what they say changed, so their icons don't
+    // re-render (and flicker) on every unrelated state update.
+    const badges = this._buildHeroBadges(area, data);
+    const key = heroBadgesKey(badges);
+    if (key !== this._heroRefs.key) {
+      this._heroRefs.key = key;
+      this._heroRefs.badges.replaceChildren(...badges);
+    }
   }
 
   _closeOpenPopovers() {
@@ -527,7 +536,7 @@ class AtriumRooms extends HTMLElement {
     close.addEventListener("click", () => this._select(null));
 
     hero.append(photo, mid, close);
-    this._heroRefs = { photo, badges };
+    this._heroRefs = { photo, badges, key: heroBadgesKey([...badges.children]) };
     return hero;
   }
 

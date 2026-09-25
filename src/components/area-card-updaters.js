@@ -1,4 +1,4 @@
-import { haIcon, tint, vibrate } from "../lib/dom-utils.js";
+import { haIcon, setIcon, tint, vibrate } from "../lib/dom-utils.js";
 import { sensorTone } from "../lib/area-data.js";
 import {
   TONE, ICONS,
@@ -331,7 +331,7 @@ export function _updateClimateRef(ref, entityId) {
   for (const dd of v.dropdowns) {
     const slot = ref.dropdowns.get(dd.key);
     if (!slot) continue;
-    slot.icon.setAttribute("icon", dd.icon);
+    setIcon(slot.icon, dd.icon);
     slot.value.textContent = dd.labelFor(dd.value) ?? "—";
     slot.btn.setAttribute("aria-label", `${dd.label}: ${slot.value.textContent}`);
     slot.options = dd.options;
@@ -401,11 +401,11 @@ export function _updateMediaRef(ref, entityId) {
   ref.prev.hidden = !v.canPrev;
   ref.next.hidden = !v.canNext;
   ref.playPause.hidden = !v.canPlayPause;
-  ref.playPause.innerHTML = haIcon(v.playing ? "mdi:pause" : "mdi:play", 22);
+  setIcon(ref.playPause.firstElementChild, v.playing ? "mdi:pause" : "mdi:play");
   ref.playPause.setAttribute("aria-label", `${v.playing ? "Pause" : "Play"} ${ref.displayName}`);
   ref.volumeRow.hidden = !v.canVolume && !v.canMute;
   ref.mute.hidden = !v.canMute;
-  ref.mute.innerHTML = haIcon(v.muted ? "mdi:volume-off" : "mdi:volume-high", 18);
+  setIcon(ref.mute.firstElementChild, v.muted ? "mdi:volume-off" : "mdi:volume-high");
   ref.mute.setAttribute("aria-pressed", String(v.muted));
   ref.volume.hidden = !v.canVolume;
   // Leave the slider alone while it's being dragged; HA's echo catches up after.
@@ -416,7 +416,7 @@ export function _updateMediaRef(ref, entityId) {
 export function _updateSensorRef(ref) {
   const st = this._hass.states?.[ref.entityId];
   ref.value.textContent = fmtSensorValue(st);
-  ref.icon.setAttribute("icon", iconForSensor(st));
+  setIcon(ref.icon, iconForSensor(st));
   const tone = sensorTone(st);
   for (const t of ["alert", "warn", "info"]) ref.tile.classList.toggle(`t-${t}`, tone === t);
 }
@@ -435,10 +435,17 @@ export function _updateAutomationRef(ref, entityId) {
   else if (ref.isScript) ref.sub.textContent = `Script · ${lastTs ? when : "never run"}`;
   else ref.sub.textContent = `${enabled ? "On" : "Off"} · ${when}`;
 
+  const labels = (hass.entities[entityId]?.labels || []).map((lid) => labelDescriptor(hass, lid)).filter(Boolean);
+  const labelsKey = labels.map((d) => `${d.name}|${d.icon}|${d.color}`).join(";");
+  if (ref.labelsKey !== labelsKey) this._renderAutomationLabels(ref, labels, labelsKey);
+  ref.play.classList.toggle("disabled", !enabled);
+  ref.play.classList.toggle("flash", flashing);
+}
+
+export function _renderAutomationLabels(ref, labels, labelsKey) {
+  ref.labelsKey = labelsKey;
   ref.labels.innerHTML = "";
-  for (const lid of hass.entities[entityId]?.labels || []) {
-    const desc = labelDescriptor(hass, lid);
-    if (!desc) continue;
+  for (const desc of labels) {
     const chip = document.createElement("span");
     chip.className = "atrium-auto-label";
     chip.style.color = desc.color;
@@ -447,6 +454,4 @@ export function _updateAutomationRef(ref, entityId) {
     chip.lastChild.textContent = desc.name;
     ref.labels.appendChild(chip);
   }
-  ref.play.classList.toggle("disabled", !enabled);
-  ref.play.classList.toggle("flash", flashing);
 }

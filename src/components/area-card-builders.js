@@ -219,14 +219,14 @@ export function _buildMediaCard(area, player) {
   controls.className = "atrium-media-controls";
   const prev = iconButton("atrium-media-btn", "mdi:skip-previous", () => call("media_previous_track"));
   prev.setAttribute("aria-label", "Previous");
-  const playPause = iconButton("atrium-media-btn play", null, () => call("media_play_pause"));
+  const playPause = iconButton("atrium-media-btn play", "mdi:play", () => call("media_play_pause"));
   const next = iconButton("atrium-media-btn", "mdi:skip-next", () => call("media_next_track"));
   next.setAttribute("aria-label", "Next");
   controls.append(prev, playPause, next);
 
   const volumeRow = document.createElement("div");
   volumeRow.className = "atrium-media-volume";
-  const mute = iconButton("atrium-media-mute", null, () => call("volume_mute", { is_volume_muted: !this._hass.states?.[entityId]?.attributes?.is_volume_muted }));
+  const mute = iconButton("atrium-media-mute", "mdi:volume-high", () => call("volume_mute", { is_volume_muted: !this._hass.states?.[entityId]?.attributes?.is_volume_muted }));
   mute.setAttribute("aria-label", `Mute ${displayName}`);
   const volume = document.createElement("input");
   volume.type = "range";
@@ -560,6 +560,9 @@ export function _buildAutomationsSection(area, data) {
         btn.classList.toggle("open", open[key]);
         btn.setAttribute("aria-pressed", String(open[key]));
         this._syncRoutineRows(area, list, routineRows(this._dataForArea(area), open));
+        // The rows open at the very end of the panel: follow them down, once
+        // they've grown to full height.
+        if (open[key]) setTimeout(() => this._pin?.scrollTo({ top: this._pin.scrollHeight, behavior: "smooth" }), ROW_MOTION.duration);
       });
       drawers.appendChild(btn);
     };
