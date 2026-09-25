@@ -15,6 +15,7 @@ import {
   areaMetaLine,
   lightsSummary,
   levelTone,
+  routineRows,
   sensorTone,
   areaPanelSignature,
 } from "./area-data.js";
@@ -291,4 +292,20 @@ test("classifyAreaEntities: input_boolean helpers are collected for the panel", 
   const out = classifyAreaEntities(hass, { area_id: "o" }, [{ entity_id: "input_boolean.guest" }]);
   assert.deepEqual(out.inputBooleans.map((e) => e.entity_id), ["input_boolean.guest"]);
   assert.equal(areaIsEmpty(out), false);
+});
+
+test("routineRows: scripts before automations; disabled/hidden only when their badge is open", () => {
+  const data = emptyAreaData();
+  const e = (id) => ({ entity_id: id });
+  data.scripts = [e("script.run")];
+  data.automations = [e("automation.on")];
+  data.disabledAutomations = [e("automation.off")];
+  data.hiddenRoutines = [e("automation.secret"), e("script.secret")];
+  const ids = (opts) => routineRows(data, opts).map((r) => r.entity.entity_id + (r.disabled ? "(d)" : "") + (r.hidden ? "(h)" : ""));
+  assert.deepEqual(ids(), ["script.run", "automation.on"]);
+  assert.deepEqual(ids({ showDisabled: true, showHidden: true }), [
+    "script.run", "script.secret(h)",
+    "automation.on", "automation.off(d)", "automation.secret(h)",
+  ]);
+  assert.deepEqual(ids({ showHidden: true }), ["script.run", "script.secret(h)", "automation.on", "automation.secret(h)"]);
 });

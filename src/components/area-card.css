@@ -282,6 +282,11 @@ button.atrium-badge { cursor: pointer; }
 .atrium-auto-row.is-script .atrium-auto-play { background: color-mix(in srgb, #79d99a 16%, transparent); color: #79d99a; }
 .atrium-auto-row.is-script .atrium-auto-play.flash { background: #79d99a; color: #0b2414; }
 .atrium-routine-drawers { display: flex; flex-wrap: wrap; gap: 8px; }
+.atrium-auto-row.is-hidden { opacity: .45; }
+.atrium-auto-row.expanding { animation: atrium-row-expand .35s var(--a-ease) both; }
+@keyframes atrium-row-expand { from { opacity: 0; transform: translateY(-6px); } }
+.atrium-auto-row.is-hidden.expanding { animation-name: atrium-row-expand-hidden; }
+@keyframes atrium-row-expand-hidden { from { opacity: 0; transform: translateY(-6px); } to { opacity: .45; } }
 .atrium-auto-row.arriving { animation: atrium-row-arrive .7s var(--a-ease) both; }
 @keyframes atrium-row-arrive {
   0% { opacity: 0; transform: translateY(14px) scale(.96); box-shadow: 0 0 0 2px transparent; }
@@ -289,7 +294,8 @@ button.atrium-badge { cursor: pointer; }
   100% { box-shadow: 0 0 0 2px transparent; }
 }
 .atrium-autos-trigger { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 10px; border-radius: 999px; border: none; cursor: pointer; background: var(--a-surface); color: var(--a-dim); font-family: inherit; }
-.atrium-autos-trigger:hover, .atrium-autos-trigger.atrium-pop-open { background: var(--a-surface-2); }
+.atrium-autos-trigger:hover { background: var(--a-surface-2); }
+.atrium-autos-trigger.open { background: var(--a-knob); color: var(--a-text); }
 .atrium-autos-trigger-iconwrap { display: inline-flex; --mdc-icon-size: 16px; }
 .atrium-autos-trigger-label { font-size: 13px; font-weight: 600; color: var(--a-text); }
 

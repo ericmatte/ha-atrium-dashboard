@@ -49,6 +49,7 @@ class AtriumRooms extends HTMLElement {
     this._closing = false;
     this._orbRefs = new Map();
     this._lastClimateMode = new Map();
+    this._routineDrawers = new Map();
   }
 
   setConfig(config) {

@@ -221,6 +221,26 @@ export function levelTone(pct) {
   return "good";
 }
 
+// The Routines list, in order: scripts (things you run), hidden scripts
+// when that badge is open, automations (things that run on their own), then
+// — when their badges are open — disabled and hidden automations. Scripts
+// can't be switched off in HA, so only automations are ever "disabled".
+export function routineRows(data, { showDisabled = false, showHidden = false } = {}) {
+  const hidden = data.hiddenRoutines || [];
+  const isScript = (e) => e.entity_id.startsWith("script.");
+  const rows = [];
+  const push = (list, flags = {}) => list.forEach((entity) => rows.push({ entity, ...flags }));
+  for (const [enabled, disabled, hiddenOnes] of [
+    [data.scripts, [], hidden.filter(isScript)],
+    [data.automations, data.disabledAutomations, hidden.filter((e) => !isScript(e))],
+  ]) {
+    push(enabled);
+    if (showDisabled) push(disabled, { disabled: true });
+    if (showHidden) push(hiddenOnes, { hidden: true });
+  }
+  return rows;
+}
+
 export function areaHasAlert(hass, data) {
   return areaAlertIcon(hass, data) != null;
 }

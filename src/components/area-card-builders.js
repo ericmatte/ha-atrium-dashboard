@@ -8,6 +8,7 @@ import {
   iconForScene,
   lightsGradient,
 } from "./area-card-shared.js";
+import { routineRows } from "../lib/area-data.js";
 import { FLASH_MS } from "./area-card-updaters.js";
 
 // Panel content for one selected room, in the order the design settled on:
@@ -29,7 +30,7 @@ export function _buildRoomSections(area, data) {
   const genericSensors = [...data.sensors.extras, ...data.sensors.other];
   if (genericSensors.length) sections.push(this._buildSensorsSection(area, genericSensors));
 
-  const routines = this._buildAutomationsSection(area, data.automations, data.scripts, data.disabledAutomations, data.hiddenRoutines || []);
+  const routines = this._buildAutomationsSection(area, data);
   if (routines) sections.push(routines);
 
   return sections;
@@ -525,33 +526,62 @@ export function _captureSceneColors(sceneId, lightIds, pill) {
   }, SCENE_SETTLE_MS);
 }
 
-// Scripts (things you run) come first, then enabled automations (things that
-// run on their own); switched-off automations and
-// hidden routines each collapse into a drawer badge at the bottom.
-export function _buildAutomationsSection(area, automations, scripts, disabled, hidden) {
-  const items = [...scripts, ...automations];
-  if (!items.length && !disabled.length && !hidden.length) return null;
+// Scripts first, then automations (see routineRows). The "N disabled" /
+// "N hidden" badges under the list are toggles: open, their routines are
+// listed inline in place — no popover. Their open state is kept per room
+// while the panel stays open.
+export function _buildAutomationsSection(area, data) {
+  const disabledCount = data.disabledAutomations.length;
+  const hiddenCount = (data.hiddenRoutines || []).length;
+  const shown = data.scripts.length + data.automations.length;
+  if (!shown && !disabledCount && !hiddenCount) return null;
 
-  const children = [];
-  if (items.length) {
+  const open = this._routineDrawers.get(area.area_id) || { showDisabled: false, showHidden: false };
+  const section = this._section("Routines", []);
+  const rows = routineRows(data, open);
+  if (rows.length) {
     const list = document.createElement("div");
     list.className = "atrium-alist";
-    for (const item of items) list.appendChild(this._buildAutomationRow(area, item));
-    children.push(list);
+    for (const { entity, hidden } of rows) list.appendChild(this._buildAutomationRow(area, entity, { hidden }));
+    section.appendChild(list);
   }
-  if (disabled.length || hidden.length) {
+  if (disabledCount || hiddenCount) {
     const drawers = document.createElement("div");
     drawers.className = "atrium-routine-drawers";
-    if (disabled.length) drawers.appendChild(this._buildRoutinesDrawer(area, disabled, { icon: "mdi:pause-circle-outline", label: "disabled", title: "Disabled routines" }));
-    if (hidden.length) drawers.appendChild(this._buildRoutinesDrawer(area, hidden, { icon: "mdi:eye-off-outline", label: "hidden", title: "Hidden routines" }));
-    children.push(drawers);
+    const toggle = (key, count, icon, label) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "atrium-autos-trigger" + (open[key] ? " open" : "");
+      btn.setAttribute("aria-pressed", String(!!open[key]));
+      btn.innerHTML = `<span class="atrium-autos-trigger-iconwrap">${haIcon(icon, 20)}</span><span class="atrium-autos-trigger-label">${count} ${label}</span>`;
+      btn.addEventListener("click", () => {
+        this._routineDrawers.set(area.area_id, { ...open, [key]: !open[key] });
+        this._rebuildRoutines(area, section);
+      });
+      drawers.appendChild(btn);
+    };
+    if (disabledCount) toggle("showDisabled", disabledCount, "mdi:pause-circle-outline", "disabled");
+    if (hiddenCount) toggle("showHidden", hiddenCount, "mdi:eye-off-outline", "hidden");
+    section.appendChild(drawers);
   }
-  return this._section("Routines", children);
+  return section;
+}
+
+// Swap just the Routines section after a badge toggle; rows that weren't
+// shown before slide in, the rest stay put.
+export function _rebuildRoutines(area, oldSection) {
+  const refs = this._refs.areas.get(area.area_id).automations;
+  const before = new Set(refs.keys());
+  refs.clear();
+  const fresh = this._buildAutomationsSection(area, this._dataForArea(area));
+  if (!fresh) return;
+  for (const [entityId, ref] of refs) if (!before.has(entityId)) ref.row.classList.add("expanding");
+  oldSection.replaceWith(fresh);
 }
 
 // Toggle swatch left, name + labels / "On · 42 minutes ago" in the middle,
 // run button right. Tapping the name opens more-info.
-export function _buildAutomationRow(area, item) {
+export function _buildAutomationRow(area, item, { hidden = false } = {}) {
   const hass = this._hass;
   const state = hass.states?.[item.entity_id];
   const isScript = item.entity_id.startsWith("script.");
@@ -559,7 +589,7 @@ export function _buildAutomationRow(area, item) {
   const displayName = nameWithoutAreaPrefix(this._entityName(item), area);
 
   const row = document.createElement("div");
-  row.className = "atrium-auto-row" + (isScript ? " is-script" : "");
+  row.className = "atrium-auto-row" + (isScript ? " is-script" : "") + (hidden ? " is-hidden" : "");
   row.dataset.entity = item.entity_id;
   if (this._routineArriving === item.entity_id && state?.state !== "off") {
     this._routineArriving = null;
@@ -622,34 +652,3 @@ export function _buildAutomationRow(area, item) {
   return row;
 }
 
-// A "N disabled" / "N hidden" badge opening a popover of those routines.
-export function _buildRoutinesDrawer(area, routineItems, { icon, label, title }) {
-  const rows = routineItems.map((item) => this._buildAutomationRow(area, item));
-
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "atrium-autos-trigger";
-  const count = routineItems.length;
-  btn.innerHTML =
-    `<span class="atrium-autos-trigger-iconwrap">${haIcon(icon, 20)}</span>` +
-    `<span class="atrium-autos-trigger-label">${count} ${label}</span>`;
-
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    ensurePopoverItemStyle();
-    this._openAnchors.add(btn);
-    openListPopover({
-      anchor: btn,
-      title,
-      countLabel: String(count),
-      items: rows,
-      buildItem: (row) => row,
-      listClass: "atrium-pop-list-rooms",
-      listStyle: "border-radius:12px;overflow:hidden",
-      width: 320,
-      onClose: () => this._openAnchors.delete(btn),
-    });
-  });
-
-  return btn;
-}
