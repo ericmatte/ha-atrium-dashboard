@@ -6,7 +6,8 @@
 .atrium-rooms {
   --a-ease: cubic-bezier(.32,.72,0,1);
   --a-bg: var(--primary-background-color, #0b0c0e);
-  --a-panel: var(--ha-card-background, var(--card-background-color, #141518));
+  /* The theme's card color, lifted a touch so the panel stands off the page. */
+  --a-panel: color-mix(in srgb, var(--a-text) 3%, var(--ha-card-background, var(--card-background-color, #141518)));
   --a-text: var(--primary-text-color, #ececef);
   --a-dim: var(--secondary-text-color, #8b8c94);
   --a-surface: color-mix(in srgb, var(--a-text) 5%, transparent);
