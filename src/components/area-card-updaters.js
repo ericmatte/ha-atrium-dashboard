@@ -123,6 +123,26 @@ export function divaVisual({ kind, on, level, dimmable, thumbFrac, color }) {
   };
 }
 
+// A cover tile draws the shade itself: purple coming down from the top as
+// the cover closes, a white handle bar on its lower edge, and a label in a
+// strip at the bottom the shade never covers — "Closed", or the open %.
+export const COVER_LABEL_ZONE = 20;
+const COVER_BAR_INSET = 6;
+export function coverVisual(level) {
+  const closed = clamp01(1 - level / 100).toFixed(3);
+  return {
+    shadeHeight: `calc((100% - ${COVER_LABEL_ZONE}px) * ${closed})`,
+    barTop: `max(${COVER_BAR_INSET}px, calc((100% - ${COVER_LABEL_ZONE}px) * ${closed} - ${COVER_BAR_INSET}px))`,
+    label: level <= 0 ? "Closed" : `${level}%`,
+  };
+}
+
+// Pointer height on a cover tile → open %: the top of the track is fully
+// open, the top of the label strip fully closed.
+export function coverLevelFromPointer(clientY, rect) {
+  return Math.round((1 - clamp01((clientY - rect.top) / (rect.height - COVER_LABEL_ZONE))) * 100);
+}
+
 export function _toggleEntity(entityId, kind, wantOn) {
   if (kind === "light") {
     if (!wantOn) this._call("light", "turn_off", { entity_id: entityId });
@@ -158,9 +178,17 @@ export function _updateDivaRef(ref, entityId, kind, override) {
       : `${ref.name.textContent}, ${unavailable ? "unavailable" : on ? (real.dimmable ? level + "%" : "on") : "off"}.` + (real.dimmable ? " Drag to dim, tap to toggle." : " Tap to toggle.")
   );
 
-  ref.fill.style.height = v.fillHeight;
-  ref.fill.style.background = v.fillBackground;
-  ref.thumb.style.bottom = v.thumbBottom;
+  if (kind === "cover") {
+    const c = coverVisual(unavailable ? 0 : level);
+    ref.fill.style.height = c.shadeHeight;
+    ref.fill.style.background = v.fillBackground;
+    ref.bar.style.top = c.barTop;
+    ref.coverLabel.textContent = unavailable ? "" : c.label;
+  } else {
+    ref.fill.style.height = v.fillHeight;
+    ref.fill.style.background = v.fillBackground;
+    ref.thumb.style.bottom = v.thumbBottom;
+  }
   ref.pctTop.style.display = ref.pctBottom.style.display = v.showPct ? "" : "none";
   ref.pctTop.textContent = ref.pctBottom.textContent = v.pctLabel;
   ref.pctTop.style.opacity = v.pctTopOpacity;
@@ -245,7 +273,7 @@ export function _bindDivaTrack(ref, entityId, kind) {
         track.classList.add("dragging");
       }
       if (drag.dimmable) {
-        drag.finalLevel = Math.round(fracFromPointer(ev.clientY) * 100);
+        drag.finalLevel = kind === "cover" ? coverLevelFromPointer(ev.clientY, rect) : Math.round(fracFromPointer(ev.clientY) * 100);
         this._updateDivaRef(ref, entityId, kind, { on: drag.finalLevel > 0, level: drag.finalLevel, thumbFrac: drag.finalLevel / 100 });
         return;
       }
