@@ -25,6 +25,7 @@ export function emptyAreaData() {
     sensors: { motion: [], leak: [], soil: [], propane: [], temp: null, humid: null, extras: [], other: [] },
     automations: [],
     disabledAutomations: [],
+    allAutomations: [],
     scripts: [],
     deviceSensors: new Map(),
   };
@@ -65,7 +66,10 @@ export function classifyAreaEntities(hass, area, entities) {
     else if (domain === "input_boolean") out.inputBooleans.push(e);
     // A switched-off automation leaves the routines list for its "N off"
     // drawer until it's turned back on.
-    else if (domain === "automation") (st?.state === "off" ? out.disabledAutomations : out.automations).push(e);
+    else if (domain === "automation") {
+      out.allAutomations.push(e);
+      (st?.state === "off" ? out.disabledAutomations : out.automations).push(e);
+    }
     else if (domain === "script") out.scripts.push(e);
     else if (domain === "binary_sensor") {
       if (dc === "motion" || dc === "occupancy" || dc === "presence") out.sensors.motion.push(e);
@@ -208,12 +212,18 @@ export function levelTone(pct) {
   return "good";
 }
 
-// The Routines list, in order: scripts (things you run), automations (things
-// that run on their own), then — when their badge is open — the switched-off
-// automations. Scripts can't be switched off in HA.
+// The Routines list: scripts (things you run), then automations (things
+// that run on their own). Switched-off automations are only listed when
+// their badge is open — and then in their usual place, so switching one
+// on/off never moves rows around. Scripts can't be switched off in HA.
 export function routineRows(data, { showDisabled = false } = {}) {
-  const rows = [...data.scripts, ...data.automations].map((entity) => ({ entity }));
-  if (showDisabled) for (const entity of data.disabledAutomations) rows.push({ entity, disabled: true });
+  const off = new Set(data.disabledAutomations.map((e) => e.entity_id));
+  const automations = data.allAutomations.length ? data.allAutomations : [...data.automations, ...data.disabledAutomations];
+  const rows = data.scripts.map((entity) => ({ entity }));
+  for (const entity of automations) {
+    const disabled = off.has(entity.entity_id);
+    if (!disabled || showDisabled) rows.push({ entity, ...(disabled ? { disabled } : {}) });
+  }
   return rows;
 }
 

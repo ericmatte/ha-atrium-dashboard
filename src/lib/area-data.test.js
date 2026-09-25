@@ -288,14 +288,16 @@ test("classifyAreaEntities: input_boolean helpers are collected for the panel", 
   assert.equal(areaIsEmpty(out), false);
 });
 
-test("routineRows: scripts before automations; switched-off automations only when that badge is open", () => {
+test("routineRows: scripts first; off automations only when shown, and then in their usual place", () => {
   const data = emptyAreaData();
   const e = (id) => ({ entity_id: id });
   data.scripts = [e("script.run")];
-  data.automations = [e("automation.on")];
-  data.disabledAutomations = [e("automation.off")];
-  const ids = (opts) => routineRows(data, opts).map((r) => r.entity.entity_id + (r.disabled ? "(d)" : ""));
-  assert.deepEqual(ids(), ["script.run", "automation.on"]);
-  assert.deepEqual(ids({ showDisabled: true }), ["script.run", "automation.on", "automation.off(d)"]);
+  data.allAutomations = [e("automation.a"), e("automation.b"), e("automation.c")];
+  data.automations = [e("automation.a"), e("automation.c")];
+  data.disabledAutomations = [e("automation.b")];
+  const ids = (opts) => routineRows(data, opts).map((r) => r.entity.entity_id + (r.disabled ? "(off)" : ""));
+  assert.deepEqual(ids(), ["script.run", "automation.a", "automation.c"]);
+  assert.deepEqual(ids({ showDisabled: true }), ["script.run", "automation.a", "automation.b(off)", "automation.c"]);
 });
+
 
