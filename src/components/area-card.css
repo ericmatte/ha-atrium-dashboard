@@ -84,7 +84,7 @@
    vacuum spins, playing media lets notes drift up. Alerts stay still. */
 .atrium-orb-badge-status.is-presence ha-icon { animation: atrium-walk .9s ease-in-out infinite alternate; }
 .atrium-orb-badge-status.is-presence::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: .12em solid #8cc1ff; pointer-events: none; animation: atrium-ping 1.8s cubic-bezier(0,0,.2,1) infinite; }
-.atrium-orb-badge-activity.is-vacuum ha-icon { animation: atrium-spin 2.4s linear infinite; }
+.atrium-orb-badge-activity.is-vacuum ha-icon { animation: atrium-spin 6s linear infinite; }
 .atrium-orb-badge-activity.is-media::before, .atrium-orb-badge-activity.is-media::after { content: "\266A"; --dx: .9em; position: absolute; left: 50%; top: -.6em; font-size: 1.5em; font-weight: 800; line-height: 1; color: #fff; text-shadow: 0 0 .15em rgba(0,0,0,.9), 0 1px 2px rgba(0,0,0,.8); opacity: 0; pointer-events: none; animation: atrium-note 2.4s ease-out infinite; }
 .atrium-orb-badge-activity.is-media::after { content: "\266B"; --dx: -.7em; animation-delay: 1.2s; }
 @keyframes atrium-walk { from { transform: translateX(-.08em) rotate(-8deg); } to { transform: translateX(.08em) rotate(8deg); } }
