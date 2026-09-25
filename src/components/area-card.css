@@ -284,10 +284,7 @@ button.atrium-badge { cursor: pointer; }
 .atrium-auto-row.is-script .atrium-auto-play.flash { background: #79d99a; color: #0b2414; }
 .atrium-routine-drawers { display: flex; flex-wrap: wrap; gap: 8px; }
 .atrium-auto-row.is-hidden { opacity: .45; }
-.atrium-auto-row.expanding { animation: atrium-row-expand .35s var(--a-ease) both; }
-@keyframes atrium-row-expand { from { opacity: 0; transform: translateY(-6px); } }
-.atrium-auto-row.is-hidden.expanding { animation-name: atrium-row-expand-hidden; }
-@keyframes atrium-row-expand-hidden { from { opacity: 0; transform: translateY(-6px); } to { opacity: .45; } }
+.atrium-alist[hidden] { display: none; }
 .atrium-auto-row.arriving { animation: atrium-row-arrive .7s var(--a-ease) both; }
 @keyframes atrium-row-arrive {
   0% { opacity: 0; transform: translateY(14px) scale(.96); box-shadow: 0 0 0 2px transparent; }

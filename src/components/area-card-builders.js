@@ -536,15 +536,15 @@ export function _buildAutomationsSection(area, data) {
   const shown = data.scripts.length + data.automations.length;
   if (!shown && !disabledCount && !hiddenCount) return null;
 
-  const open = this._routineDrawers.get(area.area_id) || { showDisabled: false, showHidden: false };
+  const open = { showDisabled: false, showHidden: false, ...this._routineDrawers.get(area.area_id) };
   const section = this._section("Routines", []);
+  const list = document.createElement("div");
+  list.className = "atrium-alist";
   const rows = routineRows(data, open);
-  if (rows.length) {
-    const list = document.createElement("div");
-    list.className = "atrium-alist";
-    for (const { entity, hidden } of rows) list.appendChild(this._buildAutomationRow(area, entity, { hidden }));
-    section.appendChild(list);
-  }
+  for (const { entity, hidden } of rows) list.appendChild(this._buildAutomationRow(area, entity, { hidden }));
+  list.hidden = !rows.length;
+  section.appendChild(list);
+
   if (disabledCount || hiddenCount) {
     const drawers = document.createElement("div");
     drawers.className = "atrium-routine-drawers";
@@ -552,11 +552,14 @@ export function _buildAutomationsSection(area, data) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "atrium-autos-trigger" + (open[key] ? " open" : "");
-      btn.setAttribute("aria-pressed", String(!!open[key]));
+      btn.setAttribute("aria-pressed", String(open[key]));
       btn.innerHTML = `<span class="atrium-autos-trigger-iconwrap">${haIcon(icon, 20)}</span><span class="atrium-autos-trigger-label">${count} ${label}</span>`;
       btn.addEventListener("click", () => {
-        this._routineDrawers.set(area.area_id, { ...open, [key]: !open[key] });
-        this._rebuildRoutines(area, section);
+        open[key] = !open[key];
+        this._routineDrawers.set(area.area_id, { ...open });
+        btn.classList.toggle("open", open[key]);
+        btn.setAttribute("aria-pressed", String(open[key]));
+        this._syncRoutineRows(area, list, routineRows(this._dataForArea(area), open));
       });
       drawers.appendChild(btn);
     };
@@ -567,16 +570,56 @@ export function _buildAutomationsSection(area, data) {
   return section;
 }
 
-// Swap just the Routines section after a badge toggle; rows that weren't
-// shown before slide in, the rest stay put.
-export function _rebuildRoutines(area, oldSection) {
+const ROW_MOTION = { duration: 320, easing: "cubic-bezier(.32,.72,0,1)" };
+
+// After a badge toggle: rows that stay are left exactly as they are (same
+// elements, nothing re-rendered); rows that appear are inserted in place and
+// grow open; rows that go away shrink closed, then are removed.
+export function _syncRoutineRows(area, list, rows) {
   const refs = this._refs.areas.get(area.area_id).automations;
-  const before = new Set(refs.keys());
-  refs.clear();
-  const fresh = this._buildAutomationsSection(area, this._dataForArea(area));
-  if (!fresh) return;
-  for (const [entityId, ref] of refs) if (!before.has(entityId)) ref.row.classList.add("expanding");
-  oldSection.replaceWith(fresh);
+  const wanted = new Set(rows.map((r) => r.entity.entity_id));
+
+  for (const [entityId, ref] of [...refs]) {
+    if (wanted.has(entityId) || ref.row.parentElement !== list) continue;
+    refs.delete(entityId);
+    collapseRow(ref.row);
+  }
+
+  let cursor = list.firstElementChild;
+  const skipLeaving = () => { while (cursor?.classList.contains("leaving")) cursor = cursor.nextElementSibling; };
+  for (const { entity, hidden } of rows) {
+    skipLeaving();
+    const existing = refs.get(entity.entity_id)?.row;
+    if (existing && existing.parentElement === list) {
+      if (existing === cursor) cursor = cursor.nextElementSibling;
+      else list.insertBefore(existing, cursor);
+      continue;
+    }
+    const row = this._buildAutomationRow(area, entity, { hidden });
+    list.insertBefore(row, cursor);
+    expandRow(row);
+  }
+  if (rows.length) list.hidden = false;
+  else if (!list.querySelector(".atrium-auto-row:not(.leaving)")) setTimeout(() => { if (!list.querySelector(".atrium-auto-row:not(.leaving)")) list.hidden = true; }, ROW_MOTION.duration);
+}
+
+// Height animations need real pixel heights (auto isn't animatable); the
+// list's 6px gap is folded into a negative margin so neighbours glide too.
+function expandRow(row) {
+  const style = getComputedStyle(row);
+  const to = { height: `${row.offsetHeight}px`, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, marginTop: "0px", opacity: style.opacity };
+  const from = { height: "0px", paddingTop: "0px", paddingBottom: "0px", marginTop: "-6px", opacity: 0 };
+  row.style.overflow = "hidden";
+  row.animate([from, to], ROW_MOTION).finished.then(() => { row.style.overflow = ""; }, () => {});
+}
+
+function collapseRow(row) {
+  const style = getComputedStyle(row);
+  row.classList.add("leaving");
+  row.style.overflow = "hidden";
+  const from = { height: `${row.offsetHeight}px`, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, marginTop: "0px", opacity: style.opacity };
+  const to = { height: "0px", paddingTop: "0px", paddingBottom: "0px", marginTop: "-6px", opacity: 0 };
+  row.animate([from, to], { ...ROW_MOTION, duration: 240, fill: "forwards" }).finished.then(() => row.remove(), () => row.remove());
 }
 
 // Toggle swatch left, name + labels / "On · 42 minutes ago" in the middle,
