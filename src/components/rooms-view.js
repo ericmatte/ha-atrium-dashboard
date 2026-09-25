@@ -32,6 +32,11 @@ import { orbGrid, orbBadgeFont } from "../lib/orb-grid.js";
 // selection is only dropped once they've played.
 const CLOSE_MS = 280;
 const PANEL_HISTORY_KEY = "atriumPanel";
+// Must match the phone breakpoint in area-card.css.
+const SHEET_MEDIA = "(max-width: 860px)";
+const SWIPE_SLOP = 6;
+const SWIPE_CLOSE_AT = 0.25;
+const SWIPE_FLICK_SPEED = 0.6; // px/ms
 
 const heroBadgesKey = (els) => els.map((b) => `${b.className}|${b.textContent}|${b.querySelector("ha-icon")?.getAttribute("icon")}`).join(";");
 
@@ -386,7 +391,10 @@ class AtriumRooms extends HTMLElement {
       this._panel.innerHTML = "";
       this._pin = document.createElement("div");
       this._pin.className = "atrium-panel-inner";
-      this._panel.appendChild(this._pin);
+      const grabber = document.createElement("div");
+      grabber.className = "atrium-sheet-grabber";
+      this._bindSheetSwipe(grabber);
+      this._panel.append(grabber, this._pin);
     }
     this._pin.classList.toggle("settled", !replayPanelIn);
     this._pin.innerHTML = "";
@@ -428,6 +436,56 @@ class AtriumRooms extends HTMLElement {
       this._heroRefs.key = key;
       this._heroRefs.badges.replaceChildren(...badges);
     }
+  }
+
+  // Phone bottom sheet: pulling its header (or grab bar) down drags the sheet
+  // with the finger; let go past a quarter of its height, or with a quick
+  // flick, and it closes — otherwise it springs back. The offset rides on
+  // `translate`, separate from the `transform` the sheet's open/close
+  // animations drive, so neither disturbs the other.
+  _bindSheetSwipe(handle) {
+    handle.addEventListener("pointerdown", (e) => {
+      if (!matchMedia(SHEET_MEDIA).matches || this._closing || (this._pin?.scrollTop ?? 0) > 0) return;
+      const panel = this._panel;
+      const y0 = e.clientY;
+      const t0 = e.timeStamp;
+      let dy = 0;
+      let dragging = false;
+      const onMove = (ev) => {
+        if (ev.pointerId !== e.pointerId) return;
+        dy = Math.max(0, ev.clientY - y0);
+        if (!dragging && dy > SWIPE_SLOP) {
+          dragging = true;
+          try { handle.setPointerCapture(e.pointerId); } catch (_) {}
+          panel.style.transition = "none";
+        }
+        if (dragging) panel.style.translate = `0 ${dy}px`;
+      };
+      const onUp = (ev) => {
+        if (ev.pointerId !== e.pointerId) return;
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
+        if (!dragging) return;
+        // The release shouldn't also count as a tap on a header badge.
+        handle.addEventListener("click", (c) => c.stopPropagation(), { capture: true, once: true });
+        const fast = dy / Math.max(1, ev.timeStamp - t0) > SWIPE_FLICK_SPEED;
+        const far = dy > panel.offsetHeight * SWIPE_CLOSE_AT;
+        const reset = () => { panel.style.transition = ""; panel.style.translate = ""; };
+        if (ev.type !== "pointercancel" && (fast || far)) {
+          panel.style.transition = "translate .22s cubic-bezier(.4,0,1,1)";
+          panel.style.translate = "0 100%";
+          setTimeout(() => { this._closePanel({ animated: false }); reset(); }, 220);
+        } else {
+          panel.style.transition = "translate .3s cubic-bezier(.32,.72,0,1)";
+          panel.style.translate = "";
+          setTimeout(reset, 300);
+        }
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
+    });
   }
 
   _closeOpenPopovers() {
@@ -577,6 +635,7 @@ class AtriumRooms extends HTMLElement {
     close.addEventListener("click", () => this._select(null));
 
     hero.append(photo, mid, close);
+    this._bindSheetSwipe(hero);
     this._heroRefs = { photo, badges, key: heroBadgesKey([...badges.children]) };
     return hero;
   }

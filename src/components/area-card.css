@@ -124,6 +124,8 @@
 .atrium-panel-inner.settled > * { animation: none; }
 
 .atrium-panel-hero { display: flex; align-items: center; gap: 16px; }
+.atrium-sheet-grabber { display: none; }
+@media (max-width: 860px) { .atrium-sheet-grabber { display: block; } }
 .atrium-panel-hero-photo { position: relative; width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0; overflow: hidden; }
 .atrium-panel-hero-photo .atrium-orb-art ha-icon { --mdc-icon-size: 22px; }
 .atrium-panel-hero-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
@@ -318,6 +320,13 @@ button.atrium-badge { cursor: pointer; }
   .atrium-climate-dd { flex-basis: 0; padding: 0 8px; gap: 5px; }
   .atrium-climate-dd:first-of-type { flex-grow: 1.5; }
   .atrium-climate-dd-value { font-size: 13px; }
+
+  /* Pull-to-close: the header and grab bar take vertical drags (see
+     _bindSheetSwipe); the rest of the sheet scrolls normally. */
+  .has-sel .atrium-panel { position: relative; }
+  .atrium-sheet-grabber { position: absolute; top: 0; left: 0; right: 0; height: 18px; z-index: 1; touch-action: none; }
+  .atrium-sheet-grabber::after { content: ""; position: absolute; top: 7px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: color-mix(in srgb, var(--a-text) 22%, transparent); }
+  .atrium-panel-hero { touch-action: none; }
 
   .closing .atrium-panel { animation: atrium-sheet-out .28s cubic-bezier(.4,0,1,1) both; }
 }
