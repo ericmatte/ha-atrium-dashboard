@@ -41,8 +41,8 @@ const PCT_SWAP_TO = 60;
 // put that long and then moves is a drag. While the page is still scrolling
 // (momentum, a swipe that just ended) a touch only stops/continues the
 // scroll: no drag, no toggle. Mice drag right away.
-const TOUCH_INTENT_MS = 100;
-const SCROLL_SLOP = 6;
+export const TOUCH_INTENT_MS = 100;
+export const SCROLL_SLOP = 6;
 const RECENT_SCROLL_MS = 300;
 let lastScrollAt = -Infinity;
 export function noteScroll(timeStamp) {
@@ -509,8 +509,10 @@ export function _updateMediaRef(ref, entityId) {
   ref.mute.setAttribute("aria-pressed", String(v.muted));
   ref.volume.hidden = !v.canVolume;
   // Leave the slider alone while it's being dragged; HA's echo catches up after.
-  if (!ref.volumeDragging) ref.volume.value = String(v.volume);
-  ref.volume.style.setProperty("--v", `${v.volume}%`);
+  if (!ref.volumeDragging) {
+    ref.volume.value = String(v.volume);
+    ref.volume.style.setProperty("--v", `${v.volume}%`);
+  }
 }
 
 export function _updateSensorRef(ref) {

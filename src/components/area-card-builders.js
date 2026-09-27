@@ -10,7 +10,7 @@ import {
 } from "./area-card-shared.js";
 import { routineRows } from "../lib/area-data.js";
 import { settleStep } from "../lib/settle.js";
-import { FLASH_MS } from "./area-card-updaters.js";
+import { FLASH_MS, TOUCH_INTENT_MS, SCROLL_SLOP } from "./area-card-updaters.js";
 
 // Panel content for one selected room, in the order the design settled on:
 // climate and media (own full-width cards), scenes/buttons (a pill strip), lights,
@@ -240,11 +240,150 @@ export function _buildMediaCard(area, player) {
   card.append(art, info, power, controls, volumeRow);
 
   const ref = { card, art, title, subtitle, power, prev, next, playPause, volumeRow, mute, volume, displayName, artworkUrl: undefined, volumeDragging: false };
-  volume.addEventListener("input", () => {
+  let touchDrag = null;
+  let sliderPointer = null;
+  let clickAnimation = 0;
+  const sliderValueAt = (clientX) => {
+    const rect = volume.getBoundingClientRect();
+    const inset = 8;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left - inset) / Math.max(1, rect.width - inset * 2)));
+    return Math.round(Number(volume.min || 0) + ratio * (Number(volume.max || 100) - Number(volume.min || 0)));
+  };
+  const setSliderValue = (value) => {
+    volume.value = String(value);
+    volume.style.setProperty("--v", `${value}%`);
+  };
+  const animateSlider = (from, to, done) => {
+    cancelAnimationFrame(clickAnimation);
+    const startedAt = performance.now();
+    const frame = (now) => {
+      const t = Math.min(1, (now - startedAt) / 180);
+      setSliderValue(t === 1 ? to : Math.round(from + (to - from) * (1 - (1 - t) ** 3)));
+      if (t < 1) clickAnimation = requestAnimationFrame(frame);
+      else done?.();
+    };
+    clickAnimation = requestAnimationFrame(frame);
+  };
+  const onSliderPointerMove = (event) => {
+    if (!sliderPointer || event.pointerId !== sliderPointer.pointerId) return;
+    if (Math.hypot(event.clientX - sliderPointer.x, event.clientY - sliderPointer.y) > 3) {
+      sliderPointer.moved = true;
+      cancelAnimationFrame(clickAnimation);
+      setSliderValue(sliderValueAt(event.clientX));
+    }
+  };
+  const endSliderPointer = (event) => {
+    if (sliderPointer?.pointerId !== event.pointerId) return;
+    if (event.type === "pointerup") {
+      if (sliderPointer.moved) {
+        setSliderValue(sliderValueAt(event.clientX));
+        ref.volumeDragging = false;
+        call("volume_set", { volume_level: Number(volume.value) / 100 });
+      } else {
+        const target = sliderPointer.target;
+        sliderPointer = null;
+        window.removeEventListener("pointermove", onSliderPointerMove);
+        window.removeEventListener("pointerup", endSliderPointer);
+        window.removeEventListener("pointercancel", endSliderPointer);
+        animateSlider(Number(volume.value), target, () => {
+          ref.volumeDragging = false;
+          call("volume_set", { volume_level: target / 100 });
+        });
+        return;
+      }
+    } else {
+      cancelAnimationFrame(clickAnimation);
+      ref.volumeDragging = false;
+    }
+    sliderPointer = null;
+    window.removeEventListener("pointermove", onSliderPointerMove);
+    window.removeEventListener("pointerup", endSliderPointer);
+    window.removeEventListener("pointercancel", endSliderPointer);
+  };
+  volume.addEventListener("pointerdown", (event) => {
+    if (event.pointerType !== "mouse") return;
+    event.preventDefault();
+    cancelAnimationFrame(clickAnimation);
+    sliderPointer = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+    const from = Number(volume.value);
+    const to = sliderValueAt(event.clientX);
+    sliderPointer.target = to;
+    ref.volumeDragging = true;
+    setSliderValue(from);
+    window.addEventListener("pointermove", onSliderPointerMove);
+    window.addEventListener("pointerup", endSliderPointer);
+    window.addEventListener("pointercancel", endSliderPointer);
+  });
+  const endTouchDrag = (event) => {
+    if (touchDrag?.pointerId !== event.pointerId) return;
+    if (event.type === "pointercancel") {
+      touchDrag.cancelled = true;
+      volume.value = touchDrag.value;
+      ref.volumeDragging = false;
+      volume.style.setProperty("--v", `${volume.value}%`);
+    }
+    volume.classList.remove("touch-pending");
+    window.removeEventListener("pointermove", onTouchMove);
+    window.removeEventListener("pointerup", endTouchDrag);
+    window.removeEventListener("pointercancel", endTouchDrag);
+  };
+  const onTouchMove = (event) => {
+    if (!touchDrag || event.pointerId !== touchDrag.pointerId || touchDrag.cancelled) return;
+    if (event.timeStamp - touchDrag.startedAt >= TOUCH_INTENT_MS) return;
+    if (Math.hypot(event.clientX - touchDrag.x, event.clientY - touchDrag.y) <= SCROLL_SLOP) return;
+    touchDrag.cancelled = true;
+    volume.value = touchDrag.value;
+    ref.volumeDragging = false;
+    volume.style.setProperty("--v", `${volume.value}%`);
+  };
+  volume.addEventListener("pointerdown", (event) => {
+    if (event.pointerType !== "touch") {
+      touchDrag = null;
+      volume.classList.remove("touch-pending");
+      window.removeEventListener("pointermove", onTouchMove);
+      window.removeEventListener("pointerup", endTouchDrag);
+      window.removeEventListener("pointercancel", endTouchDrag);
+      return;
+    }
+    touchDrag = { pointerId: event.pointerId, startedAt: event.timeStamp, x: event.clientX, y: event.clientY, value: volume.value, cancelled: false };
+    volume.classList.add("touch-pending");
+    window.addEventListener("pointermove", onTouchMove);
+    window.addEventListener("pointerup", endTouchDrag);
+    window.addEventListener("pointercancel", endTouchDrag);
+  });
+  volume.addEventListener("keydown", () => { touchDrag = null; });
+  volume.addEventListener("input", (event) => {
+    if (touchDrag?.cancelled) {
+      volume.value = touchDrag.value;
+      volume.style.setProperty("--v", `${volume.value}%`);
+      return;
+    }
+    if (touchDrag && event.timeStamp - touchDrag.startedAt < TOUCH_INTENT_MS) return;
+    volume.classList.remove("touch-pending");
     ref.volumeDragging = true;
     volume.style.setProperty("--v", `${volume.value}%`);
   });
   volume.addEventListener("change", () => {
+    volume.classList.remove("touch-pending");
+    if (touchDrag?.cancelled) {
+      volume.value = touchDrag.value;
+      volume.style.setProperty("--v", `${volume.value}%`);
+      touchDrag = null;
+      return;
+    }
+    if (touchDrag && !touchDrag.cancelled) {
+      const target = sliderValueAt(touchDrag.x);
+      const from = Number(touchDrag.value);
+      touchDrag = null;
+      ref.volumeDragging = true;
+      setSliderValue(from);
+      animateSlider(from, target, () => {
+        ref.volumeDragging = false;
+        call("volume_set", { volume_level: target / 100 });
+      });
+      return;
+    }
+    touchDrag = null;
     ref.volumeDragging = false;
     call("volume_set", { volume_level: Number(volume.value) / 100 });
   });
@@ -746,4 +885,3 @@ export function _buildAutomationRow(area, item) {
   this._updateAutomationRef(ref, item.entity_id);
   return row;
 }
-
