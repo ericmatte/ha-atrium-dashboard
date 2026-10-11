@@ -72,6 +72,10 @@ export function buildFixtures() {
     states[id] = makeState(id, stateVal, attrs);
   };
 
+  // After sunset: areas without lights dim like rooms with every light off.
+  // (State only — sun.sun belongs to no area.)
+  states["sun.sun"] = makeState("sun.sun", "below_horizon", { friendly_name: "Sun" });
+
   // ---- Living Room -------------------------------------------------------
   add("light.living_room_main", "living_room", "on", {
     supported_color_modes: ["brightness"], color_mode: "brightness", brightness: 178,
@@ -199,6 +203,9 @@ export function buildFixtures() {
   add("media_player.living_room_sonos", "living_room", "paused", { device_class: "speaker", media_title: "Midnight City", media_artist: "M83", media_album_name: "Hurry Up, We're Dreaming", volume_level: 0.35, is_volume_muted: false, supported_features: 8321599, friendly_name: "Sonos" });
   add("light.media_room_main", "media_room", "off", { supported_color_modes: ["brightness"], color_mode: "brightness" });
   add("light.media_room_accent", "media_room", "on", { supported_color_modes: ["rgb"], color_mode: "rgb", rgb_color: [90, 140, 255], brightness: 77 }, { icon: "mdi:led-strip-variant" });
+  // Three colors on at once (purple strip, warm lamp, blue accent) tint the tile's aura.
+  add("light.media_room_strip", "media_room", "on", { supported_color_modes: ["hs"], color_mode: "hs", rgb_color: [170, 90, 255], brightness: 200, friendly_name: "Strip" }, { icon: "mdi:led-strip" });
+  add("light.media_room_lamp", "media_room", "on", { supported_color_modes: ["color_temp"], color_mode: "color_temp", rgb_color: [255, 180, 110], brightness: 150, friendly_name: "Lamp" }, { icon: "mdi:floor-lamp" });
   add("switch.media_room_projector", "media_room", "off", {});
   add("scene.media_room_movie_time", "media_room", "2024-01-01T00:00:00+00:00", { icon: "mdi:theater" });
   add("automation.media_room_dim_for_movie", "media_room", "on", { last_triggered: isoMinutesAgo(5), friendly_name: "Dim for movie" });

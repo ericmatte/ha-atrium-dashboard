@@ -169,6 +169,27 @@ export function lightsGradient(hass, lightIds) {
   return `linear-gradient(90deg, ${stops.join(", ")})`;
 }
 
+// One color per light that's on, for an area tile's aura: its rgb color, or
+// the light-yellow tint in a white mode. Repeats are dropped, at most 6 kept.
+export function lightsAuraColors(hass, lightIds) {
+  const colors = [];
+  for (const id of lightIds) {
+    const st = hass.states?.[id];
+    if (st?.state !== "on") continue;
+    const rgb = lightRgbTriple(st);
+    const color = rgb ? `rgb(${rgb[0]} ${rgb[1]} ${rgb[2]})` : "#f6c14b";
+    if (!colors.includes(color)) colors.push(color);
+  }
+  return colors.slice(0, 6);
+}
+
+// Those colors around a circle, blending into each other and back to the first.
+export function auraGradient(colors) {
+  if (!colors.length) return null;
+  const stops = colors.length === 1 ? [colors[0], colors[0]] : [...colors, colors[0]];
+  return `conic-gradient(${stops.join(", ")})`;
+}
+
 const SENSOR_ICON_BY_DC = {
   temperature: "mdi:thermometer",
   humidity: "mdi:water-percent",

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "../../tools/register.mjs";
 
-const { lightRgbTriple, iconForSensor, fmtTimeAgoLong, lightsGradient, labelDescriptor, nameWithoutAreaPrefix } = await import("./area-card-shared.js");
+const { lightRgbTriple, iconForSensor, fmtTimeAgoLong, lightsGradient, lightsAuraColors, auraGradient, labelDescriptor, nameWithoutAreaPrefix } = await import("./area-card-shared.js");
 
 test("nameWithoutAreaPrefix: strips the area name regardless of case (humanized fallback names are lower-case)", () => {
   const area = { name: "Living Room" };
@@ -81,4 +81,22 @@ test("nameWithoutAreaPrefix: drops the word \"mode\" from a toggle helper's name
   assert.equal(nameWithoutAreaPrefix("Outside party mode", area, "input_boolean.p"), "Party");
   assert.equal(nameWithoutAreaPrefix("Kitchen mode", area, "input_select.k"), "Kitchen mode");
   assert.equal(nameWithoutAreaPrefix("Model train", area, "input_boolean.t"), "Model train");
+});
+
+test("lightsAuraColors: one color per light that's on, white modes in the light yellow, no repeats", () => {
+  const hass = { states: {
+    "light.a": { state: "on", attributes: { color_mode: "hs", rgb_color: [160, 90, 255] } },
+    "light.b": { state: "on", attributes: { color_mode: "color_temp", rgb_color: [255, 180, 100] } },
+    "light.c": { state: "off", attributes: { color_mode: "hs", rgb_color: [0, 0, 255] } },
+    "light.d": { state: "on", attributes: { color_mode: "xy", rgb_color: [160, 90, 255] } },
+    "light.e": { state: "on", attributes: { color_mode: "rgb", rgb_color: [60, 120, 255] } },
+  } };
+  assert.deepEqual(lightsAuraColors(hass, ["light.a", "light.b", "light.c", "light.d", "light.e"]), ["rgb(160 90 255)", "#f6c14b", "rgb(60 120 255)"]);
+  assert.deepEqual(lightsAuraColors(hass, ["light.c"]), []);
+});
+
+test("auraGradient: colors go round the circle and blend back into the first", () => {
+  assert.equal(auraGradient([]), null);
+  assert.equal(auraGradient(["#f6c14b"]), "conic-gradient(#f6c14b, #f6c14b)");
+  assert.equal(auraGradient(["red", "blue"]), "conic-gradient(red, blue, red)");
 });

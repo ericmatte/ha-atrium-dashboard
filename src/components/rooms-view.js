@@ -8,7 +8,7 @@ import { closePopoverFor, openListPopover } from "../lib/popover.js";
 import { sameRegistries, unchangedStates, areaIdForEntity, entityDisplayName } from "../lib/hass-utils.js";
 import { fireMoreInfo, haIcon } from "../lib/dom-utils.js";
 import { callService, toggleLights } from "../lib/ha-actions.js";
-import { STYLE, ICONS, iconForArea, fmtCoverPct, nameWithoutAreaPrefix, ensurePopoverItemStyle } from "./area-card-shared.js";
+import { STYLE, ICONS, iconForArea, fmtCoverPct, nameWithoutAreaPrefix, ensurePopoverItemStyle, lightsAuraColors, auraGradient } from "./area-card-shared.js";
 import {
   entitiesForArea,
   isShownEntity,
@@ -32,6 +32,7 @@ import { tempColor, humidityColor, toCelsius } from "../lib/comfort-colors.js";
 // Matches the panel's exit (desktop slide / phone sheet-out, .26s in
 // area-card.css) so the selection is only dropped once it has played.
 const CLOSE_MS = 260;
+const isNight = (hass) => hass.states?.["sun.sun"]?.state === "below_horizon";
 const PANEL_HISTORY_KEY = "atriumPanel";
 // Must match the phone breakpoint in area-card.css.
 const SHEET_MEDIA = "(max-width: 860px)";
@@ -115,8 +116,12 @@ class AtriumRooms extends HTMLElement {
     this._hass = hass;
     const registriesChanged = !sameRegistries(this, "_reg", hass);
     const statesChanged = !unchangedStates(this, "_stateSnap", hass, this._relevantIds());
+    // Sunset/sunrise dims or brightens the tiles of areas without lights.
+    const night = isNight(hass);
+    const nightChanged = night !== this._night;
+    this._night = night;
     if (registriesChanged) this._panelSig = null;
-    if (!this._root || registriesChanged || statesChanged) this._render();
+    if (!this._root || registriesChanged || statesChanged || nightChanged) this._render();
   }
 
   // Every entity anchored to any area on any of our floors — cheap enough
@@ -429,7 +434,7 @@ class AtriumRooms extends HTMLElement {
     for (const [entityId, ref] of refs.inputSelects) this._updateInputSelectRef(ref, entityId);
     for (const ref of refs.sensors.values()) this._updateSensorRef(ref);
     for (const { btn, label } of this._refs.bulk) btn.textContent = label();
-    this._heroRefs.photo.classList.toggle("gray", this._allLightsOff(data));
+    this._heroRefs.photo.classList.toggle("gray", this._isDimmed(data));
     // Only swap the badges when what they say changed, so their icons don't
     // re-render (and flicker) on every unrelated state update.
     const badges = this._buildHeroBadges(area, data);
@@ -495,8 +500,11 @@ class AtriumRooms extends HTMLElement {
     this._openAnchors.clear();
   }
 
-  _allLightsOff(data) {
-    return data.lights.length > 0 && !data.lights.some((l) => this._hass.states?.[l.entity_id]?.state === "on");
+  // A room reads dark when its lights are all off — or, with no lights to
+  // go by, once the sun has set.
+  _isDimmed(data) {
+    if (!data.lights.length) return isNight(this._hass);
+    return !data.lights.some((l) => this._hass.states?.[l.entity_id]?.state === "on");
   }
 
   // A tile is a container, not a button: its photo is the button that opens
@@ -535,7 +543,11 @@ class AtriumRooms extends HTMLElement {
       photo.appendChild(b);
       return b;
     };
-    photo.appendChild(open);
+    // A glow in the colors of the lights that are on, behind the photo.
+    const aura = document.createElement("span");
+    aura.className = "atrium-orb-aura";
+    ref.aura = aura;
+    photo.append(aura, open);
     ref.litBadge = badge("atrium-orb-badge-lit tl", () => {
       if (ref.lightsOn.length) this._call("light", "turn_off", { entity_id: ref.lightsOn });
     });
@@ -565,7 +577,10 @@ class AtriumRooms extends HTMLElement {
     ref.lightsOn = data.lights.filter((l) => hass.states?.[l.entity_id]?.state === "on").map((l) => l.entity_id);
     const lightsOn = ref.lightsOn.length;
     ref.tile.classList.toggle("lit", lightsOn > 0);
-    ref.tile.classList.toggle("gray", this._allLightsOff(data));
+    ref.tile.classList.toggle("gray", this._isDimmed(data));
+    // The aura keeps its last colors while it fades out with the lights.
+    const aura = auraGradient(lightsAuraColors(hass, ref.lightsOn));
+    if (aura) ref.aura.style.setProperty("--aura", aura);
     ref.litBadge.hidden = lightsOn === 0;
     if (lightsOn > 0 && ref.litBadge.dataset.count !== String(lightsOn)) {
       ref.litBadge.dataset.count = String(lightsOn);
@@ -637,7 +652,7 @@ class AtriumRooms extends HTMLElement {
     // With lights in the room, the photo is a button that turns them all on.
     const hasLights = data.lights.length > 0;
     const photo = document.createElement(hasLights ? "button" : "span");
-    photo.className = "atrium-panel-hero-photo" + (this._allLightsOff(data) ? " gray" : "");
+    photo.className = "atrium-panel-hero-photo" + (this._isDimmed(data) ? " gray" : "");
     if (hasLights) {
       photo.type = "button";
       photo.setAttribute("aria-label", `Turn on all lights in ${area.name}`);
