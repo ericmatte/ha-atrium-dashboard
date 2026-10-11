@@ -62,7 +62,10 @@
 .atrium-orb-aura::before { inset: -3px; }
 .atrium-orb-aura::after { inset: -8%; filter: blur(calc(var(--orb-size, 100px) * .08)); opacity: .75; }
 @keyframes atrium-aura-turn { to { transform: rotate(1turn); } }
-.atrium-orb.sel .atrium-orb-photo { box-shadow: 0 0 0 3px var(--a-bg), 0 0 0 6px var(--a-text), 0 14px 30px rgba(0,0,0,.45); }
+/* Selection: a white ring drawn as an outline a few px out, so the light-colored
+   ring just outside the photo stays visible inside it (a box-shadow would
+   paint over it). */
+.atrium-orb.sel .atrium-orb-photo { outline: 2px solid var(--a-text); outline-offset: 5px; }
 
 .atrium-orb-open { position: absolute; inset: 0; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; transition: transform .2s cubic-bezier(.2,.8,.2,1); }
 .atrium-orb-art { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--a-text) 22%, transparent) 0%, color-mix(in srgb, var(--a-text) 7%, transparent) 70%); color: color-mix(in srgb, var(--a-text) 40%, transparent); transition: filter .5s ease; }
