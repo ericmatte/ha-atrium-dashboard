@@ -90,7 +90,10 @@ var hi=Object.defineProperty;var Wt=(e,t)=>{for(var i in t)hi(e,i,{get:t[i],enum
 .atrium-orb-aura::before { inset: -3px; }
 .atrium-orb-aura::after { inset: -8%; filter: blur(calc(var(--orb-size, 100px) * .08)); opacity: .75; }
 @keyframes atrium-aura-turn { to { transform: rotate(1turn); } }
-.atrium-orb.sel .atrium-orb-photo { box-shadow: 0 0 0 3px var(--a-bg), 0 0 0 6px var(--a-text), 0 14px 30px rgba(0,0,0,.45); }
+/* Selection: a white ring drawn as an outline a few px out, so the light-colored
+   ring just outside the photo stays visible inside it (a box-shadow would
+   paint over it). */
+.atrium-orb.sel .atrium-orb-photo { outline: 2px solid var(--a-text); outline-offset: 5px; }
 
 .atrium-orb-open { position: absolute; inset: 0; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; transition: transform .2s cubic-bezier(.2,.8,.2,1); }
 .atrium-orb-art { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--a-text) 22%, transparent) 0%, color-mix(in srgb, var(--a-text) 7%, transparent) 70%); color: color-mix(in srgb, var(--a-text) 40%, transparent); transition: filter .5s ease; }
@@ -632,7 +635,7 @@ button.atrium-badge { cursor: pointer; }
       </div>
       <button type="button" class="atrium-shell-weather" hidden></button>
       <div class="atrium-shell-header-people"></div>
-    `,this._peopleEl=o.querySelector(".atrium-shell-header-people"),this._weatherEl=o.querySelector(".atrium-shell-weather"),this._weatherEl.addEventListener("click",()=>{this._weatherEntityId&&this._openEntityMore(this._weatherEntityId)}),n.appendChild(o);let r=document.createElement("div");r.className="atrium-shell-pills atrium-shell-pills-stats",this._statsEl=r,n.appendChild(r),r.addEventListener("click",a=>{let s=a.target.closest("button.atrium-shell-stat[data-action]");!s||!r.contains(s)||(s.dataset.action==="lights"?this._openLightsPopover(s):s.dataset.action==="batteries"?this._openBatteryPopover(s):s.dataset.action==="problems"&&this._openProblemPopover(s))}),i.appendChild(n)}_update(){this._updateWeather(),this._updateStats()}_welcomeTitle(){return"Atrium v2.9.0"}_updateWeather(){if(!this._weatherEl||!this._hass)return;let t=di(this._hass),i=t?`${t.entityId}|${t.icon}|${t.color}|${t.label}`:"";if(i===this._lastWeatherSig)return;if(this._lastWeatherSig=i,this._weatherEntityId=t?.entityId||null,this._weatherEl.hidden=!t,!t){this._weatherEl.replaceChildren();return}let n=this._hass.states[t.entityId];this._weatherEl.title=M(n,t.entityId),this._weatherEl.innerHTML=`
+    `,this._peopleEl=o.querySelector(".atrium-shell-header-people"),this._weatherEl=o.querySelector(".atrium-shell-weather"),this._weatherEl.addEventListener("click",()=>{this._weatherEntityId&&this._openEntityMore(this._weatherEntityId)}),n.appendChild(o);let r=document.createElement("div");r.className="atrium-shell-pills atrium-shell-pills-stats",this._statsEl=r,n.appendChild(r),r.addEventListener("click",a=>{let s=a.target.closest("button.atrium-shell-stat[data-action]");!s||!r.contains(s)||(s.dataset.action==="lights"?this._openLightsPopover(s):s.dataset.action==="batteries"?this._openBatteryPopover(s):s.dataset.action==="problems"&&this._openProblemPopover(s))}),i.appendChild(n)}_update(){this._updateWeather(),this._updateStats()}_welcomeTitle(){return"Atrium v2.10.0"}_updateWeather(){if(!this._weatherEl||!this._hass)return;let t=di(this._hass),i=t?`${t.entityId}|${t.icon}|${t.color}|${t.label}`:"";if(i===this._lastWeatherSig)return;if(this._lastWeatherSig=i,this._weatherEntityId=t?.entityId||null,this._weatherEl.hidden=!t,!t){this._weatherEl.replaceChildren();return}let n=this._hass.states[t.entityId];this._weatherEl.title=M(n,t.entityId),this._weatherEl.innerHTML=`
       <span class="atrium-shell-weather-icon" style="color:${t.color};background:${K(t.color,16)}">
         ${E(t.icon)}
       </span>
