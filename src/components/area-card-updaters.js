@@ -10,9 +10,9 @@ import {
   labelDescriptor,
 } from "./area-card-shared.js";
 
-// Diva track geometry (px), matching the approved design: a 58×108 track
-// around a round 34px icon thumb, 6px of padding top/bottom.
-const THUMB = 34;
+// Diva track geometry (px): a 66×124 track around a 54×42 rounded icon
+// thumb, inset by the same 6px on every side.
+const THUMB = 42;
 const PAD = 6;
 // A light's fill fades out across the icon: solid up to 1/3 of its height,
 // transparent at 2/3, so the fill reads as glowing from under the icon.
@@ -36,11 +36,16 @@ const FLICK_MS = 360;
 const PCT_SWAP_FROM = 40;
 const PCT_SWAP_TO = 60;
 // Touch: the tiles are vertical sliders on a vertically scrolling page, so
-// a touch first has to say which it is. A finger that moves off within the
-// first TOUCH_INTENT_MS is a scroll (the browser takes it); one that stays
-// put that long and then moves is a drag. While the page is still scrolling
-// (momentum, a swipe that just ended) a touch only stops/continues the
-// scroll: no drag, no toggle. Mice drag right away.
+// a touch first has to say which it is — decided on its first INTENT_SLOP px
+// of travel, before the browser would start scrolling, so a drag starts
+// right away. A swipe launches fast (over SCROLL_SPEED from the moment it
+// landed) and is a scroll the browser takes; a finger that starts slower, or
+// rested first, drags. While the page is still scrolling (momentum, a swipe
+// that just ended) a touch only stops/continues the scroll: no drag, no
+// toggle. Mice drag right away.
+const INTENT_SLOP = 4;
+const SCROLL_SPEED = 0.4; // px/ms
+// The media volume slider still asks a touch to hold before it drags.
 export const TOUCH_INTENT_MS = 100;
 export const SCROLL_SLOP = 6;
 const RECENT_SCROLL_MS = 300;
@@ -252,12 +257,10 @@ export function _bindDivaTrack(ref, entityId, kind) {
     const decideIntent = (timeStamp, clientY) => {
       if (drag.intent !== "pending") return;
       const moved = Math.abs(clientY - drag.y);
-      if (timeStamp - t0 < TOUCH_INTENT_MS) {
-        if (moved > SCROLL_SLOP) drag.intent = "scroll";
-      } else {
-        drag.intent = "drag";
-        vibrate(6);
-      }
+      if (moved < INTENT_SLOP) return;
+      const speed = moved / Math.max(1, timeStamp - t0);
+      drag.intent = speed > SCROLL_SPEED ? "scroll" : "drag";
+      if (drag.intent === "drag") vibrate(6);
     };
     // Once it's a drag, keep the page from scrolling for the rest of the
     // gesture (touch-action: pan-y leaves scrolling to the browser until then).
@@ -280,7 +283,8 @@ export function _bindDivaTrack(ref, entityId, kind) {
         track.classList.add("dragging");
       }
       if (drag.dimmable) {
-        drag.finalLevel = kind === "cover" ? coverLevelFromPointer(ev.clientY, rect) : Math.round(fracFromPointer(ev.clientY) * 100);
+        // A light dragged to the bottom stays on at 1%; a tap turns it off.
+        drag.finalLevel = kind === "cover" ? coverLevelFromPointer(ev.clientY, rect) : Math.max(1, Math.round(fracFromPointer(ev.clientY) * 100));
         this._updateDivaRef(ref, entityId, kind, { on: drag.finalLevel > 0, level: drag.finalLevel, thumbFrac: drag.finalLevel / 100 });
         return;
       }
@@ -317,8 +321,7 @@ export function _bindDivaTrack(ref, entityId, kind) {
           if (pct <= 0) this._call("cover", "close_cover", { entity_id: entityId });
           else if (pct >= 100) this._call("cover", "open_cover", { entity_id: entityId });
           else this._call("cover", "set_cover_position", { entity_id: entityId, position: pct });
-        } else if (pct <= 0) this._call("light", "turn_off", { entity_id: entityId });
-        else this._call("light", "turn_on", { entity_id: entityId, brightness_pct: pct });
+        } else this._call("light", "turn_on", { entity_id: entityId, brightness_pct: pct });
         return;
       }
       if (commit && drag.held && drag.notch != null) {

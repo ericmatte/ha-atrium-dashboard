@@ -481,7 +481,7 @@ export function _buildDivaTile(area, entity, { kind, icon, refKey }, deviceSenso
   const thumb = document.createElement("span");
   thumb.className = "atrium-diva-thumb";
   const customIcon = this._hass.entities?.[entity.entity_id]?.icon ?? this._hass.states?.[entity.entity_id]?.attributes?.icon;
-  thumb.innerHTML = haIcon(customIcon || icon, 17);
+  thumb.innerHTML = haIcon(customIcon || icon, 24);
   track.append(fill, pctTop, pctBottom, thumb);
   // Covers draw a shade instead, with a handle bar on its edge.
   let bar = null;

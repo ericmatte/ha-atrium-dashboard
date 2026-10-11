@@ -144,21 +144,22 @@ button.atrium-badge { cursor: pointer; }
 .atrium-group .atrium-shead { justify-content: flex-start; height: 20px; }
 .atrium-group .atrium-act-btn { padding: 2px 9px; font-size: 11px; line-height: 16px; }
 
-/* Diva tiles: a 58px track with 16px corners around a round 34px icon. The
+/* Diva tiles: a 66px track with 18px corners around a rounded 54×42 icon thumb. The
    track clips an unrounded fill — shape lives on the track, never the fill. */
 .atrium-diva-grid { display: flex; flex-wrap: wrap; gap: 14px 10px; }
-.atrium-diva { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 72px; }
-.atrium-diva-track { position: relative; width: 58px; height: 108px; padding: 0; border: 0; border-radius: 16px; overflow: hidden; background: color-mix(in srgb, var(--a-text) 4%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--a-text) 7%, transparent); cursor: pointer; touch-action: pan-y; -webkit-tap-highlight-color: transparent; }
+.atrium-diva { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 80px; }
+.atrium-diva-track { position: relative; width: 66px; height: 124px; padding: 0; border: 0; border-radius: 18px; overflow: hidden; background: color-mix(in srgb, var(--a-text) 4%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--a-text) 7%, transparent); cursor: pointer; touch-action: pan-y; -webkit-tap-highlight-color: transparent; }
 .atrium-diva-track.dim { cursor: grab; }
 .atrium-diva-track.dragging { cursor: grabbing; }
 .atrium-diva-track.un { cursor: not-allowed; opacity: .45; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--a-text) 4%, transparent) 0 8px, color-mix(in srgb, var(--a-text) 6%, transparent) 8px 16px); }
 .atrium-diva-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0; transition: height .26s cubic-bezier(.2,.8,.2,1); }
 .atrium-diva-tick { position: absolute; left: 50%; width: 10px; height: 2px; margin-left: -5px; border-radius: 1px; background: color-mix(in srgb, var(--a-text) 8%, transparent); }
-.atrium-diva-thumb { position: absolute; left: 50%; bottom: 6px; width: 34px; height: 34px; margin-left: -17px; border-radius: 50%; background: color-mix(in srgb, var(--a-text) 11%, var(--a-panel)); color: var(--a-dim); display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(0,0,0,.45); transition: bottom .26s cubic-bezier(.2,.8,.2,1), background .2s, color .2s, transform .16s; }
-.atrium-diva-thumb ha-icon { --mdc-icon-size: 17px; }
+/* The thumb spans the track, inset 6px all round; its radius is the track's less the inset so the corners stay concentric. */
+.atrium-diva-thumb { position: absolute; left: 6px; right: 6px; bottom: 6px; height: 42px; border-radius: 12px; background: color-mix(in srgb, var(--a-text) 11%, var(--a-panel)); color: var(--a-dim); display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(0,0,0,.45); transition: bottom .26s cubic-bezier(.2,.8,.2,1), background .2s, color .2s, transform .16s; }
+.atrium-diva-thumb ha-icon { --mdc-icon-size: 24px; }
 .atrium-diva-track.on .atrium-diva-thumb { background: #fff; color: #1b1506; }
 .atrium-diva-track.dragging .atrium-diva-fill, .atrium-diva-track.dragging .atrium-diva-thumb { transition: none; }
-.atrium-diva-track.dragging .atrium-diva-thumb { transform: scale(1.14); box-shadow: 0 10px 24px rgba(0,0,0,.55), 0 0 0 3px rgba(255,255,255,.25); }
+.atrium-diva-track.dragging .atrium-diva-thumb { transform: scale(1.04); box-shadow: 0 10px 24px rgba(0,0,0,.55), 0 0 0 3px rgba(255,255,255,.25); }
 .atrium-diva-track.onoff .atrium-diva-thumb { transition: bottom .36s cubic-bezier(.34,1.56,.64,1), background .2s, color .2s, transform .16s; }
 .atrium-diva-track.onoff .atrium-diva-fill { transition: height .36s var(--a-ease); }
 .atrium-diva-track.onoff.dragging .atrium-diva-fill { transition: none; }
@@ -176,12 +177,12 @@ button.atrium-badge { cursor: pointer; }
 .atrium-diva-track.cover .atrium-diva-pct.bottom { color: color-mix(in srgb, var(--a-text) 70%, transparent); }
 .atrium-diva-bar { position: absolute; left: 50%; width: 28px; height: 6px; margin: -3px 0 0 -14px; border-radius: 3px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35); transition: top .26s cubic-bezier(.2,.8,.2,1), transform .16s; }
 .atrium-diva-track.dragging .atrium-diva-bar { transition: none; transform: scaleX(1.15); }
-.atrium-diva-name { max-width: 72px; padding: 0; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 13px; font-weight: 700; line-height: 1.2; color: var(--a-text); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.atrium-diva-name { max-width: 80px; padding: 0; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 13px; font-weight: 700; line-height: 1.2; color: var(--a-text); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .atrium-diva-ago { margin-top: -6px; font-size: 11px; font-weight: 600; color: var(--a-dim); text-align: center; white-space: nowrap; }
 .atrium-diva-ago.unavailable { display: inline-flex; align-items: center; gap: 3px; color: #ffb561; }
-/* Sits on the track's bottom-right corner (track: 58×108, centred in the
-   72px tile). */
-.atrium-diva-caret { position: absolute; right: -1px; top: 93px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--a-text) 24%, var(--a-panel)); color: var(--a-text); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 0 2px var(--a-panel), 0 2px 6px rgba(0,0,0,.4); --mdc-icon-size: 18px; }
+/* Sits on the track's bottom-right corner (track: 66×124, centred in the
+   80px tile). */
+.atrium-diva-caret { position: absolute; right: -1px; top: 109px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--a-text) 24%, var(--a-panel)); color: var(--a-text); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 0 2px var(--a-panel), 0 2px 6px rgba(0,0,0,.4); --mdc-icon-size: 18px; }
 .atrium-diva-caret:hover { background: color-mix(in srgb, var(--a-text) 34%, var(--a-panel)); }
 
 /* Climate: name + "Now 21.4° · heating" beside a big −/target/+, and — for
