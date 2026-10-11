@@ -169,36 +169,15 @@ export function lightsGradient(hass, lightIds) {
   return `linear-gradient(90deg, ${stops.join(", ")})`;
 }
 
-// The same hue at full saturation and mid lightness: lights often report
-// pastel rgb_color values that read as grey on a thin ring. Near-whites
-// (little chroma) stay as they are.
-export function vividRgb([r, g, b]) {
-  const max = Math.max(r, g, b) / 255;
-  const min = Math.min(r, g, b) / 255;
-  const chroma = max - min;
-  if (chroma < 0.15) return [r, g, b];
-  const [rn, gn, bn] = [r / 255, g / 255, b / 255];
-  let h = max === rn ? ((gn - bn) / chroma) % 6 : max === gn ? (bn - rn) / chroma + 2 : (rn - gn) / chroma + 4;
-  h = (h * 60 + 360) % 360;
-  // hsl(h, 100%, 55%) back to rgb.
-  const l = 0.55;
-  const c = 1 - Math.abs(2 * l - 1);
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-  const m = l - c / 2;
-  const [r1, g1, b1] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
-  return [r1, g1, b1].map((v) => Math.round((v + m) * 255));
-}
-
 // One color per light that's on, for an area tile's aura: its rgb color, or
-// the light-yellow tint in a white mode. Repeats are dropped, at most 6 kept.
-// `vivid` saturates each color (see vividRgb) for the tile's ring.
-export function lightsAuraColors(hass, lightIds, { vivid = false } = {}) {
+// the light-yellow tint in a white mode, exactly as the light reports it.
+// Repeats are dropped, at most 6 kept.
+export function lightsAuraColors(hass, lightIds) {
   const colors = [];
   for (const id of lightIds) {
     const st = hass.states?.[id];
     if (st?.state !== "on") continue;
-    let rgb = lightRgbTriple(st);
-    if (rgb && vivid) rgb = vividRgb(rgb);
+    const rgb = lightRgbTriple(st);
     const color = rgb ? `rgb(${rgb[0]} ${rgb[1]} ${rgb[2]})` : "#f6c14b";
     if (!colors.includes(color)) colors.push(color);
   }

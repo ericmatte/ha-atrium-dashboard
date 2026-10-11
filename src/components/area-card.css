@@ -209,6 +209,17 @@ button.atrium-badge { cursor: pointer; }
    76px tile). */
 .atrium-diva-caret { position: absolute; right: -1px; top: 155px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--a-text) 24%, var(--a-panel)); color: var(--a-text); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 0 2px var(--a-panel), 0 2px 6px rgba(0,0,0,.4); --mdc-icon-size: 18px; }
 .atrium-diva-caret:hover { background: color-mix(in srgb, var(--a-text) 34%, var(--a-panel)); }
+/* Phones: four equal columns across the panel, each tile (and its track)
+   as wide as its column. */
+@media (max-width: 600px) {
+  .atrium-group:has(> .atrium-diva-grid) { width: 100%; }
+  .atrium-diva-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .atrium-diva { width: auto; min-width: 0; }
+  .atrium-diva-track { width: 100%; }
+  .atrium-diva-name { max-width: 100%; }
+  /* Same spot on the track's corner as on the fixed-width tiles. */
+  .atrium-diva-caret { right: -6px; }
+}
 
 /* Climate: name + "Now 21.4° · heating" beside a big −/target/+, and — for
    units with several hvac modes — a power button plus Mode/Fan/Swing pills.

@@ -582,7 +582,7 @@ class AtriumRooms extends HTMLElement {
     ref.tile.classList.toggle("gray", this._isDimmed(data));
     // Only which lights are on and their colors count, never brightness. The
     // aura keeps its last colors while it fades out with the lights.
-    const aura = auraGradient(lightsAuraColors(hass, ref.lightsOn, { vivid: true }), { space: AURA_SPACE, hold: 0.6 });
+    const aura = auraGradient(lightsAuraColors(hass, ref.lightsOn), { space: AURA_SPACE, hold: 0.6 });
     if (aura) ref.aura.style.setProperty("--aura", aura);
     ref.litBadge.hidden = lightsOn === 0;
     if (lightsOn > 0 && ref.litBadge.dataset.count !== String(lightsOn)) {
