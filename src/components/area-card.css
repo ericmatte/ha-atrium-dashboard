@@ -353,8 +353,10 @@ button.atrium-badge { cursor: pointer; }
 /* ── Phone: room picked → strip on top, sheet below ──────────────────── */
 @media (max-width: 860px) {
   .atrium-rooms.has-sel { position: fixed; top: var(--header-height, 0px); left: 0; right: 0; bottom: 0; z-index: 3; display: flex; flex-direction: column; background: var(--a-bg); }
-  .has-sel .atrium-rooms-content { flex: 0 0 auto; flex-direction: row; gap: 14px; padding: 22px 18px 20px; overflow-x: auto; scrollbar-width: none; animation: atrium-strip-in .34s var(--a-ease) both; }
+  .has-sel .atrium-rooms-content { position: relative; flex: 0 0 auto; flex-direction: row; gap: 14px; padding: 22px 18px 20px; overflow-x: auto; scrollbar-width: none; animation: atrium-strip-in .34s var(--a-ease) both; }
   .has-sel .atrium-rooms-content::-webkit-scrollbar { display: none; }
+  /* Trailing room so even the last tile can scroll to the left edge (rooms-view.js brings the open room there). */
+  .has-sel .atrium-rooms-content::after { content: ""; flex: 0 0 calc(100% - 70px - 14px); }
   .closing .atrium-rooms-content { opacity: .5; transition: opacity .25s; }
   .has-sel .atrium-floor-group { gap: 8px; flex-shrink: 0; }
   .has-sel .atrium-floor-group + .atrium-floor-group { padding-left: 14px; border-left: 1px solid color-mix(in srgb, var(--a-text) 10%, transparent); }

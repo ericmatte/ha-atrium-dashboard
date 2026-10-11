@@ -205,6 +205,26 @@ class AtriumRooms extends HTMLElement {
     if (reopening) this._pushPanelHistory();
     this._renderPanel({ freshPanel: reopening });
     this._syncLayout();
+    this._scrollStripTo(areaId, { smooth: !reopening });
+  }
+
+  // Phone: the rooms collapse into a strip above the sheet; bring the open
+  // room to its left edge (at once when the strip first appears, gliding
+  // when switching rooms within it).
+  _scrollStripTo(areaId, { smooth }) {
+    if (!matchMedia(SHEET_MEDIA).matches) return;
+    requestAnimationFrame(() => {
+      const strip = this._content;
+      const tile = this._orbRefs.get(areaId)?.tile;
+      if (!strip || !tile || this._selectedAreaId !== areaId) return;
+      // Layout offsets, not client rects: the tiles may still be mid pop-in
+      // (scaled down), which would skew a rect. The strip is positioned, so
+      // the offsetParent chain from the tile ends at it.
+      let left = 0;
+      for (let el = tile; el && el !== strip; el = el.offsetParent) left += el.offsetLeft;
+      left -= parseFloat(getComputedStyle(strip).paddingLeft) || 0;
+      strip.scrollTo({ left: Math.max(0, left), behavior: smooth ? "smooth" : "instant" });
+    });
   }
 
   // The panel plays its exit animation first; only then is the selection
