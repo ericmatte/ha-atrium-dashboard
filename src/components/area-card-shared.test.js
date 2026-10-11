@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "../../tools/register.mjs";
 
-const { lightRgbTriple, iconForSensor, fmtTimeAgoLong, lightsGradient, lightsAuraColors, auraGradient, labelDescriptor, nameWithoutAreaPrefix } = await import("./area-card-shared.js");
+const { lightRgbTriple, iconForSensor, fmtTimeAgoLong, lightsGradient, lightsAuraColors, auraGradient, vividRgb, labelDescriptor, nameWithoutAreaPrefix } = await import("./area-card-shared.js");
 
 test("nameWithoutAreaPrefix: strips the area name regardless of case (humanized fallback names are lower-case)", () => {
   const area = { name: "Living Room" };
@@ -99,4 +99,21 @@ test("auraGradient: colors go round the circle and blend back into the first", (
   assert.equal(auraGradient([]), null);
   assert.equal(auraGradient(["#f6c14b"]), "conic-gradient(#f6c14b, #f6c14b)");
   assert.equal(auraGradient(["red", "blue"]), "conic-gradient(red, blue, red)");
+  assert.equal(auraGradient(["red", "blue"], { space: "oklch" }), "conic-gradient(in oklch, red, blue, red)");
+  assert.equal(auraGradient(["red", "lime", "blue"], { hold: 0.6 }), "conic-gradient(red 0deg 72deg, lime 120deg 192deg, blue 240deg 312deg, red 360deg)");
+  assert.equal(auraGradient(["red"], { hold: 0.6 }), "conic-gradient(red, red)");
+});
+
+test("vividRgb: a pastel keeps its hue at full saturation; near-whites stay white", () => {
+  assert.deepEqual(vividRgb([200, 160, 255]), [122, 26, 255]);
+  assert.deepEqual(vividRgb([255, 0, 0]), [255, 26, 26]);
+  assert.deepEqual(vividRgb([255, 245, 235]), [255, 245, 235]);
+});
+
+test("lightsAuraColors: vivid saturates rgb colors for the ring, the white-mode yellow is unchanged", () => {
+  const hass = { states: {
+    "light.a": { state: "on", attributes: { color_mode: "hs", rgb_color: [200, 160, 255] } },
+    "light.b": { state: "on", attributes: { color_mode: "color_temp", rgb_color: [255, 180, 100] } },
+  } };
+  assert.deepEqual(lightsAuraColors(hass, ["light.a", "light.b"], { vivid: true }), ["rgb(122 26 255)", "#f6c14b"]);
 });

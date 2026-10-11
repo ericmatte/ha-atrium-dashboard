@@ -169,14 +169,36 @@ export function lightsGradient(hass, lightIds) {
   return `linear-gradient(90deg, ${stops.join(", ")})`;
 }
 
+// The same hue at full saturation and mid lightness: lights often report
+// pastel rgb_color values that read as grey on a thin ring. Near-whites
+// (little chroma) stay as they are.
+export function vividRgb([r, g, b]) {
+  const max = Math.max(r, g, b) / 255;
+  const min = Math.min(r, g, b) / 255;
+  const chroma = max - min;
+  if (chroma < 0.15) return [r, g, b];
+  const [rn, gn, bn] = [r / 255, g / 255, b / 255];
+  let h = max === rn ? ((gn - bn) / chroma) % 6 : max === gn ? (bn - rn) / chroma + 2 : (rn - gn) / chroma + 4;
+  h = (h * 60 + 360) % 360;
+  // hsl(h, 100%, 55%) back to rgb.
+  const l = 0.55;
+  const c = 1 - Math.abs(2 * l - 1);
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [r1, g1, b1] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return [r1, g1, b1].map((v) => Math.round((v + m) * 255));
+}
+
 // One color per light that's on, for an area tile's aura: its rgb color, or
 // the light-yellow tint in a white mode. Repeats are dropped, at most 6 kept.
-export function lightsAuraColors(hass, lightIds) {
+// `vivid` saturates each color (see vividRgb) for the tile's ring.
+export function lightsAuraColors(hass, lightIds, { vivid = false } = {}) {
   const colors = [];
   for (const id of lightIds) {
     const st = hass.states?.[id];
     if (st?.state !== "on") continue;
-    const rgb = lightRgbTriple(st);
+    let rgb = lightRgbTriple(st);
+    if (rgb && vivid) rgb = vividRgb(rgb);
     const color = rgb ? `rgb(${rgb[0]} ${rgb[1]} ${rgb[2]})` : "#f6c14b";
     if (!colors.includes(color)) colors.push(color);
   }
@@ -184,10 +206,19 @@ export function lightsAuraColors(hass, lightIds) {
 }
 
 // Those colors around a circle, blending into each other and back to the first.
-export function auraGradient(colors) {
+// `space` ("oklch") blends through vivid hues instead of the grey an sRGB mix
+// passes through between, say, yellow and blue. `hold` (0–1) keeps each color
+// solid over that share of its arc, so every light reads as its own color and
+// only the short joins blend.
+export function auraGradient(colors, { space, hold = 0 } = {}) {
   if (!colors.length) return null;
-  const stops = colors.length === 1 ? [colors[0], colors[0]] : [...colors, colors[0]];
-  return `conic-gradient(${stops.join(", ")})`;
+  const prefix = space ? `in ${space}, ` : "";
+  if (colors.length === 1) return `conic-gradient(${prefix}${colors[0]}, ${colors[0]})`;
+  if (!hold) return `conic-gradient(${prefix}${[...colors, colors[0]].join(", ")})`;
+  const arc = 360 / colors.length;
+  const deg = (v) => `${+v.toFixed(1)}deg`;
+  const stops = colors.map((c, i) => `${c} ${deg(i * arc)} ${deg(i * arc + arc * hold)}`);
+  return `conic-gradient(${prefix}${stops.join(", ")}, ${colors[0]} 360deg)`;
 }
 
 const SENSOR_ICON_BY_DC = {
