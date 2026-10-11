@@ -455,6 +455,42 @@ export function _updateInputSelectRef(ref, entityId) {
 const MP = { PAUSE: 1, VOLUME_SET: 4, VOLUME_MUTE: 8, PREVIOUS: 16, NEXT: 32, TURN_ON: 128, TURN_OFF: 256, PLAY: 16384 };
 const MEDIA_STATE_LABEL = { playing: "Playing", paused: "Paused", idle: "Idle", on: "On", off: "Off", standby: "Standby", buffering: "Buffering", unavailable: "Unavailable" };
 
+// Apps worth recognizing, matched against app_id, app_name and source (Cast
+// reports a name and an opaque id, Android TV a package name for both, Sonos
+// a source like "Spotify Connect"). First match wins, so narrower entries lead.
+const MEDIA_APPS = [
+  [/youtube[ .]?music/, "YouTube Music", "mdi:youtube"],
+  [/youtube.*unplugged|youtube\s*tv/, "YouTube TV", "mdi:youtube-tv"],
+  [/youtube/, "YouTube", "mdi:youtube"],
+  [/netflix/, "Netflix", "mdi:netflix"],
+  [/spotify/, "Spotify", "mdi:spotify"],
+  [/plex/, "Plex", "mdi:plex"],
+  [/twitch/, "Twitch", "mdi:twitch"],
+  [/kodi|xbmc/, "Kodi", "mdi:kodi"],
+  [/hulu/, "Hulu", "mdi:hulu"],
+  [/vimeo/, "Vimeo", "mdi:vimeo"],
+  [/emby/, "Emby", "mdi:emby"],
+  [/jellyfin/, "Jellyfin", "mdi:jellyfish"],
+  [/soundcloud/, "SoundCloud", "mdi:soundcloud"],
+  [/steam/, "Steam Link", "mdi:steam"],
+  [/disney/, "Disney+", "mdi:movie-open"],
+  [/amazon.*video|prime\s*video|primevideo/, "Prime Video", "mdi:movie-open"],
+  [/podcast/, "Podcasts", "mdi:podcast"],
+  [/tunein|radio/, "Radio", "mdi:radio"],
+  [/chrome/, "Chrome", "mdi:google-chrome"],
+  [/com\.android\.vending|google\s*play/, "Google Play", "mdi:google-play"],
+  [/com\.apple\.|apple\s*tv/, "Apple TV", "mdi:apple"],
+];
+// A bare package or bundle id (com.google.android.youtube.tv) rather than a name.
+const APP_ID_LIKE = /^[a-z][\w-]*(\.[\w-]+){2,}$/i;
+
+export function mediaApp(a) {
+  const haystack = [a.app_id, a.app_name, a.source].filter(Boolean).join(" ").toLowerCase();
+  if (!haystack) return null;
+  const hit = MEDIA_APPS.find(([re]) => re.test(haystack));
+  return hit ? { name: hit[1], icon: hit[2] } : null;
+}
+
 // What the media card shows, from the player's state alone. An entity that
 // doesn't report supported_features (some dev/test fixtures) gets every control.
 export function mediaView(st) {
@@ -463,7 +499,10 @@ export function mediaView(st) {
   const has = (bit) => f == null || (Number(f) & bit) === bit;
   const off = st.state === "off" || st.state === "standby" || st.state === "unavailable";
   const playing = st.state === "playing" || st.state === "buffering";
-  const title = a.media_title || (off ? null : a.app_name || a.source) || null;
+  const app = off ? null : mediaApp(a);
+  let title = a.media_title || (off ? null : a.app_name || a.source) || null;
+  // Android TV names the app by its package; show the app's name instead.
+  if (title && !a.media_title && app && APP_ID_LIKE.test(title)) title = app.name;
   const subtitle = [a.media_artist || a.media_series_title, a.media_album_name].filter(Boolean).join(" · ") || null;
   return {
     off,
@@ -471,6 +510,7 @@ export function mediaView(st) {
     title: title || MEDIA_STATE_LABEL[st.state] || st.state,
     subtitle: title ? subtitle || MEDIA_STATE_LABEL[st.state] || null : null,
     artwork: off ? null : a.entity_picture || null,
+    appIcon: app?.icon || null,
     canPower: off ? has(MP.TURN_ON) && st.state !== "unavailable" : f != null && has(MP.TURN_OFF),
     canPlayPause: !off && (has(MP.PAUSE) || has(MP.PLAY)),
     canPrev: !off && has(MP.PREVIOUS),
@@ -496,8 +536,11 @@ export function _updateMediaRef(ref, entityId) {
     ref.art.style.backgroundImage = v.artwork ? `url("${v.artwork}")` : "";
     ref.art.classList.toggle("has-img", !!v.artwork);
   }
+  // No artwork: the running app's icon stands in for the device's.
+  setIcon(ref.art.firstElementChild, v.appIcon || ref.deviceIcon);
   ref.power.hidden = !v.canPower;
   ref.power.setAttribute("aria-label", `Turn ${ref.displayName} ${v.off ? "on" : "off"}`);
+  ref.controls.hidden = !v.canPrev && !v.canNext && !v.canPlayPause;
   ref.prev.hidden = !v.canPrev;
   ref.next.hidden = !v.canNext;
   ref.playPause.hidden = !v.canPlayPause;

@@ -188,6 +188,8 @@ export function buildFixtures() {
   // supported_features mirror real devices: the TV can be powered on/off,
   // a Sonos can't (so its card has no power button).
   add("media_player.media_room_tv", "media_room", "playing", { device_class: "tv", media_title: "Dune: Part Two", app_name: "Netflix", volume_level: 0.4, is_volume_muted: false, supported_features: 21437, friendly_name: "TV" });
+  // An Android TV streamer names its app by package id, has mute but no volume level.
+  add("media_player.media_room_streamer", "media_room", "on", { device_class: "tv", app_id: "com.google.android.youtube.tv", app_name: "com.google.android.youtube.tv", supported_features: 153529, friendly_name: "Android Streamer" });
   add("media_player.living_room_sonos", "living_room", "paused", { device_class: "speaker", media_title: "Midnight City", media_artist: "M83", media_album_name: "Hurry Up, We're Dreaming", volume_level: 0.35, is_volume_muted: false, supported_features: 8321599, friendly_name: "Sonos" });
   add("light.media_room_main", "media_room", "off", { supported_color_modes: ["brightness"], color_mode: "brightness" });
   add("light.media_room_accent", "media_room", "on", { supported_color_modes: ["rgb"], color_mode: "rgb", rgb_color: [90, 140, 255], brightness: 77 }, { icon: "mdi:led-strip-variant" });

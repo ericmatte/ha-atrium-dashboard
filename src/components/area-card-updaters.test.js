@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "../../tools/register.mjs";
 
-const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _updateAutomationRef, _renderAutomationLabels, divaVisual, climateView, mediaView, fanModeIcon, swingModeIcon, noteScroll, coverVisual, coverLevelFromPointer } = await import("./area-card-updaters.js");
+const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _updateAutomationRef, _renderAutomationLabels, divaVisual, climateView, mediaView, mediaApp, fanModeIcon, swingModeIcon, noteScroll, coverVisual, coverLevelFromPointer } = await import("./area-card-updaters.js");
 
 // Minimal fakes for the DOM surface _bindDivaTrack/_updateDivaRef touch.
 // Pointer event listeners are captured directly so tests can invoke them
@@ -459,6 +459,33 @@ test("mediaView: idle with nothing loaded shows its state as the title", () => {
   const v = mediaView({ state: "idle", attributes: {} });
   assert.equal(v.title, "Idle");
   assert.equal(v.subtitle, null);
+});
+
+test("mediaView: Android TV's package name becomes the app's name and icon", () => {
+  const v = mediaView({ state: "on", attributes: { app_id: "com.google.android.youtube.tv", app_name: "com.google.android.youtube.tv", device_class: "tv" } });
+  assert.equal(v.title, "YouTube");
+  assert.equal(v.subtitle, "On");
+  assert.equal(v.appIcon, "mdi:youtube");
+});
+
+test("mediaView: a title the player names itself, or an unknown package, is kept as is", () => {
+  assert.equal(mediaView({ state: "playing", attributes: { app_id: "2C6A6E3D", app_name: "YouTube", media_title: "Sentier des Cimes" } }).title, "Sentier des Cimes");
+  const v = mediaView({ state: "on", attributes: { app_id: "com.example.player", app_name: "com.example.player" } });
+  assert.equal(v.title, "com.example.player");
+  assert.equal(v.appIcon, null);
+});
+
+test("mediaView: an off player shows no app icon", () => {
+  assert.equal(mediaView({ state: "off", attributes: { app_name: "Netflix" } }).appIcon, null);
+});
+
+test("mediaApp: matches app_id, app_name or source, narrowest entry first", () => {
+  assert.deepEqual(mediaApp({ app_id: "com.netflix.ninja" }), { name: "Netflix", icon: "mdi:netflix" });
+  assert.deepEqual(mediaApp({ source: "Spotify Connect" }), { name: "Spotify", icon: "mdi:spotify" });
+  assert.equal(mediaApp({ app_id: "com.google.android.apps.youtube.music" }).name, "YouTube Music");
+  assert.equal(mediaApp({ app_name: "YouTube TV" }).icon, "mdi:youtube-tv");
+  assert.equal(mediaApp({ source: "HDMI 1" }), null);
+  assert.equal(mediaApp({}), null);
 });
 
 test("fanModeIcon / swingModeIcon: map the names integrations report, with a generic fallback", () => {

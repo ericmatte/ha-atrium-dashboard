@@ -211,10 +211,12 @@ button.atrium-badge { cursor: pointer; }
 .atrium-climate.off .atrium-climate-target { color: var(--a-dim); }
 
 /* Media: one card per player — artwork, what's playing (truncated to fit),
-   transport controls and power on one line, volume below. Purple like the tile's media badge. */
-.atrium-media-list { display: flex; flex-direction: column; gap: 8px; }
-.atrium-media { --m-accent: #c9a3ff; display: grid; grid-template-columns: 56px minmax(0, 1fr) auto auto; grid-template-areas: "art info controls power" "volume volume volume volume"; align-items: center; gap: 10px 12px; padding: 12px 14px; border-radius: 18px; background: linear-gradient(135deg, color-mix(in srgb, var(--m-accent) 11%, var(--a-panel)), var(--a-surface) 70%); }
-.atrium-media:has(.atrium-media-power[hidden]) { grid-template-columns: 56px minmax(0, 1fr) auto; grid-template-areas: "art info controls" "volume volume volume"; }
+   transport controls and power on one line, volume below. Purple like the tile's media badge.
+   The volume row sits in an implicit row so a player without one leaves no gap behind. */
+.atrium-media-list { display: flex; flex-direction: column; gap: 8px; container-type: inline-size; }
+.atrium-media { --m-accent: #c9a3ff; display: grid; grid-template-columns: 56px minmax(0, 1fr) auto auto; grid-template-areas: "art info controls power"; align-items: center; gap: 10px 12px; padding: 12px 14px; border-radius: 18px; background: linear-gradient(135deg, color-mix(in srgb, var(--m-accent) 11%, var(--a-panel)), var(--a-surface) 70%); }
+.atrium-media:has(.atrium-media-power[hidden]) { grid-template-columns: 56px minmax(0, 1fr) auto; grid-template-areas: "art info controls"; }
+.atrium-media-volume { grid-column: 1 / -1; }
 .atrium-media-art { grid-area: art; width: 56px; height: 56px; border-radius: 12px; background: var(--a-knob) center / cover no-repeat; color: var(--a-dim); display: flex; align-items: center; justify-content: center; }
 .atrium-media-art.has-img ha-icon { display: none; }
 .atrium-media-info { grid-area: info; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 0; border: 0; border-radius: 8px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
@@ -227,7 +229,7 @@ button.atrium-badge { cursor: pointer; }
 .atrium-media-btn { width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: var(--a-knob); color: var(--a-text); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform .15s; }
 .atrium-media-btn:active { transform: scale(.92); }
 .atrium-media-btn.play { width: 44px; height: 44px; background: var(--m-accent); color: #1c1030; }
-.atrium-media-volume { grid-area: volume; display: flex; align-items: center; gap: 10px; }
+.atrium-media-volume { display: flex; align-items: center; gap: 10px; }
 .atrium-media-mute { flex-shrink: 0; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--a-dim); display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .atrium-media-slider { flex: 1; min-width: 0; height: 24px; margin: 0; background: none; cursor: pointer; touch-action: pan-y; -webkit-appearance: none; appearance: none; }
 .atrium-media-slider::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: linear-gradient(to right, var(--m-accent) var(--v, 0%), var(--a-knob) var(--v, 0%)); }
@@ -241,6 +243,14 @@ button.atrium-badge { cursor: pointer; }
 .atrium-media [hidden] { display: none; }
 .atrium-media.off .atrium-media-controls, .atrium-media.off .atrium-media-volume { display: none; }
 .atrium-media.off { background: var(--a-surface); }
+/* Too narrow for one line (a phone's sheet): what's playing gets the whole top
+   row beside the power button, transport and volume share the row below. */
+@container (max-width: 459px) {
+  .atrium-media, .atrium-media:has(.atrium-media-power[hidden]) { grid-template-columns: 56px auto minmax(0, 1fr) auto; grid-template-areas: "art info info power"; }
+  .atrium-media-controls { grid-area: auto; grid-row: 2; grid-column: 1 / 3; justify-content: flex-start; }
+  .atrium-media-volume { grid-row: 2; grid-column: 3 / -1; }
+  .atrium-media-controls[hidden] + .atrium-media-volume { grid-column: 1 / -1; }
+}
 
 /* Scenes & buttons */
 .atrium-pills { display: flex; flex-wrap: wrap; gap: 8px; }
