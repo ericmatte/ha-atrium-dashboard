@@ -117,3 +117,8 @@ test("lightsAuraColors: vivid saturates rgb colors for the ring, the white-mode 
   } };
   assert.deepEqual(lightsAuraColors(hass, ["light.a", "light.b"], { vivid: true }), ["rgb(122 26 255)", "#f6c14b"]);
 });
+
+test("lightsAuraColors: brightness never changes a light's aura color", () => {
+  const at = (brightness) => ({ states: { "light.a": { state: "on", attributes: { color_mode: "hs", rgb_color: [200, 160, 255], brightness } } } });
+  assert.deepEqual(lightsAuraColors(at(3), ["light.a"], { vivid: true }), lightsAuraColors(at(255), ["light.a"], { vivid: true }));
+});

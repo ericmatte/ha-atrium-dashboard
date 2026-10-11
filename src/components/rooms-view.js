@@ -33,8 +33,8 @@ import { tempColor, humidityColor, toCelsius } from "../lib/comfort-colors.js";
 // area-card.css) so the selection is only dropped once it has played.
 const CLOSE_MS = 260;
 const isNight = (hass) => hass.states?.["sun.sun"]?.state === "below_horizon";
-// The ring blends its colors in OKLCH where the browser can.
-const RING_SPACE = globalThis.CSS?.supports?.("background", "conic-gradient(in oklch, red, blue)") ? "oklch" : undefined;
+// The aura blends its colors in OKLCH where the browser can.
+const AURA_SPACE = globalThis.CSS?.supports?.("background", "conic-gradient(in oklch, red, blue)") ? "oklch" : undefined;
 const PANEL_HISTORY_KEY = "atriumPanel";
 // Must match the phone breakpoint in area-card.css.
 const SHEET_MEDIA = "(max-width: 860px)";
@@ -580,12 +580,10 @@ class AtriumRooms extends HTMLElement {
     const lightsOn = ref.lightsOn.length;
     ref.tile.classList.toggle("lit", lightsOn > 0);
     ref.tile.classList.toggle("gray", this._isDimmed(data));
-    // The aura keeps its last colors while it fades out with the lights.
-    const aura = auraGradient(lightsAuraColors(hass, ref.lightsOn));
-    if (aura) {
-      ref.aura.style.setProperty("--aura", aura);
-      ref.aura.style.setProperty("--aura-ring", auraGradient(lightsAuraColors(hass, ref.lightsOn, { vivid: true }), { space: RING_SPACE, hold: 0.6 }));
-    }
+    // Only which lights are on and their colors count, never brightness. The
+    // aura keeps its last colors while it fades out with the lights.
+    const aura = auraGradient(lightsAuraColors(hass, ref.lightsOn, { vivid: true }), { space: AURA_SPACE, hold: 0.6 });
+    if (aura) ref.aura.style.setProperty("--aura", aura);
     ref.litBadge.hidden = lightsOn === 0;
     if (lightsOn > 0 && ref.litBadge.dataset.count !== String(lightsOn)) {
       ref.litBadge.dataset.count = String(lightsOn);
