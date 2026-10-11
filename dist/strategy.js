@@ -192,11 +192,12 @@ button.atrium-badge { cursor: pointer; }
 .atrium-group .atrium-shead { justify-content: flex-start; height: 20px; }
 .atrium-group .atrium-act-btn { padding: 2px 9px; font-size: 11px; line-height: 16px; }
 
-/* Diva tiles: a 72px track with 18px corners around a rounded 60\xD742 icon thumb. The
+/* Diva tiles: a 66px track with 18px corners around a rounded 54\xD742 icon thumb.
+   Four fit side by side in a 360px-wide phone's panel (4 \xD7 76 + 3 \xD7 8 = 328px). The
    track clips an unrounded fill \u2014 shape lives on the track, never the fill. */
-.atrium-diva-grid { display: flex; flex-wrap: wrap; gap: 14px 10px; }
-.atrium-diva { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 84px; }
-.atrium-diva-track { position: relative; width: 72px; height: 150px; padding: 0; border: 0; border-radius: 18px; overflow: hidden; background: color-mix(in srgb, var(--a-text) 4%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--a-text) 7%, transparent); cursor: pointer; touch-action: pan-y; -webkit-tap-highlight-color: transparent; }
+.atrium-diva-grid { display: flex; flex-wrap: wrap; gap: 14px 8px; }
+.atrium-diva { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 76px; }
+.atrium-diva-track { position: relative; width: 66px; height: 170px; padding: 0; border: 0; border-radius: 18px; overflow: hidden; background: color-mix(in srgb, var(--a-text) 4%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--a-text) 7%, transparent); cursor: pointer; touch-action: pan-y; -webkit-tap-highlight-color: transparent; }
 .atrium-diva-track.dim { cursor: grab; }
 .atrium-diva-track.dragging { cursor: grabbing; }
 .atrium-diva-track.un { cursor: not-allowed; opacity: .45; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--a-text) 4%, transparent) 0 8px, color-mix(in srgb, var(--a-text) 6%, transparent) 8px 16px); }
@@ -225,12 +226,12 @@ button.atrium-badge { cursor: pointer; }
 .atrium-diva-track.cover .atrium-diva-pct.bottom { color: color-mix(in srgb, var(--a-text) 70%, transparent); }
 .atrium-diva-bar { position: absolute; left: 50%; width: 28px; height: 6px; margin: -3px 0 0 -14px; border-radius: 3px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35); transition: top .26s cubic-bezier(.2,.8,.2,1), transform .16s; }
 .atrium-diva-track.dragging .atrium-diva-bar { transition: none; transform: scaleX(1.15); }
-.atrium-diva-name { max-width: 84px; padding: 0; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 13px; font-weight: 700; line-height: 1.2; color: var(--a-text); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.atrium-diva-name { max-width: 76px; padding: 0; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 13px; font-weight: 700; line-height: 1.2; color: var(--a-text); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .atrium-diva-ago { margin-top: -6px; font-size: 11px; font-weight: 600; color: var(--a-dim); text-align: center; white-space: nowrap; }
 .atrium-diva-ago.unavailable { display: inline-flex; align-items: center; gap: 3px; color: #ffb561; }
-/* Sits on the track's bottom-right corner (track: 72\xD7150, centred in the
-   84px tile). */
-.atrium-diva-caret { position: absolute; right: -1px; top: 135px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--a-text) 24%, var(--a-panel)); color: var(--a-text); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 0 2px var(--a-panel), 0 2px 6px rgba(0,0,0,.4); --mdc-icon-size: 18px; }
+/* Sits on the track's bottom-right corner (track: 66\xD7170, centred in the
+   76px tile). */
+.atrium-diva-caret { position: absolute; right: -1px; top: 155px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--a-text) 24%, var(--a-panel)); color: var(--a-text); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 0 2px var(--a-panel), 0 2px 6px rgba(0,0,0,.4); --mdc-icon-size: 18px; }
 .atrium-diva-caret:hover { background: color-mix(in srgb, var(--a-text) 34%, var(--a-panel)); }
 
 /* Climate: name + "Now 21.4\xB0 \xB7 heating" beside a big \u2212/target/+, and \u2014 for
@@ -630,7 +631,7 @@ button.atrium-badge { cursor: pointer; }
       </div>
       <button type="button" class="atrium-shell-weather" hidden></button>
       <div class="atrium-shell-header-people"></div>
-    `,this._peopleEl=o.querySelector(".atrium-shell-header-people"),this._weatherEl=o.querySelector(".atrium-shell-weather"),this._weatherEl.addEventListener("click",()=>{this._weatherEntityId&&this._openEntityMore(this._weatherEntityId)}),n.appendChild(o);let r=document.createElement("div");r.className="atrium-shell-pills atrium-shell-pills-stats",this._statsEl=r,n.appendChild(r),r.addEventListener("click",a=>{let s=a.target.closest("button.atrium-shell-stat[data-action]");!s||!r.contains(s)||(s.dataset.action==="lights"?this._openLightsPopover(s):s.dataset.action==="batteries"?this._openBatteryPopover(s):s.dataset.action==="problems"&&this._openProblemPopover(s))}),i.appendChild(n)}_update(){this._updateWeather(),this._updateStats()}_welcomeTitle(){return"Atrium v2.6.0"}_updateWeather(){if(!this._weatherEl||!this._hass)return;let t=di(this._hass),i=t?`${t.entityId}|${t.icon}|${t.color}|${t.label}`:"";if(i===this._lastWeatherSig)return;if(this._lastWeatherSig=i,this._weatherEntityId=t?.entityId||null,this._weatherEl.hidden=!t,!t){this._weatherEl.replaceChildren();return}let n=this._hass.states[t.entityId];this._weatherEl.title=M(n,t.entityId),this._weatherEl.innerHTML=`
+    `,this._peopleEl=o.querySelector(".atrium-shell-header-people"),this._weatherEl=o.querySelector(".atrium-shell-weather"),this._weatherEl.addEventListener("click",()=>{this._weatherEntityId&&this._openEntityMore(this._weatherEntityId)}),n.appendChild(o);let r=document.createElement("div");r.className="atrium-shell-pills atrium-shell-pills-stats",this._statsEl=r,n.appendChild(r),r.addEventListener("click",a=>{let s=a.target.closest("button.atrium-shell-stat[data-action]");!s||!r.contains(s)||(s.dataset.action==="lights"?this._openLightsPopover(s):s.dataset.action==="batteries"?this._openBatteryPopover(s):s.dataset.action==="problems"&&this._openProblemPopover(s))}),i.appendChild(n)}_update(){this._updateWeather(),this._updateStats()}_welcomeTitle(){return"Atrium v2.7.0"}_updateWeather(){if(!this._weatherEl||!this._hass)return;let t=di(this._hass),i=t?`${t.entityId}|${t.icon}|${t.color}|${t.label}`:"";if(i===this._lastWeatherSig)return;if(this._lastWeatherSig=i,this._weatherEntityId=t?.entityId||null,this._weatherEl.hidden=!t,!t){this._weatherEl.replaceChildren();return}let n=this._hass.states[t.entityId];this._weatherEl.title=M(n,t.entityId),this._weatherEl.innerHTML=`
       <span class="atrium-shell-weather-icon" style="color:${t.color};background:${K(t.color,16)}">
         ${E(t.icon)}
       </span>
