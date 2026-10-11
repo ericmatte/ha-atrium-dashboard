@@ -4,11 +4,11 @@
 // that a rebuilt element would skip. Only a change in *which* areas/entities
 // are shown rebuilds the floors or the panel content.
 
-import { closePopoverFor } from "../lib/popover.js";
+import { closePopoverFor, openListPopover } from "../lib/popover.js";
 import { sameRegistries, unchangedStates, areaIdForEntity, entityDisplayName } from "../lib/hass-utils.js";
 import { fireMoreInfo, haIcon } from "../lib/dom-utils.js";
 import { callService, toggleLights } from "../lib/ha-actions.js";
-import { STYLE, ICONS, iconForArea, fmtCoverPct, nameWithoutAreaPrefix } from "./area-card-shared.js";
+import { STYLE, ICONS, iconForArea, fmtCoverPct, nameWithoutAreaPrefix, ensurePopoverItemStyle } from "./area-card-shared.js";
 import {
   entitiesForArea,
   isShownEntity,
@@ -678,7 +678,7 @@ class AtriumRooms extends HTMLElement {
   _buildHeroBadges(area, data) {
     const hass = this._hass;
     const badges = [];
-    const add = (icon, text, tone, entityId, color) => {
+    const add = (icon, text, tone, entityId, color, onClick) => {
       const el = document.createElement(entityId ? "button" : "span");
       if (entityId) el.type = "button";
       el.className = "atrium-badge" + (tone ? ` is-${tone}` : "");
@@ -688,8 +688,9 @@ class AtriumRooms extends HTMLElement {
       }
       el.innerHTML = `${haIcon(icon, 13)}<span></span>`;
       el.querySelector("span").textContent = text;
-      if (entityId) el.addEventListener("click", () => this._moreInfo(entityId));
+      if (entityId) el.addEventListener("click", () => (onClick ? onClick(el) : this._moreInfo(entityId)));
       badges.push(el);
+      return el;
     };
 
     if (data.sensors.temp) {
@@ -717,24 +718,65 @@ class AtriumRooms extends HTMLElement {
       const pct = percent(p);
       if (pct != null) add(ICONS.propane, `${pct}%`, levelTone(pct), p.entity_id);
     }
-    const activeMotion = data.sensors.motion.find((s) => hass.states?.[s.entity_id]?.state === "on");
-    if (activeMotion) add("mdi:motion-sensor", "Motion", "info", activeMotion.entity_id);
-    const activeLeak = data.sensors.leak.find((s) => hass.states?.[s.entity_id]?.state === "on");
-    if (activeLeak) add("mdi:water-alert", "Leak!", "alert", activeLeak.entity_id);
-    for (const d of data.doors) {
-      const st = hass.states?.[d.entity_id];
-      if (st?.state === "on") add("mdi:door-open", nameWithoutAreaPrefix(this._entityName(d), area), "warn", d.entity_id);
-    }
+    // Motion, leak, openings and vacuums: each active one gets a labelled
+    // badge; the quiet rest of a kind fold into one icon-only badge (with a
+    // count when there are several) so they stay one tap away.
+    const isOn = (e) => hass.states?.[e.entity_id]?.state === "on";
+    const name = (e) => nameWithoutAreaPrefix(this._entityName(e), area);
+    const activeMotion = data.sensors.motion.filter(isOn);
+    if (activeMotion.length) add("mdi:motion-sensor", "Motion", "info", activeMotion[0].entity_id);
+    const activeLeak = data.sensors.leak.filter(isOn);
+    if (activeLeak.length) add("mdi:water-alert", "Leak!", "alert", activeLeak[0].entity_id);
+    const openDoors = data.doors.filter(isOn);
+    for (const d of openDoors) add("mdi:door-open", name(d), "warn", d.entity_id);
     for (const s of [...data.sensors.other]) {
       const st = hass.states?.[s.entity_id];
-      if (st?.attributes?.device_class === "problem" && st.state === "on") add("mdi:alert-circle", nameWithoutAreaPrefix(this._entityName(s), area), "alert", s.entity_id);
+      if (st?.attributes?.device_class === "problem" && st.state === "on") add("mdi:alert-circle", name(s), "alert", s.entity_id);
     }
-    for (const v of data.vacuums) {
-      const st = hass.states?.[v.entity_id];
-      // Green like the tile's spinning vacuum badge.
-      if (st?.state === "cleaning" || st?.state === "returning") add("mdi:robot-vacuum", nameWithoutAreaPrefix(this._entityName(v), area), "good", v.entity_id);
-    }
+    const isCleaning = (v) => ["cleaning", "returning"].includes(hass.states?.[v.entity_id]?.state);
+    const cleaning = data.vacuums.filter(isCleaning);
+    // Green like the tile's spinning vacuum badge.
+    for (const v of cleaning) add("mdi:robot-vacuum", name(v), "good", v.entity_id);
+
+    const quiet = (icon, label, entities) => {
+      if (!entities.length) return;
+      const several = entities.length > 1;
+      const el = add(icon, several ? String(entities.length) : "", null, entities[0].entity_id, null, several ? (anchor) => this._openQuietBadge(anchor, icon, label, entities, name) : null);
+      el.classList.add("is-quiet");
+      el.setAttribute("aria-label", several ? `${label}: ${entities.length}` : `${label}: ${name(entities[0])}`);
+    };
+    if (!activeMotion.length) quiet("mdi:motion-sensor", "Motion sensors", data.sensors.motion);
+    if (!activeLeak.length) quiet("mdi:water-check", "Leak sensors", data.sensors.leak);
+    quiet("mdi:door-closed", "Doors & windows", data.doors.filter((d) => !isOn(d)));
+    quiet("mdi:robot-vacuum", "Vacuums", data.vacuums.filter((v) => !isCleaning(v)));
     return badges;
+  }
+
+  // A quiet badge standing for several entities lists them, each opening its details.
+  _openQuietBadge(anchor, icon, label, entities, name) {
+    ensurePopoverItemStyle();
+    this._openAnchors.add(anchor);
+    openListPopover({
+      anchor,
+      title: label,
+      countLabel: String(entities.length),
+      items: entities,
+      buildItem: (e) => {
+        const st = this._hass.states?.[e.entity_id];
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = "atrium-reading";
+        row.innerHTML = `${haIcon(st?.attributes?.icon || icon)}<span class="atrium-reading-name"></span><span class="atrium-reading-value"></span>`;
+        row.firstElementChild.classList.add("atrium-reading-icon");
+        row.querySelector(".atrium-reading-name").textContent = name(e);
+        row.querySelector(".atrium-reading-value").textContent = st ? this._hass.formatEntityState?.(st) ?? st.state : "—";
+        row.addEventListener("click", () => this._moreInfo(e.entity_id));
+        return row;
+      },
+      listClass: "atrium-pop-list-sensors",
+      width: 280,
+      onClose: () => this._openAnchors.delete(anchor),
+    });
   }
 }
 

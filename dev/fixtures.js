@@ -190,6 +190,12 @@ export function buildFixtures() {
   add("media_player.media_room_tv", "media_room", "playing", { device_class: "tv", media_title: "Dune: Part Two", app_name: "Netflix", volume_level: 0.4, is_volume_muted: false, supported_features: 21437, friendly_name: "TV" });
   // An Android TV streamer names its app by package id, has mute but no volume level.
   add("media_player.media_room_streamer", "media_room", "on", { device_class: "tv", app_id: "com.google.android.youtube.tv", app_name: "com.google.android.youtube.tv", supported_features: 153529, friendly_name: "Android Streamer" });
+  // A Cast device: app name and title, but no volume or mute to show.
+  add("media_player.media_room_cast", "media_room", "playing", { app_id: "2C6A6E3D", app_name: "YouTube", media_title: "A walk through autumn", media_artist: "Hiking fan", supported_features: 152499, friendly_name: "Streamer TV" });
+  // Two quiet motion sensors and a closed window fold into icon-only badges.
+  add("binary_sensor.media_room_motion", "media_room", "off", { device_class: "motion", friendly_name: "Motion" });
+  add("binary_sensor.media_room_couch_presence", "media_room", "off", { device_class: "occupancy", friendly_name: "Couch presence" });
+  add("binary_sensor.media_room_window", "media_room", "off", { device_class: "window", friendly_name: "Window" });
   add("media_player.living_room_sonos", "living_room", "paused", { device_class: "speaker", media_title: "Midnight City", media_artist: "M83", media_album_name: "Hurry Up, We're Dreaming", volume_level: 0.35, is_volume_muted: false, supported_features: 8321599, friendly_name: "Sonos" });
   add("light.media_room_main", "media_room", "off", { supported_color_modes: ["brightness"], color_mode: "brightness" });
   add("light.media_room_accent", "media_room", "on", { supported_color_modes: ["rgb"], color_mode: "rgb", rgb_color: [90, 140, 255], brightness: 77 }, { icon: "mdi:led-strip-variant" });

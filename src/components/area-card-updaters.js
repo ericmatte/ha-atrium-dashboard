@@ -10,7 +10,7 @@ import {
   labelDescriptor,
 } from "./area-card-shared.js";
 
-// Diva track geometry (px): a 66×124 track around a 54×42 rounded icon
+// Diva track geometry (px): a 72×150 track around a 60×42 rounded icon
 // thumb, inset by the same 6px on every side.
 const THUMB = 42;
 const PAD = 6;
