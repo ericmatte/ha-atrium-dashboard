@@ -198,7 +198,8 @@ export function _buildMediaCard(area, player) {
 
   const art = document.createElement("span");
   art.className = "atrium-media-art";
-  art.innerHTML = haIcon(this._hass.entities?.[entityId]?.icon || (this._hass.states?.[entityId]?.attributes?.device_class === "tv" ? "mdi:television" : "mdi:speaker"), 24);
+  const deviceIcon = this._hass.entities?.[entityId]?.icon || (this._hass.states?.[entityId]?.attributes?.device_class === "tv" ? "mdi:television" : "mdi:speaker");
+  art.innerHTML = haIcon(deviceIcon, 24);
 
   const info = document.createElement("button");
   info.type = "button";
@@ -239,7 +240,7 @@ export function _buildMediaCard(area, player) {
 
   card.append(art, info, power, controls, volumeRow);
 
-  const ref = { card, art, title, subtitle, power, prev, next, playPause, volumeRow, mute, volume, displayName, artworkUrl: undefined, volumeDragging: false };
+  const ref = { card, art, deviceIcon, title, subtitle, power, controls, prev, next, playPause, volumeRow, mute, volume, displayName, artworkUrl: undefined, volumeDragging: false };
   let touchDrag = null;
   let sliderPointer = null;
   let clickAnimation = 0;
@@ -480,7 +481,7 @@ export function _buildDivaTile(area, entity, { kind, icon, refKey }, deviceSenso
   const thumb = document.createElement("span");
   thumb.className = "atrium-diva-thumb";
   const customIcon = this._hass.entities?.[entity.entity_id]?.icon ?? this._hass.states?.[entity.entity_id]?.attributes?.icon;
-  thumb.innerHTML = haIcon(customIcon || icon, 17);
+  thumb.innerHTML = haIcon(customIcon || icon, 24);
   track.append(fill, pctTop, pctBottom, thumb);
   // Covers draw a shade instead, with a handle bar on its edge.
   let bar = null;

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "../../tools/register.mjs";
 
-const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _updateAutomationRef, _renderAutomationLabels, divaVisual, climateView, mediaView, fanModeIcon, swingModeIcon, noteScroll, coverVisual, coverLevelFromPointer } = await import("./area-card-updaters.js");
+const { _bindDivaTrack, _updateDivaRef, _toggleEntity, _updateClimateRef, _updateAutomationRef, _renderAutomationLabels, divaVisual, climateView, mediaView, mediaApp, fanModeIcon, swingModeIcon, noteScroll, coverVisual, coverLevelFromPointer } = await import("./area-card-updaters.js");
 
 // Minimal fakes for the DOM surface _bindDivaTrack/_updateDivaRef touch.
 // Pointer event listeners are captured directly so tests can invoke them
@@ -122,7 +122,7 @@ test("dimmable light track: dragging to a level previews and commits a brightnes
     ref.track.handlers.pointerdown({ clientY: 100, pointerId: 1 });
     win.listeners.pointermove({ clientY: 73, pointerId: 1 }); // 50% up the track
     assert.equal(ref.pctTop.textContent, "50%"); // live preview, no service call yet
-    assert.equal(ref.thumb.style.bottom, "calc((100% - 46px) * 0.500 + 6px)");
+    assert.equal(ref.thumb.style.bottom, "calc((100% - 54px) * 0.500 + 6px)");
     assert.equal(ctx.calls.length, 0);
 
     win.listeners.pointerup({ clientY: 73, pointerId: 1 });
@@ -192,7 +192,7 @@ test("_updateDivaRef: a dimmable light on renders a fill height, thumb, and cros
 
   _updateDivaRef.call(ctx, ref, entityId, "light");
 
-  assert.equal(ref.fill.style.height, "calc((100% - 46px) * 0.500 * 1.000 + 29.0px)");
+  assert.equal(ref.fill.style.height, "calc((100% - 54px) * 0.500 * 1.000 + 34.0px)");
   assert.equal(ref.track.classList.contains("on"), true);
   assert.equal(ref.pctTop.textContent, "50%");
   assert.equal(ref.pctTop.style.display, "");
@@ -227,14 +227,14 @@ test("switch track: while dragging, the thumb rubber-bands but the fill stays on
     ref.track.handlers.pointerdown({ clientY: 100, pointerId: 1 });
     win.listeners.pointermove({ clientY: 50, pointerId: 1 });
     assert.equal(ref.fill.style.height, "0%");
-    assert.notEqual(ref.thumb.style.bottom, "calc((100% - 46px) * 0.000 + 6px)");
+    assert.notEqual(ref.thumb.style.bottom, "calc((100% - 54px) * 0.000 + 6px)");
     win.listeners.pointerup({ clientY: 50, pointerId: 1 });
   });
 });
 
 test("divaVisual: a light at 100% fills to the top of the track with a solid (unfaded) end", () => {
   const v = divaVisual({ kind: "light", on: true, level: 100, dimmable: true, color: "#f6c14b" });
-  assert.equal(v.fillHeight, "calc((100% - 46px) * 1.000 * 1.000 + 46.0px)");
+  assert.equal(v.fillHeight, "calc((100% - 54px) * 1.000 * 1.000 + 54.0px)");
   assert.ok(v.fillBackground.endsWith("color-mix(in srgb, #f6c14b 90%, transparent) 100%)"));
   assert.equal(v.pctTopOpacity, "0.00");
   assert.equal(v.pctBottomOpacity, "1.00");
@@ -242,20 +242,20 @@ test("divaVisual: a light at 100% fills to the top of the track with a solid (un
 
 test("divaVisual: a light near 0% shrinks its fill toward nothing instead of jumping", () => {
   const v = divaVisual({ kind: "light", on: true, level: 5, dimmable: true, color: "#f6c14b" });
-  assert.equal(v.fillHeight, "calc((100% - 46px) * 0.050 * 0.500 + 14.5px)");
+  assert.equal(v.fillHeight, "calc((100% - 54px) * 0.050 * 0.500 + 17.0px)");
 });
 
 test("divaVisual: a cover gets a solid fill centred on its icon", () => {
   const v = divaVisual({ kind: "cover", on: true, level: 40, dimmable: true, color: "#8cc1ff" });
   assert.equal(v.fillBackground, "color-mix(in srgb, #8cc1ff 90%, transparent)");
-  assert.equal(v.fillHeight, "calc((100% - 46px) * 0.400 * 1.000 + 23.0px)");
+  assert.equal(v.fillHeight, "calc((100% - 54px) * 0.400 * 1.000 + 27.0px)");
 });
 
 test("divaVisual: an off dimmable light has no fill and no pct label", () => {
   const v = divaVisual({ kind: "light", on: false, level: 0, dimmable: true, color: "#f6c14b" });
   assert.equal(v.fillHeight, "0px");
   assert.equal(v.showPct, false);
-  assert.equal(v.thumbBottom, "calc((100% - 46px) * 0.000 + 6px)");
+  assert.equal(v.thumbBottom, "calc((100% - 54px) * 0.000 + 6px)");
 });
 
 test("_updateDivaRef: an unavailable entity disables the track with no fill", () => {
@@ -461,6 +461,33 @@ test("mediaView: idle with nothing loaded shows its state as the title", () => {
   assert.equal(v.subtitle, null);
 });
 
+test("mediaView: Android TV's package name becomes the app's name and icon", () => {
+  const v = mediaView({ state: "on", attributes: { app_id: "com.google.android.youtube.tv", app_name: "com.google.android.youtube.tv", device_class: "tv" } });
+  assert.equal(v.title, "YouTube");
+  assert.equal(v.subtitle, "On");
+  assert.equal(v.appIcon, "mdi:youtube");
+});
+
+test("mediaView: a title the player names itself, or an unknown package, is kept as is", () => {
+  assert.equal(mediaView({ state: "playing", attributes: { app_id: "2C6A6E3D", app_name: "YouTube", media_title: "Sentier des Cimes" } }).title, "Sentier des Cimes");
+  const v = mediaView({ state: "on", attributes: { app_id: "com.example.player", app_name: "com.example.player" } });
+  assert.equal(v.title, "com.example.player");
+  assert.equal(v.appIcon, null);
+});
+
+test("mediaView: an off player shows no app icon", () => {
+  assert.equal(mediaView({ state: "off", attributes: { app_name: "Netflix" } }).appIcon, null);
+});
+
+test("mediaApp: matches app_id, app_name or source, narrowest entry first", () => {
+  assert.deepEqual(mediaApp({ app_id: "com.netflix.ninja" }), { name: "Netflix", icon: "mdi:netflix" });
+  assert.deepEqual(mediaApp({ source: "Spotify Connect" }), { name: "Spotify", icon: "mdi:spotify" });
+  assert.equal(mediaApp({ app_id: "com.google.android.apps.youtube.music" }).name, "YouTube Music");
+  assert.equal(mediaApp({ app_name: "YouTube TV" }).icon, "mdi:youtube-tv");
+  assert.equal(mediaApp({ source: "HDMI 1" }), null);
+  assert.equal(mediaApp({}), null);
+});
+
 test("fanModeIcon / swingModeIcon: map the names integrations report, with a generic fallback", () => {
   assert.equal(fanModeIcon("auto"), "mdi:fan-auto");
   assert.equal(fanModeIcon("Low"), "mdi:fan-speed-1");
@@ -545,6 +572,33 @@ test("touch: a finger held still for a moment, then moved, drags", () => {
     win.listeners.pointermove(touchAt(2150, 73));
     win.listeners.pointerup(touchAt(2200, 73));
     assert.deepEqual(ctx.calls, [["light", "turn_on", { entity_id: "light.l", brightness_pct: 50 }]]);
+  });
+});
+
+test("touch: a finger that starts moving slowly drags right away, without resting first", () => {
+  withWindow((win) => {
+    const ref = makeDivaRef();
+    const ctx = makeContext({ "light.l": { state: "on", attributes: { supported_color_modes: ["brightness"], brightness: 0 } } });
+    _bindDivaTrack.call(ctx, ref, "light.l", "light");
+    ref.track.handlers.pointerdown(touchDown(2500, 100));
+    win.listeners.pointermove(touchAt(2510, 98)); // under the slop: undecided
+    win.listeners.pointermove(touchAt(2530, 94)); // 6px in 30ms: a drag
+    win.listeners.pointermove(touchAt(2560, 73));
+    win.listeners.pointerup(touchAt(2570, 73));
+    assert.deepEqual(ctx.calls, [["light", "turn_on", { entity_id: "light.l", brightness_pct: 50 }]]);
+  });
+});
+
+test("dimmable light track: dragging to the bottom keeps the light on at 1%", () => {
+  withWindow((win) => {
+    const ref = makeDivaRef();
+    const ctx = makeContext({ "light.l": { state: "on", attributes: { supported_color_modes: ["brightness"], brightness: 128 } } });
+    _bindDivaTrack.call(ctx, ref, "light.l", "light");
+    ref.track.handlers.pointerdown({ clientY: 60, pointerId: 1 });
+    win.listeners.pointermove({ clientY: 200, pointerId: 1 });
+    assert.equal(ref.pctTop.textContent, "1%");
+    win.listeners.pointerup({ clientY: 200, pointerId: 1 });
+    assert.deepEqual(ctx.calls, [["light", "turn_on", { entity_id: "light.l", brightness_pct: 1 }]]);
   });
 });
 
