@@ -84,8 +84,7 @@ export function openPopover({ anchor, content, width, maxWidth, onClose }) {
   const close = () => {
     if (closed) return;
     closed = true;
-    document.removeEventListener("mousedown", onDown, true);
-    document.removeEventListener("touchstart", onDown, true);
+    window.removeEventListener("pointerdown", onDown, true);
     document.removeEventListener("keydown", onKey);
     window.removeEventListener("scroll", onScroll, true);
     window.removeEventListener("resize", onResize);
@@ -122,13 +121,17 @@ export function openPopover({ anchor, content, width, maxWidth, onClose }) {
     if (path.includes(pop) || path.includes(anchor)) return;
     if (pop.contains(e.target) || anchor.contains(e.target)) return;
     close();
+    // A press outside only closes the popover: neither it nor its release
+    // or click reach whatever is under it (a tile, a routine, a room).
+    e.stopPropagation();
+    e.preventDefault();
+    swallowGesture();
   };
   const onKey = (e) => { if (e.key === "Escape") close(); };
   const onScroll = (e) => { if (pop.contains(e.target)) return; close(); };
   const onResize = () => place();
 
-  document.addEventListener("mousedown", onDown, true);
-  document.addEventListener("touchstart", onDown, true);
+  window.addEventListener("pointerdown", onDown, true);
   document.addEventListener("keydown", onKey);
   window.addEventListener("scroll", onScroll, true);
   window.addEventListener("resize", onResize);
@@ -137,6 +140,30 @@ export function openPopover({ anchor, content, width, maxWidth, onClose }) {
   anchor.classList?.add?.("atrium-pop-open");
 
   return { close };
+}
+
+// Stops the rest of a press that closed a popover — the compatibility mouse
+// and touch events, the release and the click — before any element sees it.
+// It lasts until just after the release (the click comes right then), with
+// a long fallback in case the release never arrives. The press may still
+// scroll the page; only the events are held back.
+const GESTURE_EVENTS = ["pointerup", "mousedown", "mouseup", "touchstart", "touchend", "click", "auxclick", "contextmenu"];
+function swallowGesture() {
+  const stop = (e) => {
+    e.stopPropagation();
+    // Cancelling a touchstart would also block the scroll.
+    if (e.type !== "touchstart") e.preventDefault();
+    if (e.type === "pointerup") setTimeout(done, 400);
+  };
+  const onCancel = () => setTimeout(done, 400);
+  const fallback = setTimeout(() => done(), 10000);
+  function done() {
+    clearTimeout(fallback);
+    for (const type of GESTURE_EVENTS) window.removeEventListener(type, stop, true);
+    window.removeEventListener("pointercancel", onCancel, true);
+  }
+  for (const type of GESTURE_EVENTS) window.addEventListener(type, stop, { capture: true, passive: false });
+  window.addEventListener("pointercancel", onCancel, true);
 }
 
 export function buildPopoverHeader(title, count) {
