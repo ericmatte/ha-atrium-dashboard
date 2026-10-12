@@ -618,16 +618,16 @@ button.atrium-badge { cursor: pointer; }
     padding-right: calc(62px - 40px * var(--atrium-open) + 580px * var(--atrium-open));
   }
   .atrium-shell-root.is-home .atrium-shell-pills { padding-inline: 18px; }
-  /* Pinned (header.js): a frosted backdrop, the page's own color at 72% over
-     a blur of the rooms scrolling beneath, fading out over its last 28px so
+  /* Pinned (header.js): a frosted backdrop, the page's own color at 88% over
+     a light blur of the rooms scrolling beneath, fading out over its last 28px so
      the edge melts into the page. One layer carries both the tint and the
      blur (a blur nested in another blur shows nothing), and the fade sits in
      the header's own bottom padding, so at rest nothing lies under it. */
   .is-sticky .atrium-shell-root.is-home { position: relative; isolation: isolate; }
   .is-sticky .atrium-shell-root.is-home::before {
     content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-    background: color-mix(in srgb, var(--primary-background-color, #0b0c0e) 72%, transparent);
-    -webkit-backdrop-filter: blur(16px) saturate(1.2); backdrop-filter: blur(16px) saturate(1.2);
+    background: color-mix(in srgb, var(--primary-background-color, #0b0c0e) 88%, transparent);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
     -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
     mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
   }
@@ -700,7 +700,7 @@ button.atrium-badge { cursor: pointer; }
       </div>
       <button type="button" class="atrium-shell-weather" hidden></button>
       <div class="atrium-shell-header-people"></div>
-    `,this._peopleEl=o.querySelector(".atrium-shell-header-people"),this._weatherEl=o.querySelector(".atrium-shell-weather"),this._weatherEl.addEventListener("click",()=>{this._weatherEntityId&&this._openEntityMore(this._weatherEntityId)}),n.appendChild(o);let r=document.createElement("div");r.className="atrium-shell-pills atrium-shell-pills-stats",this._statsEl=r,n.appendChild(r),r.addEventListener("click",a=>{let s=a.target.closest("button.atrium-shell-stat[data-action]");!s||!r.contains(s)||(s.dataset.action==="lights"?this._openLightsPopover(s):s.dataset.action==="batteries"?this._openBatteryPopover(s):s.dataset.action==="problems"&&this._openProblemPopover(s))}),i.appendChild(n)}_update(){this._updateWeather(),this._updateStats()}_welcomeTitle(){return"Atrium v2.23.0"}_updateWeather(){if(!this._weatherEl||!this._hass)return;let t=Ci(this._hass),i=t?`${t.entityId}|${t.icon}|${t.color}|${t.label}`:"";if(i===this._lastWeatherSig)return;if(this._lastWeatherSig=i,this._weatherEntityId=t?.entityId||null,this._weatherEl.hidden=!t,!t){this._weatherEl.replaceChildren();return}let n=this._hass.states[t.entityId];this._weatherEl.title=$(n,t.entityId),this._weatherEl.innerHTML=`
+    `,this._peopleEl=o.querySelector(".atrium-shell-header-people"),this._weatherEl=o.querySelector(".atrium-shell-weather"),this._weatherEl.addEventListener("click",()=>{this._weatherEntityId&&this._openEntityMore(this._weatherEntityId)}),n.appendChild(o);let r=document.createElement("div");r.className="atrium-shell-pills atrium-shell-pills-stats",this._statsEl=r,n.appendChild(r),r.addEventListener("click",a=>{let s=a.target.closest("button.atrium-shell-stat[data-action]");!s||!r.contains(s)||(s.dataset.action==="lights"?this._openLightsPopover(s):s.dataset.action==="batteries"?this._openBatteryPopover(s):s.dataset.action==="problems"&&this._openProblemPopover(s))}),i.appendChild(n)}_update(){this._updateWeather(),this._updateStats()}_welcomeTitle(){return"Atrium v2.24.0"}_updateWeather(){if(!this._weatherEl||!this._hass)return;let t=Ci(this._hass),i=t?`${t.entityId}|${t.icon}|${t.color}|${t.label}`:"";if(i===this._lastWeatherSig)return;if(this._lastWeatherSig=i,this._weatherEntityId=t?.entityId||null,this._weatherEl.hidden=!t,!t){this._weatherEl.replaceChildren();return}let n=this._hass.states[t.entityId];this._weatherEl.title=$(n,t.entityId),this._weatherEl.innerHTML=`
       <span class="atrium-shell-weather-icon" style="color:${t.color};background:${tt(t.color,16)}">
         ${S(t.icon)}
       </span>
