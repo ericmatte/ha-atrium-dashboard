@@ -25,6 +25,7 @@ function makeTrack() {
   return {
     handlers,
     classList: makeClassList(),
+    style: { props: {}, setProperty(name, value) { this.props[name] = value; } },
     disabled: false,
     addEventListener(type, fn) { handlers[type] = fn; },
     setPointerCapture() {},
@@ -198,6 +199,17 @@ test("_updateDivaRef: a dimmable light on renders a fill height, thumb, and cros
   assert.equal(ref.pctTop.style.display, "");
   assert.equal(ref.pctTop.style.opacity, "0.50");
   assert.equal(ref.pctBottom.style.opacity, "0.50");
+});
+
+test("_updateDivaRef: the fill draws the light's color through --diva-color (toned per theme in CSS)", () => {
+  const ref = makeDivaRef();
+  const entityId = "light.lamp";
+  const ctx = makeContext({ [entityId]: { state: "on", attributes: { supported_color_modes: ["rgb"], color_mode: "rgb", rgb_color: [255, 255, 255], brightness: 255 } } });
+
+  _updateDivaRef.call(ctx, ref, entityId, "light");
+
+  assert.equal(ref.track.style.props["--diva-raw"], "rgb(255,255,255)");
+  assert.ok(ref.fill.style.background.includes("var(--diva-color)"));
 });
 
 test("_updateDivaRef: a switch on renders a full, solid fill with no pct label and a time-ago line", () => {

@@ -191,7 +191,10 @@ export function _updateDivaRef(ref, entityId, kind, override) {
   // fading in steps, a cover on its way) until they match, or time runs out.
   const asked = override || unavailable ? undefined : this._optimistic?.get(entityId, (v) => tileMatches(v, real));
   const { on, level } = override ?? asked ?? real;
-  const v = divaVisual({ kind, on, level, dimmable: real.dimmable, thumbFrac: override?.thumbFrac, color: accentFor(kind, st) });
+  // The color is drawn through --diva-color, which area-card.css tones down
+  // on a light theme (a white light would vanish on a white page).
+  ref.track.style.setProperty("--diva-raw", accentFor(kind, st));
+  const v = divaVisual({ kind, on, level, dimmable: real.dimmable, thumbFrac: override?.thumbFrac, color: "var(--diva-color)" });
 
   ref.track.classList.toggle("un", unavailable);
   ref.track.classList.toggle("dim", real.dimmable);

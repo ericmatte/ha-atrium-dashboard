@@ -180,6 +180,16 @@ button.atrium-badge { cursor: pointer; }
 .atrium-diva-track.dim { cursor: grab; }
 .atrium-diva-track.dragging { cursor: grabbing; }
 .atrium-diva-track.un { cursor: not-allowed; opacity: .45; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--a-text) 4%, transparent) 0 8px, color-mix(in srgb, var(--a-text) 6%, transparent) 8px 16px); }
+/* --diva-raw: the light's (or tile's) color, set inline. On a light theme a
+   white or pale light would be white on white, so — like Home Assistant's
+   own light dialog — its lightness is held down to a light gray; colors
+   that are already deeper are left alone. */
+.atrium-diva-track { --diva-color: var(--diva-raw); }
+@supports (color: oklch(from red l c h)) {
+  .atrium-rooms.is-light .atrium-diva-track { --diva-color: oklch(from var(--diva-raw) min(l, .9) c h); }
+}
+/* …and the % riding on the fill reads dark rather than white there. */
+.atrium-rooms.is-light .atrium-diva-track:not(.cover) .atrium-diva-pct { color: rgba(20,16,6,.6); }
 .atrium-diva-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0; transition: height .26s cubic-bezier(.2,.8,.2,1); }
 .atrium-diva-tick { position: absolute; left: 50%; width: 10px; height: 2px; margin-left: -5px; border-radius: 1px; background: color-mix(in srgb, var(--a-text) 8%, transparent); }
 /* The thumb spans the track, inset 6px all round; its radius is the track's less the inset so the corners stay concentric. */
