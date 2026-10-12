@@ -846,8 +846,10 @@ function collapseRow(row) {
   row.animate([from, to], { ...ROW_MOTION, duration: 200, fill: "forwards" }).finished.then(() => row.remove(), () => row.remove());
 }
 
-// How long a press must last to trigger an automation, and how far the finger
-// may drift before it counts as a scroll instead.
+// A press shows nothing for HOLD_DELAY_MS (a quick tap stays a tap), then
+// fills the ring for HOLD_MS (matching the CSS animation) before it triggers
+// the automation; drifting HOLD_SLOP px counts as a scroll instead.
+const HOLD_DELAY_MS = 100;
 const HOLD_MS = 650;
 const HOLD_SLOP = 8;
 
@@ -942,36 +944,47 @@ export function _buildAutomationRow(area, item) {
       this._call("automation", isOn ? "turn_off" : "turn_on", { entity_id: entityId });
     });
     body.setAttribute("aria-description", t("holdToTrigger"));
+    // Press and hold: nothing shows for HOLD_DELAY_MS, so a quick tap stays a
+    // tap (it opens the editor). Past that, the ring fills for HOLD_MS and the
+    // automation fires only if the finger stays down to the end; let go
+    // sooner and nothing happens at all, editor included.
     let hold = null;
-    // A tap opens the automation's editor (or its details); a hold fires it.
+    let swallowClick = false;
     body.addEventListener("click", () => {
-      if (hold?.fired) { hold = null; return; }
+      if (swallowClick) { swallowClick = false; return; }
       const path = automationEditorPath(this._hass, entityId);
       if (path) navigateTo(path);
       else this._moreInfo(entityId);
     });
-    const cancel = () => {
+    const stop = () => {
       if (!hold) return;
       clearTimeout(hold.timer);
       row.classList.remove("holding");
-      if (!hold.fired) hold = null;
+      hold = null;
     };
     row.addEventListener("pointerdown", (e) => {
+      swallowClick = false;
       if (e.button > 0 || e.target.closest(".atrium-auto-switch")) return;
       if (this._hass.states?.[entityId]?.state === "off") return;
-      row.classList.add("holding");
-      hold = { x: e.clientX, y: e.clientY, fired: false, timer: setTimeout(() => {
-        hold.fired = true;
-        row.classList.remove("holding");
-        vibrate(12);
-        this._call("automation", "trigger", { entity_id: entityId });
-        flash();
-      }, HOLD_MS) };
+      hold = { x: e.clientX, y: e.clientY };
+      hold.timer = setTimeout(() => {
+        // The hold has begun: from here the release is never a tap.
+        swallowClick = true;
+        row.classList.add("holding");
+        hold.timer = setTimeout(() => {
+          row.classList.remove("holding");
+          hold = null;
+          vibrate(12);
+          this._call("automation", "trigger", { entity_id: entityId });
+          flash();
+        }, HOLD_MS);
+      }, HOLD_DELAY_MS);
     });
-    row.addEventListener("pointermove", (e) => { if (hold && !hold.fired && Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > HOLD_SLOP) cancel(); });
-    row.addEventListener("pointerup", cancel);
-    row.addEventListener("pointercancel", cancel);
-    row.addEventListener("pointerleave", cancel);
+    // Drifting off counts as a scroll; lifting or leaving before the end cancels.
+    row.addEventListener("pointermove", (e) => { if (hold && Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > HOLD_SLOP) stop(); });
+    row.addEventListener("pointerup", stop);
+    row.addEventListener("pointercancel", stop);
+    row.addEventListener("pointerleave", stop);
     // Long-press on a phone would otherwise open the text-selection menu.
     row.addEventListener("contextmenu", (e) => e.preventDefault());
   }
