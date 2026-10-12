@@ -6,10 +6,11 @@
 
 import { closePopoverFor, openListPopover } from "../lib/popover.js";
 import { t, setLanguage } from "../lib/i18n.js";
+import { Optimistic } from "../lib/optimistic.js";
 import { sameRegistries, unchangedStates, areaIdForEntity, entityDisplayName } from "../lib/hass-utils.js";
 import { fireMoreInfo, haIcon } from "../lib/dom-utils.js";
 import { callService, toggleLights } from "../lib/ha-actions.js";
-import { STYLE, ICONS, iconForArea, fmtCoverPct, nameWithoutAreaPrefix, ensurePopoverItemStyle, lightsAuraColors, auraGradient } from "./area-card-shared.js";
+import { STYLE, ICONS, iconForArea, fmtCoverPct, canDimLight, nameWithoutAreaPrefix, ensurePopoverItemStyle, lightsAuraColors, auraGradient } from "./area-card-shared.js";
 import {
   entitiesForArea,
   isShownEntity,
@@ -99,6 +100,9 @@ class AtriumRooms extends HTMLElement {
     this._orbRefs = new Map();
     this._lastClimateMode = new Map();
     this._routineDrawers = new Map();
+    // What the view just asked HA for, shown until HA's state catches up (see
+    // optimistic.js); when a value times out, the panel redraws from HA.
+    this._optimistic = new Optimistic({ onExpire: () => this._refreshShown() });
     // Escape closes the details panel — unless a menu/popover is open, in
     // which case that Escape is the popover's (it closes itself first).
     // Back button: the panel's history entry was popped. (A dialog opened
@@ -211,16 +215,49 @@ class AtriumRooms extends HTMLElement {
     return entityDisplayName(this._hass, entity);
   }
 
+  // On/off and level as the view shows them: what was just asked for, else HA's.
+  _shownOn(entityId) {
+    const asked = this._optimistic.get(entityId);
+    return asked ? asked.on : this._hass.states?.[entityId]?.state === "on";
+  }
+
+  _shownLevel(entityId) {
+    const asked = this._optimistic.get(entityId);
+    return asked ? asked.level : fmtCoverPct(this._hass.states?.[entityId] || { attributes: {} });
+  }
+
+  // Redraws the open panel (in place) so values just asked for show at once.
+  _refreshShown() {
+    if (this._selectedAreaId && this._hass && this._root) this._renderPanel();
+  }
+
+  // "All off" while any light is on; otherwise "All on", at full brightness.
   _toggleAllLights(lights) {
-    if (!lights.length) return;
-    toggleLights(this._hass, lights.map((l) => l.entity_id));
+    const ids = lights.map((l) => l.entity_id).filter((id) => this._hass.states?.[id]?.state !== "unavailable");
+    if (!ids.length) return;
+    if (ids.some((id) => this._shownOn(id))) {
+      for (const id of ids) this._optimistic.set(id, { on: false, level: 0 });
+      this._call("light", "turn_off", { entity_id: ids });
+      this._refreshShown();
+    } else this._allLightsOn(ids);
+  }
+
+  _allLightsOn(ids) {
+    const dimmable = ids.filter((id) => canDimLight(this._hass.states?.[id]));
+    const plain = ids.filter((id) => !dimmable.includes(id));
+    for (const id of ids) this._optimistic.set(id, { on: true, level: 100 });
+    if (dimmable.length) this._call("light", "turn_on", { entity_id: dimmable, brightness_pct: 100 });
+    if (plain.length) this._call("light", "turn_on", { entity_id: plain });
+    this._refreshShown();
   }
 
   _toggleAllCovers(covers) {
     if (!covers.length) return;
     const ids = covers.map((c) => c.entity_id);
-    const anyOpen = ids.some((id) => fmtCoverPct(this._hass.states?.[id] || { attributes: {} }) > 5);
+    const anyOpen = ids.some((id) => this._shownLevel(id) > 5);
+    for (const id of ids) this._optimistic.set(id, { on: !anyOpen, level: anyOpen ? 0 : 100 });
     this._call("cover", anyOpen ? "close_cover" : "open_cover", { entity_id: ids });
+    this._refreshShown();
   }
 
   // direction is -1 or +1: the size of the move belongs to the device, not
@@ -228,7 +265,8 @@ class AtriumRooms extends HTMLElement {
   _adjustClimate(entityId, direction) {
     const st = this._hass.states?.[entityId];
     if (!st) return;
-    const cur = st.attributes?.temperature;
+    // Quick presses add up: each starts from the setpoint just asked for.
+    const cur = this._optimistic.get(`${entityId}:temperature`, (tt) => Number(st.attributes?.temperature) === tt) ?? st.attributes?.temperature;
     if (cur == null) return;
     const step = Number(st.attributes?.target_temp_step) || 0.5;
     const min = Number(st.attributes?.min_temp ?? -Infinity);
@@ -236,7 +274,9 @@ class AtriumRooms extends HTMLElement {
     const snapped = Math.round((cur + direction * step) / step) * step;
     const next = Math.min(max, Math.max(min, Number(snapped.toFixed(2))));
     if (next === cur) return;
+    this._optimistic.set(`${entityId}:temperature`, next);
     this._call("climate", "set_temperature", { entity_id: entityId, temperature: next });
+    this._refreshShown();
   }
 
   // Tapping the open room again, the close button, or another room while
@@ -833,7 +873,7 @@ class AtriumRooms extends HTMLElement {
       photo.setAttribute("aria-label", t("turnOnAllLightsIn", area.name));
       photo.addEventListener("click", () => {
         const ids = this._dataForArea(area).lights.map((l) => l.entity_id).filter((id) => this._hass.states?.[id]?.state !== "unavailable");
-        if (ids.length) this._call("light", "turn_on", { entity_id: ids });
+        if (ids.length) this._allLightsOn(ids);
       });
     }
     const art = document.createElement("span");

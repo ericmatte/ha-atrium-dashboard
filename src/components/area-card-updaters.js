@@ -157,7 +157,16 @@ export function coverLevelFromPointer(clientY, rect) {
   return Math.round((1 - clamp01((clientY - rect.top) / rect.height)) * 100);
 }
 
+// HA's state has caught up with what the view asked for: same on/off and,
+// where there is a level, within 2% of it (devices round).
+export function tileMatches(asked, real) {
+  if (asked.on !== real.on) return false;
+  return !real.dimmable || !asked.on || Math.abs(asked.level - real.level) <= 2;
+}
+
 export function _toggleEntity(entityId, kind, wantOn) {
+  // Shown right away; a light turned on goes to full brightness.
+  this._optimistic?.set(entityId, { on: wantOn, level: wantOn ? 100 : 0 });
   if (kind === "light") {
     if (!wantOn) this._call("light", "turn_off", { entity_id: entityId });
     else if (canDimLight(this._hass.states?.[entityId])) this._call("light", "turn_on", { entity_id: entityId, brightness_pct: 100 });
@@ -167,6 +176,7 @@ export function _toggleEntity(entityId, kind, wantOn) {
   } else if (kind === "cover") {
     this._call("cover", wantOn ? "open_cover" : "close_cover", { entity_id: entityId });
   }
+  this._refreshShown?.();
 }
 
 // Renders a Diva track from the entity's real current state, or from the
@@ -177,7 +187,10 @@ export function _updateDivaRef(ref, entityId, kind, override) {
   if (!st) return;
   const unavailable = st.state === "unavailable";
   const real = onOffAndLevel(kind, unavailable ? { ...st, state: "off" } : st);
-  const { on, level } = override ?? real;
+  // What the view just asked for wins over HA's in-between states (a light
+  // fading in steps, a cover on its way) until they match, or time runs out.
+  const asked = override || unavailable ? undefined : this._optimistic?.get(entityId, (v) => tileMatches(v, real));
+  const { on, level } = override ?? asked ?? real;
   const v = divaVisual({ kind, on, level, dimmable: real.dimmable, thumbFrac: override?.thumbFrac, color: accentFor(kind, st) });
 
   ref.track.classList.toggle("un", unavailable);
@@ -322,6 +335,7 @@ export function _bindDivaTrack(ref, entityId, kind) {
 
       if (commit && drag.held && drag.dimmable) {
         const pct = drag.finalLevel;
+        this._optimistic?.set(entityId, { on: pct > 0, level: pct });
         if (kind === "cover") {
           if (pct <= 0) this._call("cover", "close_cover", { entity_id: entityId });
           else if (pct >= 100) this._call("cover", "open_cover", { entity_id: entityId });
@@ -333,6 +347,7 @@ export function _bindDivaTrack(ref, entityId, kind) {
         // The thumb settles on its notch right away; HA's state change then
         // confirms it (or snaps it back if the call fails).
         const wantOn = drag.notch === 1;
+        this._optimistic?.set(entityId, { on: wantOn, level: wantOn ? 100 : 0 });
         this._updateDivaRef(ref, entityId, kind, { on: wantOn, level: wantOn ? 100 : 0 });
         if (wantOn !== on) this._toggleEntity(entityId, kind, wantOn);
         return;
@@ -424,7 +439,10 @@ export function _updateClimateRef(ref, entityId) {
   const st = this._hass.states?.[entityId];
   if (!st) return;
   if (st.state !== "off") this._lastClimateMode.set(entityId, st.state);
-  const v = climateView(st, this._lastClimateMode.get(entityId));
+  // The setpoint just asked for, until HA reports it.
+  const asked = this._optimistic?.get(`${entityId}:temperature`, (tt) => Number(st.attributes?.temperature) === tt);
+  const shown = asked == null ? st : { ...st, attributes: { ...st.attributes, temperature: asked } };
+  const v = climateView(shown, this._lastClimateMode.get(entityId));
   ref.card.classList.toggle("off", v.off);
   for (const tone of ["warm", "cool", "neutral"]) ref.card.classList.toggle(`tone-${tone}`, v.tone === tone);
   ref.now.textContent = v.now;
@@ -560,10 +578,13 @@ export function _updateMediaRef(ref, entityId) {
   setIcon(ref.mute.firstElementChild, v.muted ? "mdi:volume-off" : "mdi:volume-high");
   ref.mute.setAttribute("aria-pressed", String(v.muted));
   ref.volume.hidden = !v.canVolume;
-  // Leave the slider alone while it's being dragged; HA's echo catches up after.
+  // Leave the slider alone while it's being dragged; after a release it keeps
+  // the volume asked for until HA reports it.
   if (!ref.volumeDragging) {
-    ref.volume.value = String(v.volume);
-    ref.volume.style.setProperty("--v", `${v.volume}%`);
+    const asked = this._optimistic?.get(`${entityId}:volume`, (pct) => Math.abs(pct - v.volume) <= 1);
+    const shown = asked ?? v.volume;
+    ref.volume.value = String(shown);
+    ref.volume.style.setProperty("--v", `${shown}%`);
   }
 }
 

@@ -185,6 +185,11 @@ export function _buildMediaCard(area, player) {
   const entityId = player.entity_id;
   const displayName = nameWithoutAreaPrefix(this._entityName(player), area);
   const call = (service, data = {}) => this._call("media_player", service, { entity_id: entityId, ...data });
+  // The slider keeps the volume asked for until HA reports it (see _updateMediaRef).
+  const setVolume = (pct) => {
+    this._optimistic?.set(`${entityId}:volume`, pct);
+    call("volume_set", { volume_level: pct / 100 });
+  };
   const iconButton = (cls, icon, onClick) => {
     const b = document.createElement("button");
     b.type = "button";
@@ -281,7 +286,7 @@ export function _buildMediaCard(area, player) {
       if (sliderPointer.moved) {
         setSliderValue(sliderValueAt(event.clientX));
         ref.volumeDragging = false;
-        call("volume_set", { volume_level: Number(volume.value) / 100 });
+        setVolume(Number(volume.value));
       } else {
         const target = sliderPointer.target;
         sliderPointer = null;
@@ -290,7 +295,7 @@ export function _buildMediaCard(area, player) {
         window.removeEventListener("pointercancel", endSliderPointer);
         animateSlider(Number(volume.value), target, () => {
           ref.volumeDragging = false;
-          call("volume_set", { volume_level: target / 100 });
+          setVolume(target);
         });
         return;
       }
@@ -382,13 +387,13 @@ export function _buildMediaCard(area, player) {
       setSliderValue(from);
       animateSlider(from, target, () => {
         ref.volumeDragging = false;
-        call("volume_set", { volume_level: target / 100 });
+        setVolume(target);
       });
       return;
     }
     touchDrag = null;
     ref.volumeDragging = false;
-    call("volume_set", { volume_level: Number(volume.value) / 100 });
+    setVolume(Number(volume.value));
   });
 
   this._refs.areas.get(area.area_id).media.set(entityId, ref);
@@ -409,13 +414,13 @@ export function _buildDeviceGroupsRow(area, { lights, switches, covers, inputBoo
     row.appendChild(el);
   };
   if (lights.length) {
-    const anyOn = () => lights.some((l) => this._hass.states?.[l.entity_id]?.state === "on");
+    const anyOn = () => lights.some((l) => this._shownOn(l.entity_id));
     group(t("lights"), lights.length > 1 ? this._bulkButton(() => this._toggleAllLights(lights), () => (anyOn() ? t("allOff") : t("allOn"))) : null, this._divaGrid(area, lights, "light", deviceSensors));
   }
   if (switches.length) group(t("devices"), null, this._divaGrid(area, switches, "switch", deviceSensors));
   if (inputBooleans.length) group(t("toggles"), null, this._divaGrid(area, inputBooleans, "input_boolean"));
   if (covers.length) {
-    const anyOpen = () => covers.some((c) => fmtCoverPct(this._hass.states?.[c.entity_id] || { attributes: {} }) > 5);
+    const anyOpen = () => covers.some((c) => this._shownLevel(c.entity_id) > 5);
     group(t("covers"), covers.length > 1 ? this._bulkButton(() => this._toggleAllCovers(covers), () => (anyOpen() ? t("closeAll") : t("openAll"))) : null, this._divaGrid(area, covers, "cover"));
   }
   return this._section(null, row);
