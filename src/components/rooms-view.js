@@ -56,11 +56,15 @@ function keyBelongsElsewhere(e) {
 // Phone: a horizontal swipe on the open room's panel steps to the next or
 // previous room. It's decided on the first few px of travel: clearly
 // sideways is ours (the panel follows the finger), anything else is left to
-// the scroll. Swipes that start on a slider (lights, covers, volume) are
-// theirs.
+// the scroll. The open room then follows the finger, with the room it leads
+// to sliding in beside it; let go past a third of the way, or with a flick,
+// and that room becomes the open one. Swipes that start on a slider (lights,
+// covers, volume) are theirs.
 const SWIPE_DECIDE = 12;
-const SWIPE_STEP = 70;
+const SWIPE_STEP_AT = 0.3; // of the panel's width
 const SWIPE_STEP_SPEED = 0.45; // px/ms
+// Space between the open room and the next one peeking in beside it.
+const PEEK_GAP = 24;
 const SWIPE_IGNORE = ".atrium-diva-track, input, .atrium-media-volume, .atrium-pop";
 
 // Animated custom properties (the routines' hold-to-trigger ring filling up,
@@ -79,6 +83,9 @@ const SHEET_MEDIA = "(max-width: 860px)";
 const SWIPE_SLOP = 6;
 const SWIPE_CLOSE_AT = 0.25;
 const SWIPE_FLICK_SPEED = 0.6; // px/ms
+
+// Scrolled all the way down (within a couple of px).
+const atBottom = (el) => el.scrollHeight - el.clientHeight - el.scrollTop < 2;
 
 const heroBadgesKey = (els) => els.map((b) => `${b.className}|${b.textContent}|${b.style.color}|${b.querySelector("ha-icon")?.getAttribute("icon")}`).join(";");
 
@@ -99,7 +106,9 @@ class AtriumRooms extends HTMLElement {
     this._closing = false;
     this._orbRefs = new Map();
     this._lastClimateMode = new Map();
-    this._routineDrawers = new Map();
+    // The Routines' "inactive" drawer: opened or closed in one room, it's the
+    // same in every room.
+    this._showInactive = false;
     // What the view just asked HA for, shown until HA's state catches up (see
     // optimistic.js); when a value times out, the panel redraws from HA.
     this._optimistic = new Optimistic({ onExpire: () => this._refreshShown() });
@@ -316,10 +325,13 @@ class AtriumRooms extends HTMLElement {
   _openPanel(areaId, { slide = 0 } = {}) {
     clearTimeout(this._closeTimer);
     const reopening = !this._selectedAreaId || this._closing;
+    // Stepping rooms from the very bottom of one lands at the bottom of the next.
+    const stayAtBottom = !reopening && !!this._pin && atBottom(this._pin);
     this._closing = false;
     this._selectedAreaId = areaId;
     if (reopening) this._pushPanelHistory();
     this._renderPanel({ freshPanel: reopening });
+    if (stayAtBottom && this._pin) this._pin.scrollTop = this._pin.scrollHeight;
     if (slide && this._pin) {
       this._pin.style.transform = "";
       this._pin.animate([{ transform: `translateX(${slide * 48}px)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 260, easing: "cubic-bezier(.2,.8,.2,1)" });
@@ -575,6 +587,12 @@ class AtriumRooms extends HTMLElement {
     this._pin.innerHTML = "";
     this._pin.scrollTop = 0;
     this._panel.setAttribute("aria-label", area.name);
+    this._fillPanel(this._pin, area, data);
+  }
+
+  // Builds a room's panel content into `pin`; the refs it registers (tiles,
+  // hero, routines) become the live ones.
+  _fillPanel(pin, area, data) {
     this._refs = {
       areas: new Map([[area.area_id, {
         lights: new Map(), switches: new Map(), covers: new Map(), media: new Map(),
@@ -582,8 +600,50 @@ class AtriumRooms extends HTMLElement {
       }]]),
       bulk: [],
     };
-    this._pin.appendChild(this._buildHero(area, data));
-    for (const section of this._buildRoomSections(area, data)) this._pin.appendChild(section);
+    this._routinesUI = null;
+    pin.appendChild(this._buildHero(area, data));
+    for (const section of this._buildRoomSections(area, data)) pin.appendChild(section);
+  }
+
+  // The panel of another room, built beside the open one (hidden from
+  // assistive tech and taps) while a swipe leads to it. The open room's refs
+  // stay the live ones until the peek is adopted. Like the open room, it
+  // shows its bottom when the open room is scrolled all the way down.
+  _buildPeek(areaId) {
+    const area = this._hass.areas?.[areaId];
+    if (!area || !this._pin) return null;
+    const data = this._dataForArea(area);
+    const live = [this._refs, this._heroRefs, this._routinesUI];
+    const el = document.createElement("div");
+    el.className = "atrium-panel-inner atrium-panel-peek";
+    el.inert = true;
+    el.setAttribute("aria-hidden", "true");
+    this._fillPanel(el, area, data);
+    const peek = { el, area, sig: areaPanelSignature(area, data), refs: this._refs, heroRefs: this._heroRefs, routinesUI: this._routinesUI };
+    [this._refs, this._heroRefs, this._routinesUI] = live;
+    this._panel.appendChild(el);
+    if (atBottom(this._pin)) el.scrollTop = el.scrollHeight;
+    return peek;
+  }
+
+  // A swipe landed on the peeked room: its panel, already on screen, becomes
+  // the open one as is, then catches up with any state change since it was
+  // built.
+  _adoptPeek(peek) {
+    this._closeOpenPopovers();
+    this._pin.remove();
+    peek.el.classList.remove("atrium-panel-peek");
+    peek.el.inert = false;
+    peek.el.removeAttribute("aria-hidden");
+    peek.el.style.transform = "";
+    this._pin = peek.el;
+    [this._refs, this._heroRefs, this._routinesUI] = [peek.refs, peek.heroRefs, peek.routinesUI];
+    this._selectedAreaId = this._panelAreaId = peek.area.area_id;
+    this._panelSig = peek.sig;
+    this._panel.setAttribute("aria-label", peek.area.name);
+    this._renderPanel();
+    this._syncLayout();
+    this._revealSelected(peek.area.area_id, { smooth: true });
   }
 
   // Same entities as last render: refresh every tile where it stands so its
@@ -615,12 +675,33 @@ class AtriumRooms extends HTMLElement {
 
   _bindRoomSwipe(panel) {
     panel.addEventListener("pointerdown", (e) => {
-      if (e.pointerType !== "touch" || !this._selectedAreaId || this._closing) return;
+      if (e.pointerType !== "touch" || !this._selectedAreaId || this._closing || this._swiping) return;
       if (e.target.closest(SWIPE_IGNORE)) return;
-      const x0 = e.clientX, y0 = e.clientY, t0 = e.timeStamp;
+      const x0 = e.clientX, y0 = e.clientY;
       let intent = null; // "swipe" | "other"
       let dx = 0;
-      const pin = () => this._pin;
+      let samples = []; // recent [time, x], for the speed at release
+      const peeks = new Map(); // areaId → peek, built on first sight
+      let peek = null; // the one showing
+      const pin = this._pin;
+      const span = () => panel.clientWidth + PEEK_GAP;
+      // The room a swipe in direction `dir` (1: next, -1: previous) leads to.
+      const neighbour = (dir) => {
+        const ids = [...this._orbRefs.keys()];
+        const i = ids.indexOf(this._selectedAreaId);
+        return i < 0 || ids.length < 2 ? null : ids[(i + dir + ids.length) % ids.length];
+      };
+      const place = () => {
+        const dir = dx < 0 ? 1 : -1;
+        const id = dx ? neighbour(dir) : null;
+        if (id && !peeks.has(id)) peeks.set(id, this._buildPeek(id));
+        peek = (id && peeks.get(id)) || null;
+        // A lone room has nowhere to go: it only gives a little.
+        const x = peek ? dx : dx * 0.35;
+        pin.style.transform = `translateX(${x}px)`;
+        for (const p of peeks.values()) if (p) p.el.style.visibility = p === peek ? "" : "hidden";
+        if (peek) peek.el.style.transform = `translateX(${x + dir * span()}px)`;
+      };
       const onMove = (ev) => {
         if (ev.pointerId !== e.pointerId) return;
         dx = ev.clientX - x0;
@@ -629,9 +710,11 @@ class AtriumRooms extends HTMLElement {
           if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_DECIDE) return;
           intent = Math.abs(dx) > Math.abs(dy) * 1.5 ? "swipe" : "other";
           if (intent === "other") return end();
+          pin.style.willChange = "transform";
         }
-        const p = pin();
-        if (p) p.style.transform = `translateX(${dx * 0.35}px)`;
+        samples.push([ev.timeStamp, ev.clientX]);
+        samples = samples.filter(([t]) => ev.timeStamp - t < 100);
+        place();
       };
       const end = (ev) => {
         window.removeEventListener("pointermove", onMove);
@@ -643,15 +726,38 @@ class AtriumRooms extends HTMLElement {
         const swallow = (c) => { c.stopPropagation(); c.preventDefault(); };
         panel.addEventListener("click", swallow, { capture: true, once: true });
         setTimeout(() => panel.removeEventListener("click", swallow, { capture: true }), 350);
-        const speed = Math.abs(dx) / Math.max(1, (ev?.timeStamp ?? t0) - t0);
-        const p = pin();
-        if (ev?.type === "pointerup" && (Math.abs(dx) > SWIPE_STEP || speed > SWIPE_STEP_SPEED)) {
-          if (p) p.style.transform = "";
-          this._stepArea(dx < 0 ? 1 : -1);
-        } else if (p) {
-          p.animate([{ transform: p.style.transform }, { transform: "none" }], { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" });
-          p.style.transform = "";
-        }
+        // Over the last 100 ms before the release: a finger that stopped
+        // before lifting isn't a flick.
+        const recent = samples.filter(([t]) => (ev?.timeStamp ?? 0) - t < 100);
+        const [t1, x1] = recent[0] ?? [0, 0];
+        const [t2, x2] = recent.at(-1) ?? [0, 0];
+        const speed = t2 > t1 ? (x2 - x1) / (t2 - t1) : 0; // px/ms, signed
+        const flick = Math.abs(speed) > SWIPE_STEP_SPEED && Math.sign(speed) === Math.sign(dx);
+        const go = !!peek && ev?.type === "pointerup" && (Math.abs(dx) > panel.clientWidth * SWIPE_STEP_AT || flick);
+        const dir = dx < 0 ? 1 : -1;
+        const from = peek ? dx : dx * 0.35;
+        const to = go ? -dir * span() : 0;
+        // Carries on at the finger's speed, easing out; never slower than a
+        // short settle.
+        const duration = Math.min(320, Math.max(160, Math.abs(to - from) / Math.max(Math.abs(speed), 1.4)));
+        const slide = (el, x) => {
+          const anim = el.animate([{ transform: el.style.transform }, { transform: `translateX(${x}px)` }], { duration, easing: "cubic-bezier(.2,.8,.2,1)" });
+          el.style.transform = `translateX(${x}px)`;
+          return anim.finished.catch(() => {});
+        };
+        this._swiping = true;
+        const moves = [slide(pin, to)];
+        if (peek) moves.push(slide(peek.el, to + dir * span()));
+        Promise.all(moves).then(() => {
+          this._swiping = false;
+          pin.style.willChange = "";
+          for (const p of peeks.values()) if (p && !(go && p === peek)) p.el.remove();
+          if (go && pin === this._pin && pin.isConnected && !this._closing) this._adoptPeek(peek);
+          else {
+            pin.style.transform = "";
+            if (go) peek.el.remove();
+          }
+        });
       };
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", end);

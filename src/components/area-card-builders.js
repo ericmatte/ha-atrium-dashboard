@@ -703,13 +703,12 @@ export function _captureSceneColors(sceneId, lightIds, pill, fire) {
 // Scripts first (always shown: they're what you run yourself), then the
 // automations, most recently triggered first. Automations that haven't run
 // for over a week, on or off, fold into an "inactive" drawer under the list;
-// its open state is kept per room while the panel stays open. Each routine
+// opened or closed in one room, it's the same in every room. Each routine
 // has its own color (see routine-colors.js).
 export function _buildAutomationsSection(area, data) {
   const groups = routineGroups(this._hass, data);
   if (!groups.scripts.length && !groups.active.length && !groups.inactive.length) return null;
 
-  const open = { showInactive: false, ...this._routineDrawers.get(area.area_id) };
   const section = this._section(t("routines"), []);
   const list = () => {
     const el = document.createElement("div");
@@ -730,12 +729,11 @@ export function _buildAutomationsSection(area, data) {
   drawer.className = "atrium-routines-drawer";
   drawer.innerHTML = `${haIcon("mdi:sleep", 18)}<span></span>${haIcon("mdi:chevron-down", 18)}`;
   drawer.addEventListener("click", () => {
-    open.showInactive = !open.showInactive;
-    this._routineDrawers.set(area.area_id, { ...open });
+    this._showInactive = !this._showInactive;
     this._refreshRoutines(this._dataForArea(area));
     // The rows land at their full height at once (they fade in rather than
     // grow), so the panel can glide all the way down to them in one go.
-    if (open.showInactive) requestAnimationFrame(() => {
+    if (this._showInactive) requestAnimationFrame(() => {
       const pin = this._pin;
       if (pin) pin.scrollTo({ top: pin.scrollHeight - pin.clientHeight, behavior: "smooth" });
     });
@@ -743,7 +741,7 @@ export function _buildAutomationsSection(area, data) {
   const inactiveList = list();
 
   section.append(scriptsList, autosHead, activeList, drawer, inactiveList);
-  this._routinesUI = { area, scriptsList, autosHead, activeList, drawer, inactiveList, open };
+  this._routinesUI = { area, scriptsList, autosHead, activeList, drawer, inactiveList };
   this._refreshRoutines(data, { building: true });
   return section;
 }
@@ -769,12 +767,12 @@ export function _refreshRoutines(data, { building = false } = {}) {
   ui.autosHead.hidden = !autos;
   ui.drawer.hidden = !groups.inactive.length;
   ui.drawer.querySelector("span").textContent = t("inactiveForAWeek", groups.inactive.length);
-  ui.drawer.setAttribute("aria-expanded", String(ui.open.showInactive));
+  ui.drawer.setAttribute("aria-expanded", String(this._showInactive));
 
   this._syncRoutineLists(ui.area, [
     [ui.scriptsList, groups.scripts],
     [ui.activeList, groups.active],
-    [ui.inactiveList, ui.open.showInactive ? groups.inactive : []],
+    [ui.inactiveList, this._showInactive ? groups.inactive : []],
   ]);
   for (const [entityId, ref] of this._refs.areas.get(ui.area.area_id).automations) {
     const color = ui.colors.get(entityId);

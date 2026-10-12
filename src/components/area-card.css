@@ -133,6 +133,8 @@
 /* pan-y: the browser keeps vertical scrolling, sideways swipes reach rooms-view.js (next/previous room). */
 .atrium-panel-inner { height: 100%; box-sizing: border-box; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; display: flex; flex-direction: column; gap: 20px; padding: 18px 16px 32px; scrollbar-width: thin; }
 
+/* The next room, sliding in beside the open one during a swipe (rooms-view.js). */
+.atrium-panel > .atrium-panel-peek { position: absolute; top: 0; left: 0; width: 100%; pointer-events: none; will-change: transform; }
 .atrium-panel-hero { display: flex; align-items: center; gap: 16px; }
 .atrium-sheet-grabber { display: none; }
 @media (max-width: 860px) { .atrium-sheet-grabber { display: block; } }
