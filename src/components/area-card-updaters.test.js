@@ -251,6 +251,13 @@ test("divaVisual: a cover gets a solid fill centred on its icon", () => {
   assert.equal(v.fillHeight, "calc((100% - 54px) * 0.400 * 1.000 + 27.0px)");
 });
 
+test("divaVisual: an on/off tile's thumb fills the bottom half when off, the top half when on", () => {
+  assert.equal(divaVisual({ kind: "switch", on: false, level: 0, dimmable: false, color: "#79d99a" }).thumbBottom, "calc((50% - 3px) * 0.000 + 6px)");
+  const on = divaVisual({ kind: "switch", on: true, level: 100, dimmable: false, color: "#79d99a" });
+  assert.equal(on.thumbBottom, "calc((50% - 3px) * 1.000 + 6px)");
+  assert.equal(on.fillHeight, "100%");
+});
+
 test("divaVisual: an off dimmable light has no fill and no pct label", () => {
   const v = divaVisual({ kind: "light", on: false, level: 0, dimmable: true, color: "#f6c14b" });
   assert.equal(v.fillHeight, "0px");

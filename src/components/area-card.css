@@ -185,6 +185,10 @@ button.atrium-badge { cursor: pointer; }
 .atrium-diva-track.on .atrium-diva-thumb { background: #fff; color: #1b1506; }
 .atrium-diva-track.dragging .atrium-diva-fill, .atrium-diva-track.dragging .atrium-diva-thumb { transition: none; }
 .atrium-diva-track.dragging .atrium-diva-thumb { transform: scale(1.04); box-shadow: 0 10px 24px rgba(0,0,0,.55), 0 0 0 3px rgba(255,255,255,.25); }
+/* On/off tiles: the thumb is half the track (bottom half off, top half on,
+   6px apart), and there are no level ticks to read. */
+.atrium-diva-track.onoff .atrium-diva-thumb { height: calc(50% - 9px); }
+.atrium-diva-track.onoff .atrium-diva-tick { display: none; }
 .atrium-diva-track.onoff .atrium-diva-thumb { transition: bottom .36s cubic-bezier(.34,1.56,.64,1), background .2s, color .2s, transform .16s; }
 .atrium-diva-track.onoff .atrium-diva-fill { transition: height .36s var(--a-ease); }
 .atrium-diva-track.onoff.dragging .atrium-diva-fill { transition: none; }

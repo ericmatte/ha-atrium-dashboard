@@ -118,7 +118,11 @@ export function divaVisual({ kind, on, level, dimmable, thumbFrac, color }) {
   const pctBelow = clamp01((level - PCT_SWAP_FROM) / (PCT_SWAP_TO - PCT_SWAP_FROM));
   return {
     on,
-    thumbBottom: `calc((100% - ${travel}px) * ${clamp01(thumb).toFixed(3)} + ${PAD}px)`,
+    // An on/off tile's thumb fills half the track (bottom half off, top half
+    // on, PAD apart), so it travels half the track less half a PAD.
+    thumbBottom: dimmable || kind === "cover"
+      ? `calc((100% - ${travel}px) * ${clamp01(thumb).toFixed(3)} + ${PAD}px)`
+      : `calc((50% - ${PAD / 2}px) * ${clamp01(thumb).toFixed(3)} + ${PAD}px)`,
     fillHeight,
     fillBackground,
     showPct,
@@ -251,7 +255,8 @@ export function _bindDivaTrack(ref, entityId, kind) {
     try { track.setPointerCapture(e.pointerId); } catch (_) {}
 
     const drag = { pointerId: e.pointerId, y: e.clientY, startFrac, dimmable, held: false, notch: null, rect, flickTimer: 0, intent: touch ? "pending" : "drag" };
-    const usable = rect.height - THUMB - PAD * 2;
+    // Distance the thumb travels end to end (see divaVisual's thumbBottom).
+    const usable = dimmable || kind === "cover" ? rect.height - THUMB - PAD * 2 : rect.height / 2 - PAD / 2;
     const fracFromPointer = (clientY) => clamp01((rect.bottom - clientY - PAD - THUMB / 2) / usable);
 
     const decideIntent = (timeStamp, clientY) => {
