@@ -332,9 +332,16 @@ button.atrium-badge { cursor: pointer; }
    routine has a ring circling it. */
 .atrium-alist { display: flex; flex-direction: column; gap: 8px; }
 .atrium-alist[hidden] { display: none; }
-.atrium-auto-row { --hue: #8cc1ff; position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 10px; border-radius: 18px; background: var(--a-surface); overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: pan-y; transition: opacity .2s; }
+/* --routine is the routine's color as picked (set inline); --hue is what's
+   drawn. The palette's lighter half reads as washed out — as if disabled —
+   on a light theme, so there every color is held to a mid lightness (same
+   hue, a little more chroma). */
+.atrium-auto-row { --hue: var(--routine, #8cc1ff); position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 10px; border-radius: 18px; background: var(--a-surface); overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: pan-y; transition: opacity .2s; }
 .atrium-auto-row.is-script { background: linear-gradient(160deg, color-mix(in srgb, var(--hue) 16%, var(--a-surface)), var(--a-surface) 70%); cursor: pointer; }
-.atrium-auto-row.off { --hue: #6b6b70; }
+.atrium-rooms.is-light .atrium-auto-row { --hue: color-mix(in oklab, var(--routine, #8cc1ff) 78%, #000); }
+@supports (color: oklch(from red l c h)) {
+  .atrium-rooms.is-light .atrium-auto-row { --hue: oklch(from var(--routine, #8cc1ff) min(l, .65) calc(c * 1.15) h); }
+}
 .atrium-auto-tile { position: relative; flex-shrink: 0; width: 46px; height: 46px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--hue) 18%, transparent); color: var(--hue); transition: background .2s, color .2s, transform .65s ease-out; }
 .atrium-auto-row.is-script .atrium-auto-tile { background: color-mix(in srgb, var(--hue) 22%, transparent); }
 .atrium-auto-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }

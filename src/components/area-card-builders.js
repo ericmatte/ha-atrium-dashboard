@@ -776,7 +776,7 @@ export function _refreshRoutines(data, { building = false } = {}) {
   ]);
   for (const [entityId, ref] of this._refs.areas.get(ui.area.area_id).automations) {
     const color = ui.colors.get(entityId);
-    if (color) ref.row.style.setProperty("--hue", color);
+    if (color) ref.row.style.setProperty("--routine", color);
   }
 }
 
@@ -885,7 +885,7 @@ export function _buildAutomationRow(area, item) {
   row.className = "atrium-auto-row" + (isScript ? " is-script" : "");
   row.dataset.entity = entityId;
   const color = this._routinesUI?.colors?.get(entityId);
-  if (color) row.style.setProperty("--hue", color);
+  if (color) row.style.setProperty("--routine", color);
 
   const ring = document.createElement("span");
   ring.className = "atrium-auto-ring";

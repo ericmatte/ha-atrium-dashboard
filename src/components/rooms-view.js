@@ -207,6 +207,8 @@ class AtriumRooms extends HTMLElement {
     this._night = night;
     if (registriesChanged) this._panelSig = null;
     if (!this._root || registriesChanged || statesChanged || nightChanged) this._render();
+    // Some colors (the routines') are tuned per theme brightness.
+    this._root?.classList.toggle("is-light", hass.themes?.darkMode === false);
   }
 
   // Every entity anchored to any area on any of our floors — cheap enough
