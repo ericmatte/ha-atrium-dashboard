@@ -45,6 +45,14 @@ function scrollParent(el) {
 }
 
 const REVEAL_MARGIN = 12;
+
+// Animated custom properties (the routines' hold-to-trigger ring filling up,
+// the ring circling a running routine). An @property rule is ignored inside a
+// shadow root — where Home Assistant renders cards — and an unregistered
+// property can't animate (it would jump), so they're registered on the page.
+for (const [name, syntax, initialValue] of [["--atrium-hold", "<percentage>", "0%"], ["--atrium-ring", "<angle>", "0deg"]]) {
+  try { globalThis.CSS?.registerProperty?.({ name, syntax, inherits: false, initialValue }); } catch (_) { /* already registered */ }
+}
 const isNight = (hass) => hass.states?.["sun.sun"]?.state === "below_horizon";
 // The aura blends its colors in OKLCH where the browser can.
 const AURA_SPACE = globalThis.CSS?.supports?.("background", "conic-gradient(in oklch, red, blue)") ? "oklch" : undefined;

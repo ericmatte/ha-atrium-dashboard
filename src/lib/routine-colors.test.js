@@ -1,53 +1,31 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { routineColors, intrinsicColor, labelColor, SCRIPT_COLOR, ROUTINE_PALETTE } from "./routine-colors.js";
+import { routineColors, hashString, SCRIPT_COLOR, ROUTINE_PALETTE } from "./routine-colors.js";
 
-test("intrinsicColor: script, then label, then icon, then name", () => {
-  assert.equal(intrinsicColor({ isScript: true, icon: "mdi:shield-alert" }), SCRIPT_COLOR);
-  assert.equal(intrinsicColor({ labelColors: ["grey", "red"], icon: "mdi:lightbulb" }), "#ff8f8f");
-  assert.equal(intrinsicColor({ icon: "mdi:lightbulb-off", name: "Away mode" }), "#f6c14b");
-  assert.equal(intrinsicColor({ name: "Motion" }), "#8cc1ff");
-  assert.equal(intrinsicColor({ name: "Dimmer button" }), null);
-});
-
-test("intrinsicColor: the Outside routines get their family colors", () => {
-  const byIcon = (icon) => intrinsicColor({ icon });
-  assert.equal(byIcon("mdi:location-exit"), "#8cc1ff");
-  assert.equal(byIcon("mdi:airplane"), "#8cc1ff");
-  assert.equal(byIcon("mdi:thermometer"), "#5fd4c4");
-  assert.equal(byIcon("mdi:shield-alert"), "#ff8f8f");
-  assert.equal(byIcon("mdi:sync"), "#a6d96a");
-});
-
-test("intrinsicColor: French names, accents ignored", () => {
-  assert.equal(intrinsicColor({ name: "Éteindre les lumières du bureau" }), "#f6c14b");
-  assert.equal(intrinsicColor({ name: "Plancher des plinthes en mode été" }), "#5fd4c4");
-  assert.equal(intrinsicColor({ name: "Fermer les rideaux" }), "#b18cff");
-  assert.equal(intrinsicColor({ name: "Détecteur de fuite" }), "#6fa8ff");
-});
-
-test("labelColor: theme names map onto the palette, hex passes through, greys give nothing", () => {
-  assert.equal(labelColor("purple"), "#c9a3ff");
-  assert.equal(labelColor("#123456"), "#123456");
-  assert.equal(labelColor("grey"), null);
-  assert.equal(labelColor(undefined), null);
-});
-
-test("routineColors: unmatched routines take the palette colors nobody uses yet, in order", () => {
+test("routineColors: scripts are green; an automation's color comes from its ID", () => {
   const colors = routineColors([
-    { id: "a", icon: "mdi:location-exit" }, // sky
-    { id: "b", name: "Dimmer button" },
-    { id: "c", name: "Diva remote" },
+    { id: "script.halloween", key: "script.halloween", isScript: true },
+    { id: "automation.away_mode", key: "1755722221689" },
   ]);
-  assert.equal(colors.get("a"), "#8cc1ff");
-  assert.equal(colors.get("b"), ROUTINE_PALETTE[1]); // amber: sky is taken
-  assert.equal(colors.get("c"), ROUTINE_PALETTE[2]);
+  assert.equal(colors.get("script.halloween"), SCRIPT_COLOR);
+  assert.equal(colors.get("automation.away_mode"), ROUTINE_PALETTE[hashString("1755722221689") % ROUTINE_PALETTE.length]);
 });
 
-test("routineColors: once every palette color is used, it starts over (modulo)", () => {
-  const items = Array.from({ length: ROUTINE_PALETTE.length + 2 }, (_, i) => ({ id: `x${i}`, name: `Remote ${i}` }));
+test("routineColors: the same ID gets the same color whatever else is in the area, or its name", () => {
+  const alone = routineColors([{ id: "automation.a", key: "1760366605928" }]);
+  const renamed = routineColors([{ id: "automation.renamed", key: "1760366605928" }]);
+  assert.equal(alone.get("automation.a"), renamed.get("automation.renamed"));
+});
+
+test("routineColors: two automations of one area never share a color while the palette lasts", () => {
+  const items = Array.from({ length: ROUTINE_PALETTE.length }, (_, i) => ({ id: `automation.a${i}`, key: `id-${i}` }));
+  const colors = new Set(routineColors(items).values());
+  assert.equal(colors.size, ROUTINE_PALETTE.length);
+});
+
+test("routineColors: past the palette's length colors repeat instead of failing", () => {
+  const items = Array.from({ length: ROUTINE_PALETTE.length + 3 }, (_, i) => ({ id: `automation.a${i}`, key: `id-${i}` }));
   const colors = routineColors(items);
-  assert.deepEqual(items.slice(0, ROUTINE_PALETTE.length).map((it) => colors.get(it.id)), ROUTINE_PALETTE);
-  assert.equal(colors.get(`x${ROUTINE_PALETTE.length}`), ROUTINE_PALETTE[0]);
-  assert.equal(colors.get(`x${ROUTINE_PALETTE.length + 1}`), ROUTINE_PALETTE[1]);
+  assert.equal(colors.size, items.length);
+  for (const c of colors.values()) assert.ok(ROUTINE_PALETTE.includes(c));
 });

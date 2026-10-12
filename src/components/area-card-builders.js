@@ -10,7 +10,6 @@ import {
 } from "./area-card-shared.js";
 import { routineGroups } from "../lib/area-data.js";
 import { routineColors } from "../lib/routine-colors.js";
-import { getLabel } from "../lib/label-registry.js";
 import { t } from "../lib/i18n.js";
 import { settleStep } from "../lib/settle.js";
 import { FLASH_MS, TOUCH_INTENT_MS, SCROLL_SLOP } from "./area-card-updaters.js";
@@ -729,9 +728,12 @@ export function _buildAutomationsSection(area, data) {
     open.showInactive = !open.showInactive;
     this._routineDrawers.set(area.area_id, { ...open });
     this._refreshRoutines(this._dataForArea(area));
-    // The rows open at the very end of the panel: follow them down, once
-    // they've grown to full height.
-    if (open.showInactive) setTimeout(() => this._pin?.scrollTo({ top: this._pin.scrollHeight, behavior: "smooth" }), ROW_MOTION.duration);
+    // The rows land at their full height at once (they fade in rather than
+    // grow), so the panel can glide all the way down to them in one go.
+    if (open.showInactive) requestAnimationFrame(() => {
+      const pin = this._pin;
+      if (pin) pin.scrollTo({ top: pin.scrollHeight - pin.clientHeight, behavior: "smooth" });
+    });
   });
   const inactiveList = list();
 
@@ -754,9 +756,8 @@ export function _refreshRoutines(data, { building = false } = {}) {
   ui.colors = routineColors(shown.map((e) => ({
     id: e.entity_id,
     isScript: e.entity_id.startsWith("script."),
-    labelColors: (hass.entities?.[e.entity_id]?.labels || []).map((id) => getLabel(hass, id)?.color),
-    icon: hass.entities?.[e.entity_id]?.icon ?? hass.states?.[e.entity_id]?.attributes?.icon,
-    name: this._entityName(e),
+    // An automation's config id survives renames; the entity_id otherwise.
+    key: hass.states?.[e.entity_id]?.attributes?.id ?? e.entity_id,
   })));
 
   const autos = groups.active.length + groups.inactive.length;
@@ -810,7 +811,9 @@ export function _syncRoutineLists(area, groups) {
       const row = this._buildAutomationRow(area, entity);
       list.insertBefore(row, cursor);
       // Rows only grow open once the panel is showing; the first fill just appears.
-      if (list.isConnected) expandRow(row);
+      // The inactive drawer's rows fade in at full height, so the panel can
+      // scroll straight down to them; elsewhere a new row grows open.
+      if (list.isConnected) (list === this._routinesUI?.inactiveList ? fadeInRow : expandRow)(row);
     }
     if (entities.length) list.hidden = false;
     else if (!list.querySelector(".atrium-auto-row:not(.leaving)")) {
@@ -828,6 +831,10 @@ function expandRow(row) {
   const from = { height: "0px", paddingTop: "0px", paddingBottom: "0px", marginTop: "-8px", opacity: 0 };
   row.style.overflow = "hidden";
   row.animate([from, to], ROW_MOTION).finished.then(() => { row.style.overflow = ""; }, () => {});
+}
+
+function fadeInRow(row) {
+  row.animate([{ opacity: 0, transform: "translateY(8px)" }, { opacity: getComputedStyle(row).opacity, transform: "none" }], ROW_MOTION);
 }
 
 function collapseRow(row) {
@@ -887,12 +894,16 @@ export function _buildAutomationRow(area, item) {
   const name = document.createElement("span");
   name.className = "atrium-auto-name";
   name.textContent = displayName;
-  const labels = document.createElement("span");
-  labels.className = "atrium-auto-labels";
+  // Second line: when it last ran first, then its labels.
+  const line = document.createElement("span");
+  line.className = "atrium-auto-line";
   const meta = document.createElement("span");
   meta.className = "atrium-auto-meta";
   meta.innerHTML = `<span class="atrium-auto-dot"></span><span></span>`;
-  body.append(name, labels, meta);
+  const labels = document.createElement("span");
+  labels.className = "atrium-auto-labels";
+  line.append(meta, labels);
+  body.append(name, line);
 
   const ref = { row, tile, name, sub: meta.lastChild, labels, isScript, flashUntil: 0 };
   const flash = () => {

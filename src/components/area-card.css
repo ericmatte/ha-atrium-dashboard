@@ -337,6 +337,7 @@ button.atrium-badge { cursor: pointer; }
 .atrium-auto-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .atrium-auto-name { font-size: 15px; font-weight: 700; line-height: 1.25; color: var(--a-text); }
 .atrium-auto-row.off .atrium-auto-name { color: color-mix(in srgb, var(--a-text) 55%, transparent); }
+.atrium-auto-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
 .atrium-auto-labels { display: flex; flex-wrap: wrap; gap: 4px; }
 .atrium-auto-labels:empty { display: none; }
 .atrium-auto-label { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 6px; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 14px; }
@@ -355,14 +356,12 @@ button.atrium-badge { cursor: pointer; }
 .atrium-auto-run:active { transform: scale(.95); }
 
 /* Hold to trigger: the tile sinks a little while a ring fills around it. */
-@property --atrium-hold { syntax: "<percentage>"; initial-value: 0%; inherits: false; }
-.atrium-auto-tile::after { content: ""; position: absolute; inset: -6px; padding: 3px; border-radius: 19px; background: conic-gradient(var(--hue) var(--atrium-hold), transparent 0); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); opacity: 0; pointer-events: none; }
+.atrium-auto-tile::after { content: ""; position: absolute; inset: -6px; padding: 3px; border-radius: 19px; background: conic-gradient(var(--hue) var(--atrium-hold, 0%), transparent 0); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); opacity: 0; pointer-events: none; }
 .atrium-auto-row.holding .atrium-auto-tile { transform: scale(.92); }
 .atrium-auto-row.holding .atrium-auto-tile::after { opacity: 1; animation: atrium-hold-fill .65s linear forwards; }
 @keyframes atrium-hold-fill { from { --atrium-hold: 0%; } to { --atrium-hold: 100%; } }
 /* Running: a short arc of the routine's color circles the row. */
-@property --atrium-ring { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
-.atrium-auto-ring { display: none; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; background: conic-gradient(from var(--atrium-ring), transparent 0 70%, var(--hue) 85%, transparent 100%); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); animation: atrium-ring-turn 2.4s linear infinite; pointer-events: none; }
+.atrium-auto-ring { display: none; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; background: conic-gradient(from var(--atrium-ring, 0deg), transparent 0 70%, var(--hue) 85%, transparent 100%); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); animation: atrium-ring-turn 2.4s linear infinite; pointer-events: none; }
 .atrium-auto-row.running .atrium-auto-ring { display: block; }
 @keyframes atrium-ring-turn { to { --atrium-ring: 360deg; } }
 /* Just ran: a sweep of color across the row, sparks off the tile. */
