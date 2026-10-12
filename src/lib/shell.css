@@ -87,7 +87,18 @@
     padding-right: calc(62px - 40px * var(--atrium-open) + 580px * var(--atrium-open));
   }
   .atrium-shell-root.is-home .atrium-shell-pills { padding-inline: 18px; }
-  /* Pinned (header.js): opaque, so the rooms scroll out of sight beneath it. */
-  .is-sticky .atrium-shell-root.is-home { background: var(--primary-background-color, #0b0c0e); }
-  .is-sticky .atrium-shell-root.is-home .atrium-shell-header { margin-bottom: 0; padding-bottom: 12px; }
+  /* Pinned (header.js): a frosted backdrop, the page's own color at 72% over
+     a blur of the rooms scrolling beneath, fading out over its last 28px so
+     the edge melts into the page. One layer carries both the tint and the
+     blur (a blur nested in another blur shows nothing), and the fade sits in
+     the header's own bottom padding, so at rest nothing lies under it. */
+  .is-sticky .atrium-shell-root.is-home { position: relative; isolation: isolate; }
+  .is-sticky .atrium-shell-root.is-home::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: color-mix(in srgb, var(--primary-background-color, #0b0c0e) 72%, transparent);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2); backdrop-filter: blur(16px) saturate(1.2);
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+  }
+  .is-sticky .atrium-shell-root.is-home .atrium-shell-header { margin-bottom: 0; padding-bottom: 28px; }
 }
