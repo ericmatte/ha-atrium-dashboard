@@ -111,17 +111,21 @@ class AtriumRooms extends HTMLElement {
       }
       if (this._selectedAreaId && !history.state?.[PANEL_HISTORY_KEY]) this._closePanel({ fromHistory: true });
     };
-    // ←/→ step to the previous/next room while one is open — unless the key
-    // belongs to something else: a field or slider with focus, a menu, a
-    // dialog over the panel.
+    // ←/→ step to the previous/next room while one is open, ↑/↓ (desktop) to
+    // the room above/below in the grid — unless the key belongs to something
+    // else: a field or slider with focus, a menu, a dialog over the panel.
     this._onKeydown = (e) => {
       if (e.defaultPrevented || !this._selectedAreaId) return;
       if (document.querySelector(".atrium-pop")) return;
       if (e.key === "Escape") return this._select(null);
-      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      const vertical = e.key === "ArrowUp" || e.key === "ArrowDown";
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight" && !vertical) return;
       if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || keyBelongsElsewhere(e)) return;
+      // On a phone the rooms are one strip: ↑/↓ keep scrolling the panel.
+      if (vertical && matchMedia(SHEET_MEDIA).matches) return;
       e.preventDefault();
-      this._stepArea(e.key === "ArrowRight" ? 1 : -1);
+      if (vertical) this._stepAreaVertical(e.key === "ArrowDown" ? 1 : -1);
+      else this._stepArea(e.key === "ArrowRight" ? 1 : -1);
     };
   }
 
@@ -249,6 +253,24 @@ class AtriumRooms extends HTMLElement {
     const i = ids.indexOf(this._selectedAreaId);
     if (i < 0 || ids.length < 2) return;
     this._openPanel(ids[(i + dir + ids.length) % ids.length], { slide: dir });
+  }
+
+  // The room right below (1) or above (-1) in the grid as laid out on screen:
+  // the nearest tile of the next row, by horizontal distance — across floors
+  // too. Nothing past the first or last row.
+  _stepAreaVertical(dir) {
+    const current = this._orbRefs.get(this._selectedAreaId)?.tile;
+    if (!current) return;
+    const box = (el) => el.getBoundingClientRect();
+    const here = box(current);
+    const cx = (r) => r.left + r.width / 2;
+    const tiles = [...this._orbRefs].map(([areaId, ref]) => ({ areaId, r: box(ref.tile) }));
+    const ahead = tiles.filter(({ r }) => (dir > 0 ? r.top > here.top + 4 : r.top < here.top - 4));
+    if (!ahead.length) return;
+    const rowTop = dir > 0 ? Math.min(...ahead.map((t) => t.r.top)) : Math.max(...ahead.map((t) => t.r.top));
+    const row = ahead.filter(({ r }) => Math.abs(r.top - rowTop) < 4);
+    const target = row.reduce((best, t) => (Math.abs(cx(t.r) - cx(here)) < Math.abs(cx(best.r) - cx(here)) ? t : best));
+    this._openPanel(target.areaId);
   }
 
   _openPanel(areaId, { slide = 0 } = {}) {
