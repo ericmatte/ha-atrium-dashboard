@@ -950,11 +950,19 @@ export function _buildAutomationRow(area, item) {
     // sooner and nothing happens at all, editor included.
     let hold = null;
     let swallowClick = false;
-    body.addEventListener("click", () => {
-      if (swallowClick) { swallowClick = false; return; }
+    // Cmd/Ctrl-click (or a middle click) opens the editor in a new tab.
+    const openEditor = (newTab) => {
       const path = automationEditorPath(this._hass, entityId);
-      if (path) navigateTo(path);
+      if (path && newTab) window.open(path, "_blank", "noopener");
+      else if (path) navigateTo(path);
       else this._moreInfo(entityId);
+    };
+    body.addEventListener("click", (e) => {
+      if (swallowClick) { swallowClick = false; return; }
+      openEditor(e.metaKey || e.ctrlKey);
+    });
+    body.addEventListener("auxclick", (e) => {
+      if (e.button === 1) openEditor(true);
     });
     const stop = () => {
       if (!hold) return;
@@ -964,7 +972,7 @@ export function _buildAutomationRow(area, item) {
     };
     row.addEventListener("pointerdown", (e) => {
       swallowClick = false;
-      if (e.button > 0 || e.target.closest(".atrium-auto-switch")) return;
+      if (e.button > 0 || e.metaKey || e.ctrlKey || e.target.closest(".atrium-auto-switch")) return;
       if (this._hass.states?.[entityId]?.state === "off") return;
       hold = { x: e.clientX, y: e.clientY };
       hold.timer = setTimeout(() => {
