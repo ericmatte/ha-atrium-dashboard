@@ -65,6 +65,22 @@ const SWIPE_STEP_AT = 0.3; // of the panel's width
 const SWIPE_STEP_SPEED = 0.45; // px/ms
 // Space between the open room and the next one peeking in beside it.
 const PEEK_GAP = 24;
+// Along the way, the open room shrinks and fades as it slides out, and the
+// next one grows back to full size as it fades in: at the start it's at
+// this scale and opacity.
+const PEEK_SCALE = 0.92;
+const PEEK_OPACITY = 0.3;
+
+// How the open room (`out`) and the one it leads to (`in`) look with the
+// open room slid `x` px, the next one `span` px further in direction `dir`.
+function swipeLook(x, span, dir) {
+  const p = Math.min(1, Math.abs(x) / span);
+  const look = (shift, k) => ({
+    transform: `translateX(${shift}px) scale(${PEEK_SCALE + (1 - PEEK_SCALE) * k})`,
+    opacity: String(PEEK_OPACITY + (1 - PEEK_OPACITY) * k),
+  });
+  return { out: look(x, 1 - p), in: look(x + dir * span, p) };
+}
 const SWIPE_IGNORE = ".atrium-diva-track, input, .atrium-media-volume, .atrium-pop";
 
 // Animated custom properties (the routines' hold-to-trigger ring filling up,
@@ -334,7 +350,7 @@ class AtriumRooms extends HTMLElement {
     if (stayAtBottom && this._pin) this._pin.scrollTop = this._pin.scrollHeight;
     if (slide && this._pin) {
       this._pin.style.transform = "";
-      this._pin.animate([{ transform: `translateX(${slide * 48}px)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 260, easing: "cubic-bezier(.2,.8,.2,1)" });
+      this._pin.animate([{ transform: `translateX(${slide * 48}px) scale(${PEEK_SCALE})`, opacity: PEEK_OPACITY }, { transform: "none", opacity: 1 }], { duration: 300, easing: "cubic-bezier(.2,.8,.2,1)" });
     }
     this._syncLayout();
     this._revealSelected(areaId, { smooth: !reopening });
@@ -635,7 +651,7 @@ class AtriumRooms extends HTMLElement {
     peek.el.classList.remove("atrium-panel-peek");
     peek.el.inert = false;
     peek.el.removeAttribute("aria-hidden");
-    peek.el.style.transform = "";
+    peek.el.style.transform = peek.el.style.opacity = "";
     this._pin = peek.el;
     [this._refs, this._heroRefs, this._routinesUI] = [peek.refs, peek.heroRefs, peek.routinesUI];
     this._selectedAreaId = this._panelAreaId = peek.area.area_id;
@@ -696,11 +712,15 @@ class AtriumRooms extends HTMLElement {
         const id = dx ? neighbour(dir) : null;
         if (id && !peeks.has(id)) peeks.set(id, this._buildPeek(id));
         peek = (id && peeks.get(id)) || null;
-        // A lone room has nowhere to go: it only gives a little.
-        const x = peek ? dx : dx * 0.35;
-        pin.style.transform = `translateX(${x}px)`;
         for (const p of peeks.values()) if (p) p.el.style.visibility = p === peek ? "" : "hidden";
-        if (peek) peek.el.style.transform = `translateX(${x + dir * span()}px)`;
+        if (peek) {
+          const look = swipeLook(dx, span(), dir);
+          Object.assign(pin.style, look.out);
+          Object.assign(peek.el.style, look.in);
+        } else {
+          // A lone room has nowhere to go: it only gives a little.
+          pin.style.transform = `translateX(${dx * 0.35}px)`;
+        }
       };
       const onMove = (ev) => {
         if (ev.pointerId !== e.pointerId) return;
@@ -710,7 +730,7 @@ class AtriumRooms extends HTMLElement {
           if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_DECIDE) return;
           intent = Math.abs(dx) > Math.abs(dy) * 1.5 ? "swipe" : "other";
           if (intent === "other") return end();
-          pin.style.willChange = "transform";
+          pin.style.willChange = "transform, opacity";
         }
         samples.push([ev.timeStamp, ev.clientX]);
         samples = samples.filter(([t]) => ev.timeStamp - t < 100);
@@ -740,21 +760,24 @@ class AtriumRooms extends HTMLElement {
         // Carries on at the finger's speed, easing out; never slower than a
         // short settle.
         const duration = Math.min(320, Math.max(160, Math.abs(to - from) / Math.max(Math.abs(speed), 1.4)));
-        const slide = (el, x) => {
-          const anim = el.animate([{ transform: el.style.transform }, { transform: `translateX(${x}px)` }], { duration, easing: "cubic-bezier(.2,.8,.2,1)" });
-          el.style.transform = `translateX(${x}px)`;
+        // Slide, scale and fade all move in step with the offset, so each
+        // keyframe pair is just the look at the release and at the end.
+        const settle = (el, end) => {
+          const anim = el.animate([{ transform: el.style.transform, opacity: el.style.opacity || "1" }, end], { duration, easing: "cubic-bezier(.2,.8,.2,1)" });
+          Object.assign(el.style, end);
           return anim.finished.catch(() => {});
         };
         this._swiping = true;
-        const moves = [slide(pin, to)];
-        if (peek) moves.push(slide(peek.el, to + dir * span()));
+        const look = peek && swipeLook(to, span(), dir);
+        const moves = [settle(pin, look ? look.out : { transform: "translateX(0px)", opacity: "1" })];
+        if (peek) moves.push(settle(peek.el, look.in));
         Promise.all(moves).then(() => {
           this._swiping = false;
           pin.style.willChange = "";
           for (const p of peeks.values()) if (p && !(go && p === peek)) p.el.remove();
           if (go && pin === this._pin && pin.isConnected && !this._closing) this._adoptPeek(peek);
           else {
-            pin.style.transform = "";
+            pin.style.transform = pin.style.opacity = "";
             if (go) peek.el.remove();
           }
         });
