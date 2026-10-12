@@ -100,8 +100,10 @@ const SWIPE_SLOP = 6;
 const SWIPE_CLOSE_AT = 0.25;
 const SWIPE_FLICK_SPEED = 0.6; // px/ms
 
-// Scrolled all the way down (within a couple of px).
-const atBottom = (el) => el.scrollHeight - el.clientHeight - el.scrollTop < 2;
+// Scrolled all the way down (within a couple of px) — a panel that doesn't
+// scroll at all is neither.
+const canScroll = (el) => el.scrollHeight - el.clientHeight > 2;
+const atBottom = (el) => canScroll(el) && el.scrollHeight - el.clientHeight - el.scrollTop < 2;
 
 const heroBadgesKey = (els) => els.map((b) => `${b.className}|${b.textContent}|${b.style.color}|${b.querySelector("ha-icon")?.getAttribute("icon")}`).join(";");
 
@@ -125,6 +127,9 @@ class AtriumRooms extends HTMLElement {
     // The Routines' "inactive" drawer: opened or closed in one room, it's the
     // same in every room.
     this._showInactive = false;
+    // Whether the last room that could scroll was left scrolled to its very
+    // bottom (see _buildShell).
+    this._stickBottom = false;
     // What the view just asked HA for, shown until HA's state catches up (see
     // optimistic.js); when a value times out, the panel redraws from HA.
     this._optimistic = new Optimistic({ onExpire: () => this._refreshShown() });
@@ -341,13 +346,13 @@ class AtriumRooms extends HTMLElement {
   _openPanel(areaId, { slide = 0 } = {}) {
     clearTimeout(this._closeTimer);
     const reopening = !this._selectedAreaId || this._closing;
-    // Stepping rooms from the very bottom of one lands at the bottom of the next.
-    const stayAtBottom = !reopening && !!this._pin && atBottom(this._pin);
+    // A panel opened from closed starts at the top.
+    if (reopening) this._stickBottom = false;
     this._closing = false;
     this._selectedAreaId = areaId;
     if (reopening) this._pushPanelHistory();
     this._renderPanel({ freshPanel: reopening });
-    if (stayAtBottom && this._pin) this._pin.scrollTop = this._pin.scrollHeight;
+    if (this._stickBottom && this._pin) this._pin.scrollTop = this._pin.scrollHeight;
     if (slide && this._pin) {
       this._pin.style.transform = "";
       this._pin.animate([{ transform: `translateX(${slide * 48}px) scale(${PEEK_SCALE})`, opacity: PEEK_OPACITY }, { transform: "none", opacity: 1 }], { duration: 300, easing: "cubic-bezier(.2,.8,.2,1)" });
@@ -486,6 +491,13 @@ class AtriumRooms extends HTMLElement {
     this._panel = document.createElement("aside");
     this._panel.className = "atrium-panel";
     this._bindRoomSwipe(this._panel);
+    // Stepping rooms (swipe, arrow keys) from the very bottom of one lands at
+    // the bottom of the next. That's remembered from the last room that
+    // could scroll: a short room passed through on the way (nothing to
+    // scroll, so no scroll event) doesn't reset it. Peeks don't count.
+    this._panel.addEventListener("scroll", (e) => {
+      if (e.target === this._pin && canScroll(this._pin)) this._stickBottom = atBottom(this._pin);
+    }, true);
     this._root.append(this._content, this._panel);
     this.appendChild(this._root);
     this._resizeObserver = new ResizeObserver(() => this._sizeOrbs());
@@ -638,7 +650,7 @@ class AtriumRooms extends HTMLElement {
     const peek = { el, area, sig: areaPanelSignature(area, data), refs: this._refs, heroRefs: this._heroRefs, routinesUI: this._routinesUI };
     [this._refs, this._heroRefs, this._routinesUI] = live;
     this._panel.appendChild(el);
-    if (atBottom(this._pin)) el.scrollTop = el.scrollHeight;
+    if (this._stickBottom) el.scrollTop = el.scrollHeight;
     return peek;
   }
 
