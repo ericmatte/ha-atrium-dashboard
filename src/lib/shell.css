@@ -88,17 +88,17 @@
   }
   .atrium-shell-root.is-home .atrium-shell-pills { padding-inline: 18px; }
   /* Pinned (header.js): a frosted backdrop, the page's own color at 88% over
-     a light blur of the rooms scrolling beneath, fading out over its last 28px so
-     the edge melts into the page. One layer carries both the tint and the
-     blur (a blur nested in another blur shows nothing), and the fade sits in
-     the header's own bottom padding, so at rest nothing lies under it. */
+     a light blur of the rooms scrolling beneath. One layer carries both the
+     tint and the blur (a blur nested in another blur shows nothing); it
+     covers the header's bottom gap too. Its shadow fades in once the page
+     has scrolled (.is-scrolled), so at the top there is none. */
   .is-sticky .atrium-shell-root.is-home { position: relative; isolation: isolate; }
   .is-sticky .atrium-shell-root.is-home::before {
     content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
     background: color-mix(in srgb, var(--primary-background-color, #0b0c0e) 88%, transparent);
     -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
-    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
-    mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0); transition: box-shadow .3s ease;
   }
-  .is-sticky .atrium-shell-root.is-home .atrium-shell-header { margin-bottom: 0; padding-bottom: 28px; }
+  .is-sticky.is-scrolled .atrium-shell-root.is-home::before { box-shadow: 0 6px 20px rgba(0, 0, 0, .28); }
+  .is-sticky .atrium-shell-root.is-home .atrium-shell-header { margin-bottom: 0; padding-bottom: 12px; }
 }

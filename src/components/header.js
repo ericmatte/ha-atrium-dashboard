@@ -23,6 +23,17 @@ import POPOVER_ITEM_STYLE from "./header.css";
 // Matches the desktop breakpoint in area-card.css / shell.css.
 const DESKTOP_MEDIA = "(min-width: 861px)";
 
+// What scrolls the view: the nearest ancestor that scrolls (across shadow
+// roots — HA nests the view in several), else the page.
+function scroller(el) {
+  for (let n = el.parentNode ?? el.host; n; n = n.parentNode ?? n.host) {
+    if (n.nodeType !== 1) continue;
+    const oy = getComputedStyle(n).overflowY;
+    if (oy === "auto" || oy === "scroll") return n;
+  }
+  return document.scrollingElement;
+}
+
 // Popover content is body-attached so the rules need to live at
 // document.head, outside the shadow root that hosts this card.
 
@@ -67,10 +78,26 @@ class AtriumHeader extends HTMLElement {
       ? { position: "sticky", top: "var(--header-height, 0px)", zIndex: "2", display: "block" }
       : { position: "", top: "", zIndex: "", display: "" });
     this.classList.toggle("is-sticky", on);
+    this._watchScroll(on);
+  }
+
+  // While pinned, the header casts a shadow once the rooms scroll under it
+  // (none at the top), fading in and out with the scroll (shell.css).
+  _watchScroll(on) {
+    if (this._unwatchScroll) this._unwatchScroll();
+    this._unwatchScroll = null;
+    if (!on) return this.classList.remove("is-scrolled");
+    const el = scroller(this);
+    const target = el === document.scrollingElement ? window : el;
+    const sync = () => this.classList.toggle("is-scrolled", el.scrollTop > 0);
+    target.addEventListener("scroll", sync, { passive: true });
+    this._unwatchScroll = () => target.removeEventListener("scroll", sync);
+    sync();
   }
 
   disconnectedCallback() {
     this._desktop?.removeEventListener("change", this._onMedia);
+    this._watchScroll(false);
     if (this._lightsAnchor) closePopoverFor(this._lightsAnchor);
     if (this._batteryAnchor) closePopoverFor(this._batteryAnchor);
     if (this._problemAnchor) closePopoverFor(this._problemAnchor);
