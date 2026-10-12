@@ -5,6 +5,7 @@
 // are shown rebuilds the floors or the panel content.
 
 import { closePopoverFor, openListPopover } from "../lib/popover.js";
+import { t, setLanguage } from "../lib/i18n.js";
 import { sameRegistries, unchangedStates, areaIdForEntity, entityDisplayName } from "../lib/hass-utils.js";
 import { fireMoreInfo, haIcon } from "../lib/dom-utils.js";
 import { callService, toggleLights } from "../lib/ha-actions.js";
@@ -58,10 +59,10 @@ const heroBadgesKey = (els) => els.map((b) => `${b.className}|${b.textContent}|$
 
 // Screen-reader label of the bottom-right "what's running" badge, by kind.
 const ACTIVITY_LABEL = {
-  media: (name) => `Play/pause ${name}`,
-  vacuum: (name) => `Pause ${name}`,
-  heating: (name) => `${name} heating`,
-  cooling: (name) => `${name} cooling`,
+  media: (name) => t("playPause", name),
+  vacuum: (name) => t("pauseName", name),
+  heating: (name) => t("heatingName", name),
+  cooling: (name) => t("coolingName", name),
 };
 
 class AtriumRooms extends HTMLElement {
@@ -97,6 +98,7 @@ class AtriumRooms extends HTMLElement {
     // Floors in display order, as strategy.js computed them (real HA floors
     // sorted, plus the virtual "Other" floor for orphan areas).
     if (!Array.isArray(config.floors)) throw new Error("floors is required");
+    setLanguage(config.language);
     this._floors = config.floors;
   }
 
@@ -425,7 +427,7 @@ class AtriumRooms extends HTMLElement {
     const { on, total } = lightsSummary(this._hass, ref.lightIds);
     ref.count.textContent = `${on}/${total}`;
     ref.toggle.classList.toggle("on", on > 0);
-    ref.toggle.setAttribute("aria-label", `${on} of ${total} ${ref.floor.name} lights on — turn ${on > 0 ? "off" : "on"}`);
+    ref.toggle.setAttribute("aria-label", t("floorLightsAria", on, total, ref.floor.name));
   }
 
   _renderPanel({ freshPanel = false } = {}) {
@@ -642,13 +644,13 @@ class AtriumRooms extends HTMLElement {
     if (lightsOn > 0 && ref.litBadge.dataset.count !== String(lightsOn)) {
       ref.litBadge.dataset.count = String(lightsOn);
       ref.litBadge.innerHTML = `${haIcon("mdi:lightbulb-outline")}${lightsOn}`;
-      ref.litBadge.setAttribute("aria-label", `Turn off ${lightsOn} ${lightsOn === 1 ? "light" : "lights"} in ${area.name}`);
+      ref.litBadge.setAttribute("aria-label", t("turnOffLightsIn", lightsOn, area.name));
     }
 
     const alert = areaAlert(hass, data);
     const status = areaStatusDot(areaPresence(hass, data), alert);
     ref.status = status;
-    this._setDotBadge(ref.statusBadge, status, status && (status.kind === "presence" ? `Motion in ${area.name}` : `${status.label} — ${area.name}`));
+    this._setDotBadge(ref.statusBadge, status, status && (status.kind === "presence" ? t("motionIn", area.name) : `${status.label} — ${area.name}`));
     for (const kind of ["presence", "alert", "warn"]) ref.statusBadge.classList.toggle(`is-${kind}`, status?.kind === kind);
 
     const activity = areaActivity(hass, data);
@@ -712,7 +714,7 @@ class AtriumRooms extends HTMLElement {
     photo.className = "atrium-panel-hero-photo" + (this._isDimmed(data) ? " gray" : "");
     if (hasLights) {
       photo.type = "button";
-      photo.setAttribute("aria-label", `Turn on all lights in ${area.name}`);
+      photo.setAttribute("aria-label", t("turnOnAllLightsIn", area.name));
       photo.addEventListener("click", () => {
         const ids = this._dataForArea(area).lights.map((l) => l.entity_id).filter((id) => this._hass.states?.[id]?.state !== "unavailable");
         if (ids.length) this._call("light", "turn_on", { entity_id: ids });
@@ -737,7 +739,7 @@ class AtriumRooms extends HTMLElement {
     const close = document.createElement("button");
     close.type = "button";
     close.className = "atrium-panel-close";
-    close.setAttribute("aria-label", `Close ${area.name}`);
+    close.setAttribute("aria-label", t("closeName", area.name));
     close.innerHTML = haIcon("mdi:close", 18);
     close.addEventListener("click", () => this._select(null));
 
@@ -796,9 +798,9 @@ class AtriumRooms extends HTMLElement {
     const isOn = (e) => hass.states?.[e.entity_id]?.state === "on";
     const name = (e) => nameWithoutAreaPrefix(this._entityName(e), area);
     const activeMotion = data.sensors.motion.filter(isOn);
-    if (activeMotion.length) add("mdi:motion-sensor", "Motion", "info", activeMotion[0].entity_id);
+    if (activeMotion.length) add("mdi:motion-sensor", t("motion"), "info", activeMotion[0].entity_id);
     const activeLeak = data.sensors.leak.filter(isOn);
-    if (activeLeak.length) add("mdi:water-alert", "Leak!", "alert", activeLeak[0].entity_id);
+    if (activeLeak.length) add("mdi:water-alert", t("leak"), "alert", activeLeak[0].entity_id);
     const openDoors = data.doors.filter(isOn);
     for (const d of openDoors) add("mdi:door-open", name(d), "warn", d.entity_id);
     for (const s of [...data.sensors.other]) {
@@ -817,10 +819,10 @@ class AtriumRooms extends HTMLElement {
       el.classList.add("is-quiet");
       el.setAttribute("aria-label", several ? `${label}: ${entities.length}` : `${label}: ${name(entities[0])}`);
     };
-    if (!activeMotion.length) quiet("mdi:motion-sensor", "Motion sensors", data.sensors.motion);
-    if (!activeLeak.length) quiet("mdi:water-check", "Leak sensors", data.sensors.leak);
-    quiet("mdi:door-closed", "Doors & windows", data.doors.filter((d) => !isOn(d)));
-    quiet("mdi:robot-vacuum", "Vacuums", data.vacuums.filter((v) => !isCleaning(v)));
+    if (!activeMotion.length) quiet("mdi:motion-sensor", t("motionSensors"), data.sensors.motion);
+    if (!activeLeak.length) quiet("mdi:water-check", t("leakSensors"), data.sensors.leak);
+    quiet("mdi:door-closed", t("doorsWindows"), data.doors.filter((d) => !isOn(d)));
+    quiet("mdi:robot-vacuum", t("vacuums"), data.vacuums.filter((v) => !isCleaning(v)));
     return badges;
   }
 

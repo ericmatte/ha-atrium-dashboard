@@ -1,9 +1,10 @@
 import { haIcon, setIcon, tint, vibrate } from "../lib/dom-utils.js";
+import { t } from "../lib/i18n.js";
 import { sensorTone } from "../lib/area-data.js";
 import { tempColor, humidityColor, toCelsius } from "../lib/comfort-colors.js";
 import {
   TONE, ICONS,
-  CLIMATE_LABELS, CLIMATE_ICONS,
+  climateLabel, CLIMATE_ICONS,
   canDimLight, fmtBrightnessPct, fmtCoverPct, fmtTimeAgoShort, fmtTimeAgoLong,
   fmtSensorValue, iconForSensor,
   lightRgbTriple,
@@ -144,7 +145,7 @@ export function coverVisual(level) {
   return {
     shadeHeight: `${(closed * 100).toFixed(1)}%`,
     barTop: `max(${COVER_BAR_INSET}px, calc(${(closed * 100).toFixed(1)}% - ${COVER_BAR_INSET}px))`,
-    label: level <= 0 ? "Closed" : `${level}%`,
+    label: level <= 0 ? t("closed") : `${level}%`,
     topOpacity: onShade.toFixed(2),
     bottomOpacity: (1 - onShade).toFixed(2),
   };
@@ -187,8 +188,8 @@ export function _updateDivaRef(ref, entityId, kind, override) {
   ref.track.setAttribute(
     "aria-label",
     kind === "cover"
-      ? `${ref.name.textContent}, ${level === 0 ? "closed" : level + "% open"}. Drag to set position, tap to open or close.`
-      : `${ref.name.textContent}, ${unavailable ? "unavailable" : on ? (real.dimmable ? level + "%" : "on") : "off"}.` + (real.dimmable ? " Drag to dim, tap to toggle." : " Tap to toggle.")
+      ? t("coverAria", ref.name.textContent, level)
+      : t("tileAria", ref.name.textContent, unavailable ? t("statusUnavailable") : on ? (real.dimmable ? level + "%" : t("statusOn")) : t("statusOff"), real.dimmable)
   );
 
   if (kind === "cover") {
@@ -213,11 +214,10 @@ export function _updateDivaRef(ref, entityId, kind, override) {
   ref.ago.classList.toggle("unavailable", unavailable);
   if (unavailable) {
     // Built once, so the icon doesn't re-render on every update.
-    if (!ref.ago.querySelector("ha-icon")) ref.ago.innerHTML = `${haIcon("mdi:alert", 11)}<span>Unavailable</span>`;
+    if (!ref.ago.querySelector("ha-icon")) ref.ago.innerHTML = `${haIcon("mdi:alert", 11)}<span>${t("unavailable")}</span>`;
   }
   else {
-    const since = fmtTimeAgoShort(st.last_changed || st.last_updated);
-    ref.ago.textContent = since === "now" ? "Just now" : `${since} ago`;
+    ref.ago.textContent = fmtTimeAgoShort(st.last_changed || st.last_updated);
   }
 }
 
@@ -399,18 +399,18 @@ export function climateView(st, lastMode) {
   // Only what the device reports: many units (IR-controlled heat pumps) have
   // no hvac_action at all, and guessing "heating"/"idle" from the target
   // would be wrong.
-  const trend = attrs.hvac_action ? humanize(attrs.hvac_action).toLowerCase() : null;
+  const trend = attrs.hvac_action ? (t("hvacActions")[attrs.hvac_action] ?? humanize(attrs.hvac_action).toLowerCase()) : null;
   const shownMode = off ? (activeModes.includes(lastMode) ? lastMode : activeModes[0]) : mode;
   const modeIcon = (m) => CLIMATE_ICONS[m] || ICONS.thermo;
   const dropdowns = [
-    { key: "mode", label: "Mode", icon: modeIcon(shownMode), value: shownMode, options: activeModes, labelFor: (m) => CLIMATE_LABELS[m] || humanize(m), iconFor: modeIcon },
+    { key: "mode", label: t("mode"), icon: modeIcon(shownMode), value: shownMode, options: activeModes, labelFor: (m) => climateLabel(m) || humanize(m), iconFor: modeIcon },
   ];
-  if (Array.isArray(attrs.fan_modes) && attrs.fan_modes.length) dropdowns.push({ key: "fan", label: "Fan mode", icon: fanModeIcon(attrs.fan_mode), value: attrs.fan_mode, options: attrs.fan_modes, labelFor: humanize, iconFor: fanModeIcon });
-  if (Array.isArray(attrs.swing_modes) && attrs.swing_modes.length) dropdowns.push({ key: "swing", label: "Swing mode", icon: swingModeIcon(attrs.swing_mode), value: attrs.swing_mode, options: attrs.swing_modes, labelFor: humanize, iconFor: swingModeIcon });
+  if (Array.isArray(attrs.fan_modes) && attrs.fan_modes.length) dropdowns.push({ key: "fan", label: t("fanMode"), icon: fanModeIcon(attrs.fan_mode), value: attrs.fan_mode, options: attrs.fan_modes, labelFor: humanize, iconFor: fanModeIcon });
+  if (Array.isArray(attrs.swing_modes) && attrs.swing_modes.length) dropdowns.push({ key: "swing", label: t("swingMode"), icon: swingModeIcon(attrs.swing_mode), value: attrs.swing_mode, options: attrs.swing_modes, labelFor: humanize, iconFor: swingModeIcon });
   return {
     off,
     tone: off ? "neutral" : WARM_MODES.has(mode) ? "warm" : COOL_MODES.has(mode) ? "cool" : "neutral",
-    now: [cur != null ? `Now ${cur}°` : null, trend].filter(Boolean).join(" · "),
+    now: [cur != null ? t("climateNow", cur) : null, trend].filter(Boolean).join(" · "),
     target,
     canAdjust: tgt != null && !off,
     // Single-mode thermostats show no mode chips or power button.
@@ -434,7 +434,7 @@ export function _updateClimateRef(ref, entityId) {
   if (!v.hasControls) return;
   ref.power.classList.toggle("on", !v.off);
   ref.power.setAttribute("aria-pressed", String(!v.off));
-  ref.power.setAttribute("aria-label", `Turn ${ref.displayName} ${v.off ? "on" : "off"}`);
+  ref.power.setAttribute("aria-label", t("turnName", ref.displayName, v.off));
   ref.turnOnMode = v.turnOnMode;
   for (const dd of v.dropdowns) {
     const slot = ref.dropdowns.get(dd.key);
@@ -461,7 +461,8 @@ export function _updateInputSelectRef(ref, entityId) {
 
 // media_player supported_features bits (homeassistant.components.media_player).
 const MP = { PAUSE: 1, VOLUME_SET: 4, VOLUME_MUTE: 8, PREVIOUS: 16, NEXT: 32, TURN_ON: 128, TURN_OFF: 256, PLAY: 16384 };
-const MEDIA_STATE_LABEL = { playing: "Playing", paused: "Paused", idle: "Idle", on: "On", off: "Off", standby: "Standby", buffering: "Buffering", unavailable: "Unavailable" };
+// In the dashboard's language, read when the card renders.
+const mediaStateLabel = (state) => t("mediaStates")[state];
 
 // Apps worth recognizing, matched against app_id, app_name and source (Cast
 // reports a name and an opaque id, Android TV a package name for both, Sonos
@@ -515,8 +516,8 @@ export function mediaView(st) {
   return {
     off,
     playing,
-    title: title || MEDIA_STATE_LABEL[st.state] || st.state,
-    subtitle: title ? subtitle || MEDIA_STATE_LABEL[st.state] || null : null,
+    title: title || mediaStateLabel(st.state) || st.state,
+    subtitle: title ? subtitle || mediaStateLabel(st.state) || null : null,
     artwork: off ? null : a.entity_picture || null,
     appIcon: app?.icon || null,
     canPower: off ? has(MP.TURN_ON) && st.state !== "unavailable" : f != null && has(MP.TURN_OFF),
@@ -547,13 +548,13 @@ export function _updateMediaRef(ref, entityId) {
   // No artwork: the running app's icon stands in for the device's.
   setIcon(ref.art.firstElementChild, v.appIcon || ref.deviceIcon);
   ref.power.hidden = !v.canPower;
-  ref.power.setAttribute("aria-label", `Turn ${ref.displayName} ${v.off ? "on" : "off"}`);
+  ref.power.setAttribute("aria-label", t("turnName", ref.displayName, v.off));
   ref.controls.hidden = !v.canPrev && !v.canNext && !v.canPlayPause;
   ref.prev.hidden = !v.canPrev;
   ref.next.hidden = !v.canNext;
   ref.playPause.hidden = !v.canPlayPause;
   setIcon(ref.playPause.firstElementChild, v.playing ? "mdi:pause" : "mdi:play");
-  ref.playPause.setAttribute("aria-label", `${v.playing ? "Pause" : "Play"} ${ref.displayName}`);
+  ref.playPause.setAttribute("aria-label", t("playName", ref.displayName, v.playing));
   ref.volumeRow.hidden = !v.canVolume && !v.canMute;
   ref.mute.hidden = !v.canMute;
   setIcon(ref.mute.firstElementChild, v.muted ? "mdi:volume-off" : "mdi:volume-high");
@@ -580,25 +581,37 @@ export function _updateSensorRef(ref) {
   ref.icon.style.color = comfort;
 }
 
+// The line under a routine's name, and the row's state classes: "fresh" (ran
+// in the last 24 h, or just triggered from here), "running" (an automation
+// mid-run, a script on), "off" (an automation switched off).
+const FRESH_MS = 24 * 3600 * 1000;
 export function _updateAutomationRef(ref, entityId) {
   const hass = this._hass;
   const st = hass.states?.[entityId];
   if (!st) return;
   const enabled = ref.isScript ? true : st.state !== "off";
   const flashing = ref.flashUntil > Date.now();
-  ref.row.classList.toggle("off", !enabled);
-  if (ref.swatch.tagName === "BUTTON") ref.swatch.setAttribute("aria-pressed", String(enabled));
+  const running = ref.isScript ? st.state === "on" : Number(st.attributes?.current) > 0;
   const lastTs = st.attributes?.last_triggered;
-  const when = lastTs ? fmtTimeAgoLong(lastTs) : "never";
-  if (flashing) ref.sub.textContent = ref.isScript ? "Running…" : "Triggered just now";
-  else if (ref.isScript) ref.sub.textContent = `Script · ${lastTs ? when : "never run"}`;
-  else ref.sub.textContent = `${enabled ? "On" : "Off"} · ${when}`;
+  const sinceMs = lastTs ? Date.now() - new Date(lastTs).getTime() : Infinity;
+  const when = lastTs ? fmtTimeAgoLong(lastTs) : t(ref.isScript ? "neverRun" : "never");
+
+  let text;
+  if (flashing) text = t(ref.isScript ? "runningEllipsis" : "triggeredJustNow");
+  else if (running && enabled) text = t("running");
+  else if (ref.isScript) text = t("scriptWhen", when);
+  else if (!enabled) text = t("offWhen", when);
+  else text = when.charAt(0).toUpperCase() + when.slice(1);
+  ref.sub.textContent = text;
+
+  ref.row.classList.toggle("off", !enabled);
+  ref.row.classList.toggle("running", running && enabled && !flashing);
+  ref.row.classList.toggle("fresh", flashing || (!running && sinceMs < FRESH_MS));
+  if (ref.control?.getAttribute?.("role") === "switch") ref.control.setAttribute("aria-checked", String(enabled));
 
   const labels = (hass.entities[entityId]?.labels || []).map((lid) => labelDescriptor(hass, lid)).filter(Boolean);
   const labelsKey = labels.map((d) => `${d.name}|${d.icon}|${d.color}`).join(";");
   if (ref.labelsKey !== labelsKey) this._renderAutomationLabels(ref, labels, labelsKey);
-  ref.play.classList.toggle("disabled", !enabled);
-  ref.play.classList.toggle("flash", flashing);
 }
 
 export function _renderAutomationLabels(ref, labels, labelsKey) {

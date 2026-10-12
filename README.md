@@ -57,6 +57,19 @@ This repository isn't in the default HACS store yet, so add it as a custom repos
 
 4. Save. The dashboard rebuilds itself on every load from your HA floors/areas/entities.
 
+## Language
+
+The dashboard is in English by default. Add `language: fr` to the strategy for French:
+
+```yaml
+strategy:
+  type: custom:atrium
+  language: fr
+views: []
+```
+
+Supported: `en` (default) and `fr`. Your own names (areas, entities, routines) are shown as they are in Home Assistant.
+
 ## Custom tabs
 
 `Home` is auto-discovered from your HA floors/areas. Anything beyond that (energy monitoring, system health, etc.) is manual and config-driven via a `tabs` list on the strategy — there are zero of these until you add some, and each one you add is appended as its own tab, in order, after `Home`:

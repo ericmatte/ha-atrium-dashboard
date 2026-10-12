@@ -1,4 +1,5 @@
 import { TONE } from "./tone.js";
+import { t } from "./i18n.js";
 import SHELL_STYLE from "./shell.css";
 
 // The shell only needs a subset of the canonical palette; derive it so both
@@ -19,7 +20,7 @@ export { SHELL_STYLE };
 // case so battery rows stay scannable in the popover.
 export function shellCleanBatteryName(name) {
   if (!name) return "";
-  let clean = name.replace(/\b(battery|level)\b/gi, " ");
+  let clean = name.replace(/\b(battery|level|batterie|niveau)\b/gi, " ");
   clean = clean.replace(/_+/g, " ");
   clean = clean.replace(/\s+/g, " ").trim();
   if (!clean) return name;
@@ -109,10 +110,10 @@ export const ALL_FLOOR_KEY = "__all__";
 // Home tab greeting: night from 10pm to 4am, morning until noon, afternoon
 // until 6pm, evening until 10pm.
 export function shellGreeting(hour) {
-  if (hour >= 22 || hour < 4) return "Good night";
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
+  if (hour >= 22 || hour < 4) return t("goodNight");
+  if (hour < 12) return t("goodMorning");
+  if (hour < 18) return t("goodAfternoon");
+  return t("goodEvening");
 }
 
 export function shellInitialFromName(name) {
@@ -123,8 +124,8 @@ export function shellInitialFromName(name) {
 
 export function shellPersonStatus(state) {
   const raw = state?.state || "unknown";
-  if (raw === "home") return { tone: "is-home", label: "Home" };
-  if (raw === "not_home" || raw === "away") return { tone: "is-away", label: "Away" };
+  if (raw === "home") return { tone: "is-home", label: t("personHome") };
+  if (raw === "not_home" || raw === "away") return { tone: "is-away", label: t("personAway") };
   if (raw === "unknown" || raw === "unavailable") return { tone: "is-away", label: "?" };
   return { tone: "is-zone", label: raw.charAt(0).toUpperCase() + raw.slice(1) };
 }

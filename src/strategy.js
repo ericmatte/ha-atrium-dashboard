@@ -2,9 +2,13 @@ import "./components/rooms-view.js";
 import "./components/header.js";
 import "./components/padded-stack.js";
 import { ALL_FLOOR_KEY } from "./lib/shell.js";
+import { t, setLanguage, getLanguage } from "./lib/i18n.js";
 
 class AtriumStrategy {
   static async generate(_config, hass) {
+    // `language: fr` switches the dashboard to French; English otherwise.
+    setLanguage(_config?.language);
+    const language = getLanguage();
     // Tabs read top-down: upper floors ascending (1, 2, 3, …), then the
     // basement after them rather than in front. "Other" is appended last.
     const floorSortKey = (f) => {
@@ -23,7 +27,7 @@ class AtriumStrategy {
     const otherFloor = orphanAreas.length
       ? {
           floor_id: null,
-          name: "Other",
+          name: t("other"),
           icon: "mdi:map-marker-outline",
           level: 999,
         }
@@ -34,6 +38,7 @@ class AtriumStrategy {
       type: "custom:atrium-header",
       ...(title ? { title } : {}),
       floor: floorScope,
+      language,
     });
 
     const floorIcon = (floor) => {
@@ -47,6 +52,7 @@ class AtriumStrategy {
 
     const roomsCard = (floors) => ({
       type: "custom:atrium-rooms",
+      language,
       floors: floors.map((f) => ({ floor_id: f.floor_id ?? null, name: f.name, icon: floorIcon(f) })),
     });
 
@@ -77,7 +83,7 @@ class AtriumStrategy {
     // details panel with lights, climate, covers, scenes and automations —
     // there's no separate Routines tab any more, it's all in that panel.
     const homeView = baseView({
-      title: "Home",
+      title: t("home"),
       path: "home",
       icon: "mdi:home",
       cards: [
@@ -99,7 +105,7 @@ class AtriumStrategy {
         .replace(/^-+|-+$/g, "") || "tab";
 
     const customTabView = (tab) => {
-      const title = tab.title || "Tab";
+      const title = tab.title || t("tab");
       return baseView({
         title,
         path: tab.path || slugify(title),

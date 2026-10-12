@@ -65,8 +65,10 @@ const FLOORS = [
 const view = document.createElement("div");
 view.className = "dev-view is-active";
 document.getElementById("views").appendChild(view);
-mount("atrium-header", { floor: ALL_FLOOR_KEY }, view);
-mount("atrium-rooms", { floors: FLOORS }, view);
+// ?lang=fr renders the dashboard in French, like `language: fr` in the strategy config.
+const language = new URLSearchParams(location.search).get("lang") || "en";
+mount("atrium-header", { floor: ALL_FLOOR_KEY, language }, view);
+mount("atrium-rooms", { floors: FLOORS, language }, view);
 
 // `?room=<area_id>` opens that room's details panel on load — handy for
 // screenshots (e.g. the README's preview).

@@ -2,6 +2,7 @@
 // time, in its details panel) and its tests. No DOM, no `this` binding.
 
 import { areaIdForEntity } from "./hass-utils.js";
+import { t } from "./i18n.js";
 import { groupDeviceSensors } from "./device-sensors.js";
 
 export function matchesAny(haystack, needles) {
@@ -130,17 +131,17 @@ export function classifyAreaEntities(hass, area, entities) {
 // Returns the most serious one as { icon, label, tone, entityId }, or null —
 // tone "alert" (red) for things that are wrong, "warn" (orange) for an
 // opening; entityId is what tapping the dot opens.
-const OPEN_LABEL = { window: "Window open", garage_door: "Garage open" };
+const OPEN_LABEL = { window: "windowOpen", garage_door: "garageOpen" };
 export function areaAlert(hass, data) {
   const st = (e) => hass.states?.[e.entity_id];
   const isOn = (e) => st(e)?.state === "on";
   const found = (e, alert) => (e ? { ...alert, entityId: e.entity_id } : null);
   const leak = data.sensors.leak.find(isOn);
-  if (leak) return found(leak, { icon: "mdi:water-alert", label: "Leak!", tone: "alert" });
+  if (leak) return found(leak, { icon: "mdi:water-alert", label: t("leak"), tone: "alert" });
   const problem = [...data.sensors.other, ...data.doors].find((e) => isOn(e) && st(e).attributes?.device_class === "problem");
-  if (problem) return found(problem, { icon: "mdi:alert", label: "Problem", tone: "alert" });
+  if (problem) return found(problem, { icon: "mdi:alert", label: t("problem"), tone: "alert" });
   const open = data.doors.find(isOn);
-  if (open) return found(open, { icon: "mdi:door-open", label: OPEN_LABEL[st(open).attributes?.device_class] || "Door open", tone: "warn" });
+  if (open) return found(open, { icon: "mdi:door-open", label: t(OPEN_LABEL[st(open).attributes?.device_class] || "doorOpen"), tone: "warn" });
   return null;
 }
 
@@ -222,19 +223,24 @@ export function levelTone(pct) {
   return "good";
 }
 
-// The Routines list: scripts (things you run), then automations (things
-// that run on their own). Switched-off automations are only listed when
-// their badge is open — and then in their usual place, so switching one
-// on/off never moves rows around. Scripts can't be switched off in HA.
-export function routineRows(data, { showDisabled = false } = {}) {
-  const off = new Set(data.disabledAutomations.map((e) => e.entity_id));
+// The Routines list. Scripts (things you run) always show, in their usual
+// order. Automations (things that run on their own) are sorted most recently
+// triggered first; those that haven't run for over a week — or never —
+// switched on or off, are "inactive" and fold away under the list. An
+// automation just switched off stays in place until it goes quiet.
+export const INACTIVE_AFTER_MS = 7 * 24 * 3600 * 1000;
+export function routineGroups(hass, data, now = Date.now()) {
   const automations = data.allAutomations.length ? data.allAutomations : [...data.automations, ...data.disabledAutomations];
-  const rows = data.scripts.map((entity) => ({ entity }));
-  for (const entity of automations) {
-    const disabled = off.has(entity.entity_id);
-    if (!disabled || showDisabled) rows.push({ entity, ...(disabled ? { disabled } : {}) });
-  }
-  return rows;
+  const last = (e) => {
+    const ts = Date.parse(hass.states?.[e.entity_id]?.attributes?.last_triggered ?? "");
+    return Number.isFinite(ts) ? ts : -Infinity;
+  };
+  const byRecency = [...automations].sort((x, y) => last(y) - last(x));
+  return {
+    scripts: [...data.scripts],
+    active: byRecency.filter((e) => now - last(e) <= INACTIVE_AFTER_MS),
+    inactive: byRecency.filter((e) => now - last(e) > INACTIVE_AFTER_MS),
+  };
 }
 
 export function areaHasAlert(hass, data) {

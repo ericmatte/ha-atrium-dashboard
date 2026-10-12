@@ -1,5 +1,6 @@
 import { TONE } from "../lib/tone.js";
 import { getLabel } from "../lib/label-registry.js";
+import { t, getLanguage, shortAge, relativeAge } from "../lib/i18n.js";
 import STYLE from "./area-card.css";
 import AREA_POPOVER_ITEM_STYLE from "./area-card-popover.css";
 
@@ -75,7 +76,8 @@ export const CLIMATE_ACCENT = {
   fan_only: TONE.textDim,
   off: TONE.textMute,
 };
-export const CLIMATE_LABELS = { auto: "Auto", heat_cool: "Heat/Cool", heat: "Heat", cool: "Cool", dry: "Dry", fan_only: "Fan only", off: "Off" };
+// In the dashboard's language; read at call time, after the card set it.
+export const climateLabel = (mode) => t("climateModes")[mode];
 export const CLIMATE_ICONS = { auto: ICONS.auto, heat_cool: "mdi:sun-snowflake-variant", heat: ICONS.flame, cool: ICONS.snow, dry: ICONS.drop, fan_only: ICONS.fan, off: ICONS.power };
 
 export function iconForArea(area) {
@@ -219,25 +221,20 @@ export function iconForSensor(state) {
   return attrs.icon || SENSOR_ICON_BY_DC[attrs.device_class] || "mdi:gauge";
 }
 
+// Compact age under a light tile: "Just now", "13m ago" / "il y a 13 min",
+// a short date past a month.
 export function fmtTimeAgoShort(ts) {
   const d = new Date(ts);
   const diff = (Date.now() - d.getTime()) / 1000;
-  if (diff < 60) return "now";
-  if (diff < 3600) return `${Math.round(diff / 60)}m`;
-  if (diff < 86400) return `${Math.round(diff / 3600)}h`;
-  if (diff < 86400 * 30) return `${Math.round(diff / 86400)}d`;
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (diff < 60) return t("justNowCap");
+  if (diff < 86400 * 30) return t("shortAgo", shortAge(diff));
+  return d.toLocaleDateString(getLanguage(), { month: "short", day: "numeric" });
 }
 
-// Long spelled-out form for automation "last triggered" lines.
+// Long spelled-out form for routine "last triggered" lines: "5 minutes ago",
+// "yesterday", "11 months ago".
 export function fmtTimeAgoLong(ts) {
-  const d = new Date(ts);
-  const diff = (Date.now() - d.getTime()) / 1000;
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.round(diff / 60)} minutes ago`;
-  if (diff < 86400) return `${Math.round(diff / 3600)} hours ago`;
-  if (diff < 86400 * 30) return `${Math.round(diff / 86400)} days ago`;
-  return d.toLocaleDateString();
+  return relativeAge((Date.now() - new Date(ts).getTime()) / 1000);
 }
 
 export function fmtCoverPct(state) {

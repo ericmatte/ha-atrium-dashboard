@@ -2,6 +2,7 @@ import { closePopoverFor, openListPopover } from "../lib/popover.js";
 import { sameRegistries, areaIdForEntity, areaForEntity, friendlyName } from "../lib/hass-utils.js";
 import { haIcon, injectStyleOnce, fireMoreInfo, tint } from "../lib/dom-utils.js";
 import { callService } from "../lib/ha-actions.js";
+import { t, setLanguage } from "../lib/i18n.js";
 import {
   SHELL_TONE,
   SHELL_STYLE,
@@ -36,6 +37,7 @@ class AtriumHeader extends HTMLElement {
 
   setConfig(config) {
     if (config.floor === undefined) throw new Error("floor is required");
+    setLanguage(config.language);
     // `floor: null` → orphan areas; ALL_FLOOR_KEY → "All" view rolling up
     // every floor; otherwise a specific floor_id.
     this._floorId = config.floor === ALL_FLOOR_KEY ? ALL_FLOOR_KEY : config.floor;
@@ -264,7 +266,7 @@ class AtriumHeader extends HTMLElement {
     const peoplePills = persons.map((p) => this._personPill(p));
 
     const statPills = [];
-    statPills.push(this._statPill("mdi:lightbulb", SHELL_TONE.light, `${lightsOn} lights on`, "lights"));
+    statPills.push(this._statPill("mdi:lightbulb", SHELL_TONE.light, t("lightsOnCount", lightsOn), "lights"));
 
     if (batteries.length) {
       const min = batteries[0].value;
@@ -343,11 +345,11 @@ class AtriumHeader extends HTMLElement {
     this._batteryAnchor = anchor;
     openListPopover({
       anchor,
-      title: "Batteries & levels",
-      countLabel: `${batteries.length} total`,
+      title: t("batteriesTitle"),
+      countLabel: t("totalCount", batteries.length),
       items: batteries,
       buildItem: (b) => this._batteryItem(b, anchor),
-      emptyText: "No batteries reported.",
+      emptyText: t("noBatteries"),
       width: 320,
       onClose: () => { if (this._batteryAnchor === anchor) this._batteryAnchor = null; },
     });
@@ -362,7 +364,7 @@ class AtriumHeader extends HTMLElement {
       const turnOffAllBtn = document.createElement("button");
       turnOffAllBtn.type = "button";
       turnOffAllBtn.className = "atrium-turn-off-all-btn";
-      turnOffAllBtn.innerHTML = `${haIcon("mdi:lightbulb-off")} Turn off all`;
+      turnOffAllBtn.innerHTML = `${haIcon("mdi:lightbulb-off")} ${t("turnOffAll")}`;
       turnOffAllBtn.addEventListener("click", () => {
         callService(this._hass, "light", "turn_off", { entity_id: lights.map((l) => l.id) });
         closePopoverFor(anchor);
@@ -373,11 +375,11 @@ class AtriumHeader extends HTMLElement {
     this._lightsAnchor = anchor;
     openListPopover({
       anchor,
-      title: "Lights on",
-      countLabel: `${lights.length} total`,
+      title: t("lightsOnTitle"),
+      countLabel: t("totalCount", lights.length),
       items: lights,
       buildItem: (light) => this._lightItem(light, anchor),
-      emptyText: "No lights are on.",
+      emptyText: t("noLightsOn"),
       extraContent,
       width: 320,
       onClose: () => { if (this._lightsAnchor === anchor) this._lightsAnchor = null; },
@@ -450,11 +452,11 @@ class AtriumHeader extends HTMLElement {
         </span>
         <span class="atrium-shell-pop-item-pct" style="color:${color}">${pct}%</span>
       `
-      : `<span class="atrium-shell-pop-item-pct" style="color:${color}">On</span>`;
+      : `<span class="atrium-shell-pop-item-pct" style="color:${color}">${t("on")}</span>`;
     const row = document.createElement("div");
     row.className = "atrium-shell-pop-item atrium-shell-pop-light";
     row.innerHTML = `
-      <button class="atrium-shell-pop-item-swatch" type="button" style="background:${tone};color:${color}" title="Open entity">
+      <button class="atrium-shell-pop-item-swatch" type="button" style="background:${tone};color:${color}" title="${t("openEntity")}">
         ${haIcon(st?.attributes?.icon || "mdi:lightbulb")}
       </button>
       <button class="atrium-shell-pop-item-action" type="button">
@@ -491,11 +493,11 @@ class AtriumHeader extends HTMLElement {
     this._problemAnchor = anchor;
     openListPopover({
       anchor,
-      title: "Problems & offline",
-      countLabel: `${problems.length} total`,
+      title: t("problemsTitle"),
+      countLabel: t("totalCount", problems.length),
       items: problems,
       buildItem: (p) => this._problemItem(p, anchor),
-      emptyText: "Nothing to report.",
+      emptyText: t("nothingToReport"),
       width: 320,
       onClose: () => { if (this._problemAnchor === anchor) this._problemAnchor = null; },
     });
@@ -504,7 +506,7 @@ class AtriumHeader extends HTMLElement {
   _problemItem(problem, anchor) {
     const isActive = problem.kind === "problem";
     const color = isActive ? SHELL_TONE.danger : SHELL_TONE.warn;
-    const status = isActive ? "Problem" : "Offline";
+    const status = isActive ? t("problem") : t("offline");
     const suffixHTML = `<span class="atrium-shell-pop-item-pct" style="color:${color};min-width:54px">${status}</span>`;
     return this._popoverItem({
       entityId: problem.id,

@@ -362,43 +362,49 @@ test("_updateClimateRef: a single-mode thermostat hides the controls row", () =>
 });
 
 function makeAutomationRef(isScript) {
+  const attrs = {};
   return {
     isScript,
     flashUntil: 0,
     row: { classList: makeClassList() },
-    swatch: { tagName: isScript ? "SPAN" : "BUTTON", setAttribute() {} },
     sub: { textContent: "" },
     labels: { innerHTML: "" },
-    play: { classList: makeClassList() },
+    control: isScript ? null : { attrs, setAttribute(k, v) { attrs[k] = v; }, getAttribute(k) { return k === "role" ? "switch" : attrs[k]; } },
   };
 }
 
-test("_updateAutomationRef: an enabled automation shows 'On · <relative time>'", () => {
+test("_updateAutomationRef: an enabled automation shows when it last ran, and is fresh within a day", () => {
   const ref = makeAutomationRef(false);
   const ctx = makeContext({
     "automation.motion": { state: "on", attributes: { last_triggered: new Date(Date.now() - 5 * 60000).toISOString() } },
   });
   _updateAutomationRef.call(ctx, ref, "automation.motion");
-  assert.equal(ref.sub.textContent, "On · 5 minutes ago");
+  assert.equal(ref.sub.textContent, "5 minutes ago");
   assert.equal(ref.row.classList.contains("off"), false);
+  assert.equal(ref.row.classList.contains("fresh"), true);
+  assert.equal(ref.control.attrs["aria-checked"], "true");
 });
 
-test("_updateAutomationRef: a disabled automation shows 'Off · never' and disables the row/play button", () => {
+test("_updateAutomationRef: a disabled automation shows 'Off · never' and its switch is off", () => {
   const ref = makeAutomationRef(false);
   const ctx = makeContext({ "automation.motion": { state: "off", attributes: {} } });
   _updateAutomationRef.call(ctx, ref, "automation.motion");
   assert.equal(ref.sub.textContent, "Off · never");
   assert.equal(ref.row.classList.contains("off"), true);
-  assert.equal(ref.play.classList.contains("disabled"), true);
+  assert.equal(ref.control.attrs["aria-checked"], "false");
 });
 
-test("_updateAutomationRef: right after a run the line confirms it and the play button flashes", () => {
+test("_updateAutomationRef: right after a trigger the line confirms it; mid-run it says Running", () => {
   const ref = makeAutomationRef(false);
   ref.flashUntil = Date.now() + 1000;
-  const ctx = makeContext({ "automation.motion": { state: "on", attributes: {} } });
+  const ctx = makeContext({ "automation.motion": { state: "on", attributes: { current: 1 } } });
   _updateAutomationRef.call(ctx, ref, "automation.motion");
   assert.equal(ref.sub.textContent, "Triggered just now");
-  assert.equal(ref.play.classList.contains("flash"), true);
+  assert.equal(ref.row.classList.contains("fresh"), true);
+  ref.flashUntil = 0;
+  _updateAutomationRef.call(ctx, ref, "automation.motion");
+  assert.equal(ref.sub.textContent, "Running");
+  assert.equal(ref.row.classList.contains("running"), true);
 });
 
 test("_updateAutomationRef: a labeled automation gets one tinted chip per label, a star when the label has no icon", () => {

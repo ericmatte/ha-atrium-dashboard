@@ -118,7 +118,7 @@ export function buildFixtures() {
     swing_mode: "swing", swing_modes: ["swing", "static"],
     friendly_name: "Heat pump",
   });
-  add("automation.living_room_climate_controller", "living_room", "on", { icon: "mdi:thermostat-auto", last_triggered: isoMinutesAgo(60 * 4), friendly_name: "Smart climate controller" });
+  add("automation.living_room_climate_controller", "living_room", "on", { icon: "mdi:thermostat-auto", last_triggered: isoMinutesAgo(60 * 4), current: 1, friendly_name: "Smart climate controller" });
   add("binary_sensor.living_room_motion", "living_room", "on", { device_class: "motion", friendly_name: "Motion" });
   add("binary_sensor.living_room_window", "living_room", "off", { device_class: "window", friendly_name: "Window" });
   add("sensor.living_room_temperature", "living_room", "21.4", { device_class: "temperature", unit_of_measurement: "°C", friendly_name: "Temperature" });

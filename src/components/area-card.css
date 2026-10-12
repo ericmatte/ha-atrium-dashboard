@@ -321,38 +321,70 @@ button.atrium-badge { cursor: pointer; }
 
 /* Routines: scripts (rounded-square green swatch, green run button) are told
    apart from automations (round white toggle, blue trigger). */
-.atrium-alist { display: flex; flex-direction: column; gap: 6px; }
-.atrium-auto-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 16px; background: var(--a-surface); transition: opacity .2s; }
-.atrium-auto-row.off { opacity: .55; }
-.atrium-auto-swatch { flex-shrink: 0; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: #fff; color: #141414; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.35); transition: background .2s, color .2s; }
-.atrium-auto-swatch.script { background: var(--a-knob); color: color-mix(in srgb, var(--a-text) 75%, transparent); box-shadow: none; cursor: default; }
-.atrium-auto-row.off .atrium-auto-swatch { background: var(--a-knob); color: var(--a-dim); box-shadow: none; }
-.atrium-auto-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.atrium-auto-title { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
-.atrium-auto-name { font-size: 14px; font-weight: 700; line-height: 1.25; color: var(--a-text); }
-.atrium-auto-row.off .atrium-auto-name { color: color-mix(in srgb, var(--a-text) 75%, transparent); }
-.atrium-auto-labels { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 1px; }
+/* Routines: one row per script / automation in its own color (--hue, from
+   routine-colors.js): a tinted tile, the name with labels and when it last
+   ran, then an automation's switch or a script's Run button. Scripts sit on
+   a faint wash of their color. Holding an automation fills a ring around its
+   tile and triggers it; a run sweeps the row and throws sparks; a running
+   routine has a ring circling it. */
+.atrium-alist { display: flex; flex-direction: column; gap: 8px; }
+.atrium-alist[hidden] { display: none; }
+.atrium-auto-row { --hue: #8cc1ff; position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 10px; border-radius: 18px; background: var(--a-surface); overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: pan-y; transition: opacity .2s; }
+.atrium-auto-row.is-script { background: linear-gradient(160deg, color-mix(in srgb, var(--hue) 16%, var(--a-surface)), var(--a-surface) 70%); cursor: pointer; }
+.atrium-auto-row.off { --hue: #6b6b70; }
+.atrium-auto-tile { position: relative; flex-shrink: 0; width: 46px; height: 46px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--hue) 18%, transparent); color: var(--hue); transition: background .2s, color .2s, transform .65s ease-out; }
+.atrium-auto-row.is-script .atrium-auto-tile { background: color-mix(in srgb, var(--hue) 22%, transparent); }
+.atrium-auto-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.atrium-auto-name { font-size: 15px; font-weight: 700; line-height: 1.25; color: var(--a-text); }
+.atrium-auto-row.off .atrium-auto-name { color: color-mix(in srgb, var(--a-text) 55%, transparent); }
+.atrium-auto-labels { display: flex; flex-wrap: wrap; gap: 4px; }
 .atrium-auto-labels:empty { display: none; }
 .atrium-auto-label { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 6px; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 14px; }
-.atrium-auto-last { font-size: 12px; font-weight: 600; color: var(--a-dim); }
-.atrium-auto-play { flex-shrink: 0; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: rgba(140,193,255,.14); color: #8cc1ff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: background .2s, color .2s, transform .15s; }
-.atrium-auto-play:active { transform: scale(.92); }
-.atrium-auto-play.disabled { background: var(--a-knob); color: color-mix(in srgb, var(--a-dim) 75%, transparent); cursor: not-allowed; }
-.atrium-auto-play.flash { background: #8cc1ff; color: #0c1a2b; }
+.atrium-auto-meta { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; color: var(--a-dim); font-variant-numeric: tabular-nums; }
+.atrium-auto-dot { flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--a-dim); opacity: .5; }
+.atrium-auto-row.fresh .atrium-auto-dot { background: #79d99a; opacity: 1; box-shadow: 0 0 0 3px color-mix(in srgb, #79d99a 25%, transparent); }
+.atrium-auto-row.running .atrium-auto-dot { background: var(--hue); opacity: 1; animation: atrium-auto-pulse 1.2s ease-in-out infinite; }
+.atrium-auto-row.running .atrium-auto-meta { color: var(--hue); }
+@keyframes atrium-auto-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--hue) 55%, transparent); } 50% { box-shadow: 0 0 0 5px transparent; transform: scale(1.15); } }
 
-.atrium-auto-row.is-script .atrium-auto-swatch { border-radius: 11px; background: color-mix(in srgb, #79d99a 16%, transparent); color: #79d99a; box-shadow: none; }
-.atrium-auto-row.is-script { cursor: pointer; }
-.atrium-auto-row.is-script .atrium-auto-play { pointer-events: none; background: color-mix(in srgb, #79d99a 16%, transparent); color: #79d99a; }
-.atrium-auto-row.is-script .atrium-auto-play.flash { background: #79d99a; color: #0b2414; }
-.atrium-routine-drawers { display: flex; flex-wrap: wrap; gap: 8px; }
-.atrium-alist[hidden] { display: none; }
-.atrium-routine-drawers[hidden] { display: none; }
-.atrium-autos-trigger { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 10px; border-radius: 999px; border: none; cursor: pointer; background: var(--a-surface); color: var(--a-dim); font-family: inherit; }
-.atrium-autos-trigger:hover { background: var(--a-surface-2); }
-.atrium-autos-trigger.open { background: var(--a-knob); color: var(--a-text); }
-.atrium-autos-trigger-iconwrap { display: inline-flex; --mdc-icon-size: 16px; }
-.atrium-autos-trigger-label { font-size: 13px; font-weight: 600; color: var(--a-text); }
-.atrium-autos-trigger-hint { font-weight: 500; color: var(--a-dim); }
+.atrium-auto-switch { flex-shrink: 0; width: 46px; height: 28px; padding: 3px; border: 0; border-radius: 999px; background: var(--a-knob); cursor: pointer; transition: background .2s; }
+.atrium-auto-switch::after { content: ""; display: block; width: 22px; height: 22px; border-radius: 50%; background: #c9c9ce; transition: transform .22s cubic-bezier(.3,1.4,.6,1), background .2s; }
+.atrium-auto-switch[aria-checked="true"] { background: var(--hue); }
+.atrium-auto-switch[aria-checked="true"]::after { transform: translateX(18px); background: #fff; }
+.atrium-auto-run { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px 0 12px; border: 0; border-radius: 999px; background: var(--hue); color: #10140f; font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; transition: transform .15s; }
+.atrium-auto-run:active { transform: scale(.95); }
+
+/* Hold to trigger: the tile sinks a little while a ring fills around it. */
+@property --atrium-hold { syntax: "<percentage>"; initial-value: 0%; inherits: false; }
+.atrium-auto-tile::after { content: ""; position: absolute; inset: -6px; padding: 3px; border-radius: 19px; background: conic-gradient(var(--hue) var(--atrium-hold), transparent 0); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); opacity: 0; pointer-events: none; }
+.atrium-auto-row.holding .atrium-auto-tile { transform: scale(.92); }
+.atrium-auto-row.holding .atrium-auto-tile::after { opacity: 1; animation: atrium-hold-fill .65s linear forwards; }
+@keyframes atrium-hold-fill { from { --atrium-hold: 0%; } to { --atrium-hold: 100%; } }
+/* Running: a short arc of the routine's color circles the row. */
+@property --atrium-ring { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+.atrium-auto-ring { display: none; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; background: conic-gradient(from var(--atrium-ring), transparent 0 70%, var(--hue) 85%, transparent 100%); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); animation: atrium-ring-turn 2.4s linear infinite; pointer-events: none; }
+.atrium-auto-row.running .atrium-auto-ring { display: block; }
+@keyframes atrium-ring-turn { to { --atrium-ring: 360deg; } }
+/* Just ran: a sweep of color across the row, sparks off the tile. */
+.atrium-auto-row.spark::before { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 0%, color-mix(in srgb, var(--hue) 32%, transparent) 45%, transparent 70%); transform: translateX(-100%); animation: atrium-auto-sweep .9s ease-out forwards; pointer-events: none; }
+@keyframes atrium-auto-sweep { to { transform: translateX(100%); } }
+.atrium-auto-burst { position: absolute; left: 33px; top: 50%; width: 0; height: 0; pointer-events: none; }
+.atrium-auto-burst i { position: absolute; width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: var(--hue); animation: atrium-auto-fly .7s cubic-bezier(.2,.8,.3,1) forwards; }
+@keyframes atrium-auto-fly { from { transform: rotate(var(--r)) translateX(10px) scale(1); opacity: 1; } to { transform: rotate(var(--r)) translateX(42px) scale(.2); opacity: 0; } }
+
+.atrium-routines-sub { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 4px -2px; }
+.atrium-routines-sub[hidden] { display: none; }
+.atrium-routines-subtitle { font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--a-dim); }
+.atrium-routines-hint { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 500; color: var(--a-dim); }
+.atrium-routines-drawer { display: flex; align-items: center; gap: 8px; width: 100%; padding: 11px 14px; border: 1px dashed color-mix(in srgb, var(--a-text) 14%, transparent); border-radius: 16px; background: transparent; color: var(--a-dim); font: inherit; font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; }
+.atrium-routines-drawer[hidden] { display: none; }
+.atrium-routines-drawer > ha-icon:last-child { margin-left: auto; transition: transform .2s; }
+.atrium-routines-drawer[aria-expanded="true"] > ha-icon:last-child { transform: rotate(180deg); }
+.atrium-routines-drawer + .atrium-alist .atrium-auto-row { opacity: .7; }
+@media (prefers-reduced-motion: reduce) {
+  .atrium-auto-ring, .atrium-auto-row.running .atrium-auto-dot, .atrium-auto-row.spark::before, .atrium-auto-burst i { animation: none; }
+  .atrium-auto-burst { display: none; }
+}
 
 /* ── Phone: room picked → strip on top, sheet below ──────────────────── */
 @media (max-width: 860px) {

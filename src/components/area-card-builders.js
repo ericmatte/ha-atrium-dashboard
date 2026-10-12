@@ -1,5 +1,5 @@
 import { openPopover, closePopoverFor, openListPopover } from "../lib/popover.js";
-import { haIcon, bindLongPress, readSceneGradient, writeSceneGradient, navigateTo, automationEditorPath } from "../lib/dom-utils.js";
+import { haIcon, vibrate, bindLongPress, readSceneGradient, writeSceneGradient, navigateTo, automationEditorPath } from "../lib/dom-utils.js";
 import {
   ICONS,
   nameWithoutAreaPrefix,
@@ -8,7 +8,10 @@ import {
   iconForScene,
   lightsGradient,
 } from "./area-card-shared.js";
-import { routineRows } from "../lib/area-data.js";
+import { routineGroups } from "../lib/area-data.js";
+import { routineColors } from "../lib/routine-colors.js";
+import { getLabel } from "../lib/label-registry.js";
+import { t } from "../lib/i18n.js";
 import { settleStep } from "../lib/settle.js";
 import { FLASH_MS, TOUCH_INTENT_MS, SCROLL_SLOP } from "./area-card-updaters.js";
 
@@ -119,10 +122,10 @@ export function _buildClimateTile(area, climate) {
     btn.addEventListener("click", () => this._adjustClimate(entityId, direction));
     return btn;
   };
-  const minus = stepButton("Lower target", -1);
+  const minus = stepButton(t("lowerTarget"), -1);
   const target = document.createElement("span");
   target.className = "atrium-climate-target";
-  const plus = stepButton("Raise target", 1);
+  const plus = stepButton(t("raiseTarget"), 1);
   mid.append(minus, target, plus);
 
   const controls = document.createElement("div");
@@ -147,7 +150,7 @@ export function _buildClimateTile(area, climate) {
   };
   const attrs = this._hass.states?.[entityId]?.attributes || {};
   const present = { mode: true, fan: !!attrs.fan_modes?.length, swing: !!attrs.swing_modes?.length };
-  const labels = { mode: "Mode", fan: "Fan mode", swing: "Swing mode" };
+  const labels = { mode: t("mode"), fan: t("fanMode"), swing: t("swingMode") };
   for (const key of ["mode", "fan", "swing"]) {
     if (!present[key]) continue;
     const btn = document.createElement("button");
@@ -220,22 +223,22 @@ export function _buildMediaCard(area, player) {
   const controls = document.createElement("div");
   controls.className = "atrium-media-controls";
   const prev = iconButton("atrium-media-btn", "mdi:skip-previous", () => call("media_previous_track"));
-  prev.setAttribute("aria-label", "Previous");
+  prev.setAttribute("aria-label", t("previous"));
   const playPause = iconButton("atrium-media-btn play", "mdi:play", () => call("media_play_pause"));
   const next = iconButton("atrium-media-btn", "mdi:skip-next", () => call("media_next_track"));
-  next.setAttribute("aria-label", "Next");
+  next.setAttribute("aria-label", t("next"));
   controls.append(prev, playPause, next);
 
   const volumeRow = document.createElement("div");
   volumeRow.className = "atrium-media-volume";
   const mute = iconButton("atrium-media-mute", "mdi:volume-high", () => call("volume_mute", { is_volume_muted: !this._hass.states?.[entityId]?.attributes?.is_volume_muted }));
-  mute.setAttribute("aria-label", `Mute ${displayName}`);
+  mute.setAttribute("aria-label", t("muteName", displayName));
   const volume = document.createElement("input");
   volume.type = "range";
   volume.min = "0";
   volume.max = "100";
   volume.className = "atrium-media-slider";
-  volume.setAttribute("aria-label", `${displayName} volume`);
+  volume.setAttribute("aria-label", t("volumeOf", displayName));
   volumeRow.append(mute, volume);
 
   card.append(art, info, power, controls, volumeRow);
@@ -408,13 +411,13 @@ export function _buildDeviceGroupsRow(area, { lights, switches, covers, inputBoo
   };
   if (lights.length) {
     const anyOn = () => lights.some((l) => this._hass.states?.[l.entity_id]?.state === "on");
-    group("Lights", lights.length > 1 ? this._bulkButton(() => this._toggleAllLights(lights), () => (anyOn() ? "All off" : "All on")) : null, this._divaGrid(area, lights, "light", deviceSensors));
+    group(t("lights"), lights.length > 1 ? this._bulkButton(() => this._toggleAllLights(lights), () => (anyOn() ? t("allOff") : t("allOn"))) : null, this._divaGrid(area, lights, "light", deviceSensors));
   }
-  if (switches.length) group("Devices", null, this._divaGrid(area, switches, "switch", deviceSensors));
-  if (inputBooleans.length) group("Toggles", null, this._divaGrid(area, inputBooleans, "input_boolean"));
+  if (switches.length) group(t("devices"), null, this._divaGrid(area, switches, "switch", deviceSensors));
+  if (inputBooleans.length) group(t("toggles"), null, this._divaGrid(area, inputBooleans, "input_boolean"));
   if (covers.length) {
     const anyOpen = () => covers.some((c) => fmtCoverPct(this._hass.states?.[c.entity_id] || { attributes: {} }) > 5);
-    group("Covers", covers.length > 1 ? this._bulkButton(() => this._toggleAllCovers(covers), () => (anyOpen() ? "Close all" : "Open all")) : null, this._divaGrid(area, covers, "cover"));
+    group(t("covers"), covers.length > 1 ? this._bulkButton(() => this._toggleAllCovers(covers), () => (anyOpen() ? t("closeAll") : t("openAll"))) : null, this._divaGrid(area, covers, "cover"));
   }
   return this._section(null, row);
 }
@@ -522,7 +525,7 @@ export function _buildDeviceSensorCaret(area, entity, sensors) {
   const caret = document.createElement("button");
   caret.type = "button";
   caret.className = "atrium-diva-caret";
-  caret.setAttribute("aria-label", `${nameWithoutAreaPrefix(this._entityName(entity), area)} sensors`);
+  caret.setAttribute("aria-label", t("sensorsOf", nameWithoutAreaPrefix(this._entityName(entity), area)));
   caret.innerHTML = haIcon("mdi:menu-down");
   caret.addEventListener("pointerdown", (e) => e.stopPropagation());
 
@@ -551,7 +554,7 @@ export function _buildSensorsSection(area, sensors) {
   const grid = document.createElement("div");
   grid.className = "atrium-readings";
   for (const s of sensors) grid.appendChild(this._buildSensorTile(area, s));
-  return this._section("Sensors", grid);
+  return this._section(t("sensors"), grid);
 }
 
 export function _buildSensorTile(area, sensor, mapKey = sensor.entity_id) {
@@ -579,7 +582,7 @@ export function _buildSensorTile(area, sensor, mapKey = sensor.entity_id) {
 // Each input_select is a labelled row of chips — every option one tap away,
 // like the design's "Modes" section, instead of a dropdown.
 export function _buildInputSelectsSection(area, inputSelects) {
-  return this._section("Modes", inputSelects.map((s) => this._buildInputSelectTile(area, s)));
+  return this._section(t("modes"), inputSelects.map((s) => this._buildInputSelectTile(area, s)));
 }
 
 export function _buildInputSelectTile(area, entity) {
@@ -693,107 +696,136 @@ export function _captureSceneColors(sceneId, lightIds, pill, fire) {
   }, SCENE_POLL_MS);
 }
 
-// Scripts first, then automations (see routineRows). The "N off" badge
-// under the list is a toggle: open, the switched-off automations are listed
-// inline — no popover. Its open state is kept per room while the panel
-// stays open. Routines hidden in HA are listed like any other.
+// Scripts first (always shown: they're what you run yourself), then the
+// automations, most recently triggered first. Automations that haven't run
+// for over a week, on or off, fold into an "inactive" drawer under the list;
+// its open state is kept per room while the panel stays open. Each routine
+// has its own color (see routine-colors.js).
 export function _buildAutomationsSection(area, data) {
-  const shown = data.scripts.length + data.automations.length;
-  if (!shown && !data.disabledAutomations.length) return null;
+  const groups = routineGroups(this._hass, data);
+  if (!groups.scripts.length && !groups.active.length && !groups.inactive.length) return null;
 
-  const open = { showDisabled: false, ...this._routineDrawers.get(area.area_id) };
-  const section = this._section("Routines", []);
-  const list = document.createElement("div");
-  list.className = "atrium-alist";
-  const rows = routineRows(data, open);
-  for (const { entity } of rows) list.appendChild(this._buildAutomationRow(area, entity));
-  list.hidden = !rows.length;
+  const open = { showInactive: false, ...this._routineDrawers.get(area.area_id) };
+  const section = this._section(t("routines"), []);
+  const list = () => {
+    const el = document.createElement("div");
+    el.className = "atrium-alist";
+    return el;
+  };
+  const scriptsList = list();
 
-  const drawers = document.createElement("div");
-  drawers.className = "atrium-routine-drawers";
-  const badge = document.createElement("button");
-  badge.type = "button";
-  badge.className = "atrium-autos-trigger";
-  badge.innerHTML = `<span class="atrium-autos-trigger-iconwrap">${haIcon("mdi:pause-circle-outline", 20)}</span><span class="atrium-autos-trigger-label"><span></span><span class="atrium-autos-trigger-hint"></span></span>`;
-  badge.addEventListener("click", () => {
-    open.showDisabled = !open.showDisabled;
+  const autosHead = document.createElement("div");
+  autosHead.className = "atrium-routines-sub";
+  autosHead.innerHTML = `<span class="atrium-routines-subtitle"></span><span class="atrium-routines-hint">${haIcon("mdi:gesture-tap-hold", 15)}<span></span></span>`;
+  autosHead.firstChild.textContent = t("automations");
+  autosHead.lastChild.lastChild.textContent = t("holdToTrigger");
+  const activeList = list();
+
+  const drawer = document.createElement("button");
+  drawer.type = "button";
+  drawer.className = "atrium-routines-drawer";
+  drawer.innerHTML = `${haIcon("mdi:sleep", 18)}<span></span>${haIcon("mdi:chevron-down", 18)}`;
+  drawer.addEventListener("click", () => {
+    open.showInactive = !open.showInactive;
     this._routineDrawers.set(area.area_id, { ...open });
     this._refreshRoutines(this._dataForArea(area));
     // The rows open at the very end of the panel: follow them down, once
     // they've grown to full height.
-    if (open.showDisabled) setTimeout(() => this._pin?.scrollTo({ top: this._pin.scrollHeight, behavior: "smooth" }), ROW_MOTION.duration);
+    if (open.showInactive) setTimeout(() => this._pin?.scrollTo({ top: this._pin.scrollHeight, behavior: "smooth" }), ROW_MOTION.duration);
   });
-  drawers.appendChild(badge);
-  section.append(list, drawers);
+  const inactiveList = list();
 
-  this._routinesUI = { area, list, badge, drawers, open };
-  this._updateRoutinesBadge(data);
+  section.append(scriptsList, autosHead, activeList, drawer, inactiveList);
+  this._routinesUI = { area, scriptsList, autosHead, activeList, drawer, inactiveList, open };
+  this._refreshRoutines(data, { building: true });
   return section;
 }
 
-export function _updateRoutinesBadge(data) {
-  const { badge, drawers, open } = this._routinesUI;
-  const count = data.disabledAutomations.length;
-  drawers.hidden = !count;
-  const [countEl, hintEl] = badge.lastChild.children;
-  countEl.textContent = `${count} off`;
-  hintEl.textContent = ` · click to ${open.showDisabled ? "hide" : "show"}`;
-  badge.classList.toggle("open", open.showDisabled);
-  badge.setAttribute("aria-pressed", String(open.showDisabled));
-}
-
-// Brings the Routines list in line with the current states without a
-// rebuild: after the badge toggle, or when an automation is switched on/off.
-export function _refreshRoutines(data) {
+// Brings the Routines lists in line with the current states without a
+// rebuild: on every update, after the drawer toggle, or when an automation
+// is switched on/off, triggers or goes quiet.
+// `building`: the section isn't in the panel yet (its first fill).
+export function _refreshRoutines(data, { building = false } = {}) {
   const ui = this._routinesUI;
-  if (!ui?.list.isConnected) return;
-  this._updateRoutinesBadge(data);
-  this._syncRoutineRows(ui.area, ui.list, routineRows(data, ui.open));
+  if (!ui || (!building && !ui.activeList.isConnected)) return;
+  const groups = routineGroups(this._hass, data);
+  const shown = [...groups.scripts, ...groups.active, ...groups.inactive];
+  const hass = this._hass;
+  ui.colors = routineColors(shown.map((e) => ({
+    id: e.entity_id,
+    isScript: e.entity_id.startsWith("script."),
+    labelColors: (hass.entities?.[e.entity_id]?.labels || []).map((id) => getLabel(hass, id)?.color),
+    icon: hass.entities?.[e.entity_id]?.icon ?? hass.states?.[e.entity_id]?.attributes?.icon,
+    name: this._entityName(e),
+  })));
+
+  const autos = groups.active.length + groups.inactive.length;
+  ui.autosHead.hidden = !autos;
+  ui.drawer.hidden = !groups.inactive.length;
+  ui.drawer.querySelector("span").textContent = t("inactiveForAWeek", groups.inactive.length);
+  ui.drawer.setAttribute("aria-expanded", String(ui.open.showInactive));
+
+  this._syncRoutineLists(ui.area, [
+    [ui.scriptsList, groups.scripts],
+    [ui.activeList, groups.active],
+    [ui.inactiveList, ui.open.showInactive ? groups.inactive : []],
+  ]);
+  for (const [entityId, ref] of this._refs.areas.get(ui.area.area_id).automations) {
+    const color = ui.colors.get(entityId);
+    if (color) ref.row.style.setProperty("--hue", color);
+  }
 }
 
 const ROW_MOTION = { duration: 260, easing: "cubic-bezier(.32,.72,0,1)" };
 
 // Rows that stay are left exactly as they are (same elements, nothing
-// re-rendered); rows that move (switched on/off) slide into their new spot;
-// rows that appear are inserted in place and grow open; rows that go away
-// shrink closed, then are removed.
-export function _syncRoutineRows(area, list, rows) {
+// re-rendered); rows that move within a list slide into their new spot;
+// rows that appear are inserted in place and grow open; rows that leave a
+// list (going inactive, or the drawer closing) shrink closed, then are removed.
+export function _syncRoutineLists(area, groups) {
   const refs = this._refs.areas.get(area.area_id).automations;
-  const wanted = new Set(rows.map((r) => r.entity.entity_id));
+  const home = new Map();
+  for (const [list, entities] of groups) for (const e of entities) home.set(e.entity_id, list);
 
   for (const [entityId, ref] of [...refs]) {
-    if (wanted.has(entityId) || ref.row.parentElement !== list) continue;
+    if (home.get(entityId) === ref.row.parentElement) continue;
     refs.delete(entityId);
     collapseRow(ref.row);
   }
 
-  let cursor = list.firstElementChild;
-  const skipLeaving = () => { while (cursor?.classList.contains("leaving")) cursor = cursor.nextElementSibling; };
-  for (const { entity } of rows) {
-    skipLeaving();
-    const existing = refs.get(entity.entity_id)?.row;
-    if (existing && existing.parentElement === list) {
-      if (existing === cursor) cursor = cursor.nextElementSibling;
-      else {
-        list.insertBefore(existing, cursor);
-        existing.animate([{ opacity: 0, transform: "translateY(10px) scale(.97)" }, { opacity: getComputedStyle(existing).opacity, transform: "none" }], ROW_MOTION);
+  for (const [list, entities] of groups) {
+    let cursor = list.firstElementChild;
+    const skipLeaving = () => { while (cursor?.classList.contains("leaving")) cursor = cursor.nextElementSibling; };
+    for (const entity of entities) {
+      skipLeaving();
+      const existing = refs.get(entity.entity_id)?.row;
+      if (existing) {
+        if (existing === cursor) cursor = cursor.nextElementSibling;
+        else {
+          list.insertBefore(existing, cursor);
+          existing.animate([{ opacity: 0, transform: "translateY(10px) scale(.97)" }, { opacity: getComputedStyle(existing).opacity, transform: "none" }], ROW_MOTION);
+        }
+        continue;
       }
-      continue;
+      const row = this._buildAutomationRow(area, entity);
+      list.insertBefore(row, cursor);
+      // Rows only grow open once the panel is showing; the first fill just appears.
+      if (list.isConnected) expandRow(row);
     }
-    const row = this._buildAutomationRow(area, entity);
-    list.insertBefore(row, cursor);
-    expandRow(row);
+    if (entities.length) list.hidden = false;
+    else if (!list.querySelector(".atrium-auto-row:not(.leaving)")) {
+      if (!list.firstElementChild) list.hidden = true;
+      else setTimeout(() => { if (!list.querySelector(".atrium-auto-row:not(.leaving)")) list.hidden = true; }, ROW_MOTION.duration);
+    }
   }
-  if (rows.length) list.hidden = false;
-  else if (!list.querySelector(".atrium-auto-row:not(.leaving)")) setTimeout(() => { if (!list.querySelector(".atrium-auto-row:not(.leaving)")) list.hidden = true; }, ROW_MOTION.duration);
 }
 
 // Height animations need real pixel heights (auto isn't animatable); the
-// list's 6px gap is folded into a negative margin so neighbours glide too.
+// list's gap is folded into a negative margin so neighbours glide too.
 function expandRow(row) {
   const style = getComputedStyle(row);
   const to = { height: `${row.offsetHeight}px`, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, marginTop: "0px", opacity: style.opacity };
-  const from = { height: "0px", paddingTop: "0px", paddingBottom: "0px", marginTop: "-6px", opacity: 0 };
+  const from = { height: "0px", paddingTop: "0px", paddingBottom: "0px", marginTop: "-8px", opacity: 0 };
   row.style.overflow = "hidden";
   row.animate([from, to], ROW_MOTION).finished.then(() => { row.style.overflow = ""; }, () => {});
 }
@@ -803,86 +835,140 @@ function collapseRow(row) {
   row.classList.add("leaving");
   row.style.overflow = "hidden";
   const from = { height: `${row.offsetHeight}px`, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, marginTop: "0px", opacity: style.opacity };
-  const to = { height: "0px", paddingTop: "0px", paddingBottom: "0px", marginTop: "-6px", opacity: 0 };
+  const to = { height: "0px", paddingTop: "0px", paddingBottom: "0px", marginTop: "-8px", opacity: 0 };
   row.animate([from, to], { ...ROW_MOTION, duration: 200, fill: "forwards" }).finished.then(() => row.remove(), () => row.remove());
 }
 
-// Toggle swatch left, name + labels / "On · 42 minutes ago" in the middle,
-// run button right. Tapping the name opens more-info.
+// How long a press must last to trigger an automation, and how far the finger
+// may drift before it counts as a scroll instead.
+const HOLD_MS = 650;
+const HOLD_SLOP = 8;
+
+// A routine just ran: a sweep of its color across the row and a burst of
+// sparks from its icon.
+function sparkRow(row) {
+  row.classList.remove("spark");
+  void row.offsetWidth;
+  row.classList.add("spark");
+  setTimeout(() => row.classList.remove("spark"), 950);
+  const burst = document.createElement("span");
+  burst.className = "atrium-auto-burst";
+  burst.innerHTML = Array.from({ length: 10 }, (_, i) => `<i style="--r:${i * 36 + 8}deg"></i>`).join("");
+  row.appendChild(burst);
+  setTimeout(() => burst.remove(), 800);
+}
+
+// Colored tile left, name + labels + when it last ran in the middle; an
+// automation's switch or a script's Run button right. A script's row opens
+// its details; an automation's opens its editor, and holding it triggers it.
 export function _buildAutomationRow(area, item) {
   const hass = this._hass;
   const state = hass.states?.[item.entity_id];
-  const isScript = item.entity_id.startsWith("script.");
-  const customIcon = hass.entities?.[item.entity_id]?.icon ?? state?.attributes?.icon ?? null;
+  const entityId = item.entity_id;
+  const isScript = entityId.startsWith("script.");
+  const customIcon = hass.entities?.[entityId]?.icon ?? state?.attributes?.icon ?? null;
   const displayName = nameWithoutAreaPrefix(this._entityName(item), area);
 
   const row = document.createElement("div");
   row.className = "atrium-auto-row" + (isScript ? " is-script" : "");
-  row.dataset.entity = item.entity_id;
+  row.dataset.entity = entityId;
+  const color = this._routinesUI?.colors?.get(entityId);
+  if (color) row.style.setProperty("--hue", color);
 
-  const swatch = document.createElement(isScript ? "span" : "button");
-  swatch.className = "atrium-auto-swatch" + (isScript ? " script" : "");
-  swatch.innerHTML = haIcon(customIcon || (isScript ? ICONS.script : ICONS.auto), 17);
-  if (!isScript) {
-    swatch.type = "button";
-    swatch.setAttribute("aria-label", `Toggle ${displayName}`);
-    swatch.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const isOn = this._hass.states?.[item.entity_id]?.state !== "off";
-      this._call("automation", isOn ? "turn_off" : "turn_on", { entity_id: item.entity_id });
-    });
-  }
+  const ring = document.createElement("span");
+  ring.className = "atrium-auto-ring";
+  const tile = document.createElement("span");
+  tile.className = "atrium-auto-tile";
+  tile.innerHTML = haIcon(customIcon || (isScript ? ICONS.script : ICONS.auto), 24);
 
   const body = document.createElement("button");
   body.type = "button";
   body.className = "atrium-auto-body";
-  // A script's whole row (▶ included) opens its details — HA's own way to run
-  // it, with its fields if it has any.
-  if (isScript) row.addEventListener("click", () => this._moreInfo(item.entity_id));
-  else {
-    // An automation's name opens its editor (falls back to its details).
-    body.addEventListener("click", () => {
-      const path = automationEditorPath(this._hass, item.entity_id);
-      if (path) navigateTo(path);
-      else this._moreInfo(item.entity_id);
-    });
-  }
-  const titleLine = document.createElement("span");
-  titleLine.className = "atrium-auto-title";
   const name = document.createElement("span");
   name.className = "atrium-auto-name";
   name.textContent = displayName;
   const labels = document.createElement("span");
   labels.className = "atrium-auto-labels";
-  titleLine.append(name);
-  const sub = document.createElement("span");
-  sub.className = "atrium-auto-last";
-  // Labels get their own line, under the name.
-  body.append(titleLine, labels, sub);
+  const meta = document.createElement("span");
+  meta.className = "atrium-auto-meta";
+  meta.innerHTML = `<span class="atrium-auto-dot"></span><span></span>`;
+  body.append(name, labels, meta);
 
-  // For a script, ▶ is only a visual cue: clicks pass through to the row.
-  const play = document.createElement(isScript ? "span" : "button");
-  if (isScript) play.setAttribute("aria-hidden", "true");
-  else play.type = "button";
-  play.className = "atrium-auto-play";
-  play.setAttribute("aria-label", `${isScript ? "Run" : "Trigger"} ${displayName}`);
-  play.innerHTML = haIcon(ICONS.play, 15);
+  const ref = { row, tile, name, sub: meta.lastChild, labels, isScript, flashUntil: 0 };
+  const flash = () => {
+    ref.flashUntil = Date.now() + FLASH_MS;
+    this._updateAutomationRef(ref, entityId);
+    sparkRow(row);
+    setTimeout(() => this._updateAutomationRef(ref, entityId), FLASH_MS);
+  };
 
-  row.append(swatch, body, play);
-
-  const ref = { row, swatch, name, sub, labels, play, isScript, flashUntil: 0 };
-  if (!isScript) {
-    play.addEventListener("click", (e) => {
+  let control;
+  if (isScript) {
+    // A script with fields needs them filled in: its details dialog runs it.
+    control = document.createElement("button");
+    control.type = "button";
+    control.className = "atrium-auto-run";
+    control.innerHTML = `${haIcon(ICONS.play, 18)}<span></span>`;
+    control.lastChild.textContent = t("run");
+    control.setAttribute("aria-label", t("runName", displayName));
+    control.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (play.classList.contains("disabled")) return;
-      this._call("automation", "trigger", { entity_id: item.entity_id });
-      ref.flashUntil = Date.now() + FLASH_MS;
-      this._updateAutomationRef(ref, item.entity_id);
-      setTimeout(() => this._updateAutomationRef(ref, item.entity_id), FLASH_MS);
+      const fields = this._hass.services?.script?.[entityId.slice("script.".length)]?.fields;
+      if (fields && Object.keys(fields).length) return this._moreInfo(entityId);
+      this._call("script", "turn_on", { entity_id: entityId });
+      flash();
     });
+    row.addEventListener("click", () => this._moreInfo(entityId));
+  } else {
+    control = document.createElement("button");
+    control.type = "button";
+    control.className = "atrium-auto-switch";
+    control.setAttribute("role", "switch");
+    control.setAttribute("aria-label", t("toggleName", displayName));
+    control.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOn = this._hass.states?.[entityId]?.state !== "off";
+      this._call("automation", isOn ? "turn_off" : "turn_on", { entity_id: entityId });
+    });
+    body.setAttribute("aria-description", t("holdToTrigger"));
+    let hold = null;
+    // A tap opens the automation's editor (or its details); a hold fires it.
+    body.addEventListener("click", () => {
+      if (hold?.fired) { hold = null; return; }
+      const path = automationEditorPath(this._hass, entityId);
+      if (path) navigateTo(path);
+      else this._moreInfo(entityId);
+    });
+    const cancel = () => {
+      if (!hold) return;
+      clearTimeout(hold.timer);
+      row.classList.remove("holding");
+      if (!hold.fired) hold = null;
+    };
+    row.addEventListener("pointerdown", (e) => {
+      if (e.button > 0 || e.target.closest(".atrium-auto-switch")) return;
+      if (this._hass.states?.[entityId]?.state === "off") return;
+      row.classList.add("holding");
+      hold = { x: e.clientX, y: e.clientY, fired: false, timer: setTimeout(() => {
+        hold.fired = true;
+        row.classList.remove("holding");
+        vibrate(12);
+        this._call("automation", "trigger", { entity_id: entityId });
+        flash();
+      }, HOLD_MS) };
+    });
+    row.addEventListener("pointermove", (e) => { if (hold && !hold.fired && Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > HOLD_SLOP) cancel(); });
+    row.addEventListener("pointerup", cancel);
+    row.addEventListener("pointercancel", cancel);
+    row.addEventListener("pointerleave", cancel);
+    // Long-press on a phone would otherwise open the text-selection menu.
+    row.addEventListener("contextmenu", (e) => e.preventDefault());
   }
 
-  this._refs.areas.get(area.area_id).automations.set(item.entity_id, ref);
-  this._updateAutomationRef(ref, item.entity_id);
+  ref.control = control;
+  row.append(ring, tile, body, control);
+
+  this._refs.areas.get(area.area_id).automations.set(entityId, ref);
+  this._updateAutomationRef(ref, entityId);
   return row;
 }
