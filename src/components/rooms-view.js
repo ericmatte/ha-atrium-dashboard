@@ -32,6 +32,18 @@ import { tempColor, humidityColor, toCelsius } from "../lib/comfort-colors.js";
 // Matches the panel's exit (desktop slide / phone sheet-out, .26s in
 // area-card.css) so the selection is only dropped once it has played.
 const CLOSE_MS = 260;
+// The nearest scrolling ancestor, across shadow roots (HA nests the view in
+// several), else the page.
+function scrollParent(el) {
+  for (let n = el.parentNode ?? el.host; n; n = n.parentNode ?? n.host) {
+    if (n.nodeType !== 1) continue;
+    const oy = getComputedStyle(n).overflowY;
+    if ((oy === "auto" || oy === "scroll") && n.scrollHeight > n.clientHeight) return n;
+  }
+  return document.scrollingElement;
+}
+
+const REVEAL_MARGIN = 12;
 const isNight = (hass) => hass.states?.["sun.sun"]?.state === "below_horizon";
 // The aura blends its colors in OKLCH where the browser can.
 const AURA_SPACE = globalThis.CSS?.supports?.("background", "conic-gradient(in oklch, red, blue)") ? "oklch" : undefined;
@@ -205,14 +217,36 @@ class AtriumRooms extends HTMLElement {
     if (reopening) this._pushPanelHistory();
     this._renderPanel({ freshPanel: reopening });
     this._syncLayout();
-    this._scrollStripTo(areaId, { smooth: !reopening });
+    this._revealSelected(areaId, { smooth: !reopening });
   }
 
+  // Keep the open room in view, top left.
   // Phone: the rooms collapse into a strip above the sheet; bring the open
   // room to its left edge (at once when the strip first appears, gliding
   // when switching rooms within it).
-  _scrollStripTo(areaId, { smooth }) {
-    if (!matchMedia(SHEET_MEDIA).matches) return;
+  // Desktop: the side panel narrows the grid, which re-flows into fewer
+  // columns; scroll the page so the open room's row (with its floor label,
+  // when it's the floor's first row) sits just under HA's toolbar.
+  _revealSelected(areaId, { smooth }) {
+    if (!matchMedia(SHEET_MEDIA).matches) {
+      // Two frames: the narrower grid re-sizes its tiles in a ResizeObserver
+      // callback after the first layout.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const tile = this._orbRefs.get(areaId)?.tile;
+        if (!tile || this._selectedAreaId !== areaId) return;
+        // In its floor's first row, the floor label comes along.
+        const group = tile.closest(".atrium-floor-group");
+        const firstRow = group && tile.getBoundingClientRect().top - (group.querySelector(".atrium-orb")?.getBoundingClientRect().top ?? 0) < 4;
+        const anchor = firstRow ? group : tile;
+        const scroller = scrollParent(this);
+        const page = scroller === document.scrollingElement;
+        const toolbar = parseFloat(getComputedStyle(this).getPropertyValue("--header-height")) || 0;
+        const top = page ? toolbar : Math.max(scroller.getBoundingClientRect().top, toolbar);
+        const target = Math.max(0, scroller.scrollTop + anchor.getBoundingClientRect().top - top - REVEAL_MARGIN);
+        if (Math.abs(scroller.scrollTop - target) > 2) scroller.scrollTo({ top: target, behavior: "smooth" });
+      }));
+      return;
+    }
     requestAnimationFrame(() => {
       const strip = this._content;
       const tile = this._orbRefs.get(areaId)?.tile;

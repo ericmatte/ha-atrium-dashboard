@@ -402,7 +402,9 @@ button.atrium-badge { cursor: pointer; }
   .atrium-rooms.has-sel { grid-template-columns: minmax(0, 1fr) 580px; }
 
   .atrium-rooms-content { gap: 32px; padding: 8px 80px 40px; }
-  .has-sel .atrium-rooms-content { padding-inline: 40px; }
+  /* Room below the grid so even the last row can scroll up under the header
+     (rooms-view.js brings the open room there). */
+  .has-sel .atrium-rooms-content { padding-inline: 40px; padding-bottom: calc(100vh - var(--header-height, 0px) - 160px); }
   .atrium-floor-group { gap: 16px; }
   .atrium-orb { gap: 14px; animation: none; }
   .has-sel .atrium-orb { gap: 12px; }
