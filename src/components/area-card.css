@@ -130,7 +130,8 @@
 
 /* ── Details panel ───────────────────────────────────────────────────── */
 .atrium-panel { display: none; background: var(--a-panel); color: var(--a-text); overflow: hidden; }
-.atrium-panel-inner { height: 100%; box-sizing: border-box; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 20px; padding: 18px 16px 32px; scrollbar-width: thin; }
+/* pan-y: the browser keeps vertical scrolling, sideways swipes reach rooms-view.js (next/previous room). */
+.atrium-panel-inner { height: 100%; box-sizing: border-box; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; display: flex; flex-direction: column; gap: 20px; padding: 18px 16px 32px; scrollbar-width: thin; }
 
 .atrium-panel-hero { display: flex; align-items: center; gap: 16px; }
 .atrium-sheet-grabber { display: none; }

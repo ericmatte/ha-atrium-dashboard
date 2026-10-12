@@ -46,6 +46,22 @@ function scrollParent(el) {
 
 const REVEAL_MARGIN = 12;
 
+// Keys pressed in a field, on a slider or inside a dialog are theirs, not ours.
+const OWN_ARROWS = new Set(["INPUT", "TEXTAREA", "SELECT", "HA-DIALOG", "HA-MORE-INFO-DIALOG", "DIALOG", "HA-TEXTFIELD", "HA-SLIDER", "HA-SELECT"]);
+function keyBelongsElsewhere(e) {
+  return e.composedPath().some((el) => el.nodeType === 1 && (OWN_ARROWS.has(el.tagName) || el.isContentEditable || el.getAttribute?.("role") === "slider"));
+}
+
+// Phone: a horizontal swipe on the open room's panel steps to the next or
+// previous room. It's decided on the first few px of travel: clearly
+// sideways is ours (the panel follows the finger), anything else is left to
+// the scroll. Swipes that start on a slider (lights, covers, volume) are
+// theirs.
+const SWIPE_DECIDE = 12;
+const SWIPE_STEP = 70;
+const SWIPE_STEP_SPEED = 0.45; // px/ms
+const SWIPE_IGNORE = ".atrium-diva-track, input, .atrium-media-volume, .atrium-pop";
+
 // Animated custom properties (the routines' hold-to-trigger ring filling up,
 // the ring circling a running routine). An @property rule is ignored inside a
 // shadow root — where Home Assistant renders cards — and an unregistered
@@ -95,10 +111,17 @@ class AtriumRooms extends HTMLElement {
       }
       if (this._selectedAreaId && !history.state?.[PANEL_HISTORY_KEY]) this._closePanel({ fromHistory: true });
     };
+    // ←/→ step to the previous/next room while one is open — unless the key
+    // belongs to something else: a field or slider with focus, a menu, a
+    // dialog over the panel.
     this._onKeydown = (e) => {
-      if (e.key !== "Escape" || e.defaultPrevented || !this._selectedAreaId) return;
+      if (e.defaultPrevented || !this._selectedAreaId) return;
       if (document.querySelector(".atrium-pop")) return;
-      this._select(null);
+      if (e.key === "Escape") return this._select(null);
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || keyBelongsElsewhere(e)) return;
+      e.preventDefault();
+      this._stepArea(e.key === "ArrowRight" ? 1 : -1);
     };
   }
 
@@ -219,13 +242,26 @@ class AtriumRooms extends HTMLElement {
     else this._openPanel(areaId);
   }
 
-  _openPanel(areaId) {
+  // The next (1) or previous (-1) room in tile order, wrapping around; its
+  // content slides in from the side it came from.
+  _stepArea(dir) {
+    const ids = [...this._orbRefs.keys()];
+    const i = ids.indexOf(this._selectedAreaId);
+    if (i < 0 || ids.length < 2) return;
+    this._openPanel(ids[(i + dir + ids.length) % ids.length], { slide: dir });
+  }
+
+  _openPanel(areaId, { slide = 0 } = {}) {
     clearTimeout(this._closeTimer);
     const reopening = !this._selectedAreaId || this._closing;
     this._closing = false;
     this._selectedAreaId = areaId;
     if (reopening) this._pushPanelHistory();
     this._renderPanel({ freshPanel: reopening });
+    if (slide && this._pin) {
+      this._pin.style.transform = "";
+      this._pin.animate([{ transform: `translateX(${slide * 48}px)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 260, easing: "cubic-bezier(.2,.8,.2,1)" });
+    }
     this._syncLayout();
     this._revealSelected(areaId, { smooth: !reopening });
   }
@@ -356,6 +392,7 @@ class AtriumRooms extends HTMLElement {
     this._content.className = "atrium-rooms-content";
     this._panel = document.createElement("aside");
     this._panel.className = "atrium-panel";
+    this._bindRoomSwipe(this._panel);
     this._root.append(this._content, this._panel);
     this.appendChild(this._root);
     this._resizeObserver = new ResizeObserver(() => this._sizeOrbs());
@@ -509,6 +546,52 @@ class AtriumRooms extends HTMLElement {
       this._heroRefs.key = key;
       this._heroRefs.badges.replaceChildren(...badges);
     }
+  }
+
+  _bindRoomSwipe(panel) {
+    panel.addEventListener("pointerdown", (e) => {
+      if (e.pointerType !== "touch" || !this._selectedAreaId || this._closing) return;
+      if (e.target.closest(SWIPE_IGNORE)) return;
+      const x0 = e.clientX, y0 = e.clientY, t0 = e.timeStamp;
+      let intent = null; // "swipe" | "other"
+      let dx = 0;
+      const pin = () => this._pin;
+      const onMove = (ev) => {
+        if (ev.pointerId !== e.pointerId) return;
+        dx = ev.clientX - x0;
+        const dy = ev.clientY - y0;
+        if (!intent) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_DECIDE) return;
+          intent = Math.abs(dx) > Math.abs(dy) * 1.5 ? "swipe" : "other";
+          if (intent === "other") return end();
+        }
+        const p = pin();
+        if (p) p.style.transform = `translateX(${dx * 0.35}px)`;
+      };
+      const end = (ev) => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", end);
+        window.removeEventListener("pointercancel", end);
+        if (intent !== "swipe") return;
+        // The lifted finger must not also tap whatever it started on; a click
+        // only follows right away, so the guard expires on its own.
+        const swallow = (c) => { c.stopPropagation(); c.preventDefault(); };
+        panel.addEventListener("click", swallow, { capture: true, once: true });
+        setTimeout(() => panel.removeEventListener("click", swallow, { capture: true }), 350);
+        const speed = Math.abs(dx) / Math.max(1, (ev?.timeStamp ?? t0) - t0);
+        const p = pin();
+        if (ev?.type === "pointerup" && (Math.abs(dx) > SWIPE_STEP || speed > SWIPE_STEP_SPEED)) {
+          if (p) p.style.transform = "";
+          this._stepArea(dx < 0 ? 1 : -1);
+        } else if (p) {
+          p.animate([{ transform: p.style.transform }, { transform: "none" }], { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" });
+          p.style.transform = "";
+        }
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", end);
+      window.addEventListener("pointercancel", end);
+    });
   }
 
   // Phone bottom sheet: pulling its header (or grab bar) down drags the sheet
