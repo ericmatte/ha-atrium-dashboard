@@ -308,7 +308,10 @@ class AtriumRooms extends HTMLElement {
         const anchor = firstRow ? group : tile;
         const scroller = scrollParent(this);
         const page = scroller === document.scrollingElement;
-        const toolbar = parseFloat(getComputedStyle(this).getPropertyValue("--header-height")) || 0;
+        // Below HA's toolbar, and below Atrium's own header when it's pinned
+        // there (desktop Home tab, see header.js).
+        const pinned = this.getRootNode()?.querySelector?.("atrium-header.is-sticky");
+        const toolbar = (parseFloat(getComputedStyle(this).getPropertyValue("--header-height")) || 0) + (pinned?.offsetHeight ?? 0);
         const top = page ? toolbar : Math.max(scroller.getBoundingClientRect().top, toolbar);
         const target = Math.max(0, scroller.scrollTop + anchor.getBoundingClientRect().top - top - REVEAL_MARGIN);
         if (Math.abs(scroller.scrollTop - target) > 2) scroller.scrollTo({ top: target, behavior: "smooth" });

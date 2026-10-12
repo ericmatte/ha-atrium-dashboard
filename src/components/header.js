@@ -20,6 +20,9 @@ import {
 import { canDimLight, fmtBrightnessPct, lightRgbTriple } from "./area-card-shared.js";
 import POPOVER_ITEM_STYLE from "./header.css";
 
+// Matches the desktop breakpoint in area-card.css / shell.css.
+const DESKTOP_MEDIA = "(min-width: 861px)";
+
 // Popover content is body-attached so the rules need to live at
 // document.head, outside the shadow root that hosts this card.
 
@@ -45,7 +48,29 @@ class AtriumHeader extends HTMLElement {
     this._title = config.title || null;
   }
 
+  connectedCallback() {
+    this._desktop = this._desktop || matchMedia(DESKTOP_MEDIA);
+    this._onMedia = this._onMedia || (() => this._syncSticky());
+    this._desktop.addEventListener("change", this._onMedia);
+    this._syncSticky();
+  }
+
+  // Desktop Home tab: the greeting and pills stay pinned under HA's toolbar
+  // while the rooms scroll beneath. A sticky box only sticks within its
+  // parent, and HA wraps each card in a <hui-card> exactly the card's size —
+  // so that wrapper is made sticky (or the card itself when there is none).
+  _syncSticky() {
+    if (!this.isConnected) return;
+    const host = this.parentElement?.tagName === "HUI-CARD" ? this.parentElement : this;
+    const on = !this._title && this._desktop.matches;
+    Object.assign(host.style, on
+      ? { position: "sticky", top: "var(--header-height, 0px)", zIndex: "2", display: "block" }
+      : { position: "", top: "", zIndex: "", display: "" });
+    this.classList.toggle("is-sticky", on);
+  }
+
   disconnectedCallback() {
+    this._desktop?.removeEventListener("change", this._onMedia);
     if (this._lightsAnchor) closePopoverFor(this._lightsAnchor);
     if (this._batteryAnchor) closePopoverFor(this._batteryAnchor);
     if (this._problemAnchor) closePopoverFor(this._problemAnchor);

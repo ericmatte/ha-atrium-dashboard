@@ -87,4 +87,7 @@
     padding-right: calc(62px - 40px * var(--atrium-open) + 580px * var(--atrium-open));
   }
   .atrium-shell-root.is-home .atrium-shell-pills { padding-inline: 18px; }
+  /* Pinned (header.js): opaque, so the rooms scroll out of sight beneath it. */
+  .is-sticky .atrium-shell-root.is-home { background: var(--primary-background-color, #0b0c0e); }
+  .is-sticky .atrium-shell-root.is-home .atrium-shell-header { margin-bottom: 0; padding-bottom: 12px; }
 }
