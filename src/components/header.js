@@ -10,6 +10,7 @@ import {
   shellBatteryIcon,
   shellBatteryColor,
   shellProblemIcon,
+  shellGroupOffline,
   shellInitialFromName,
   shellPersonStatus,
   shellWeatherSummary,
@@ -295,7 +296,9 @@ class AtriumHeader extends HTMLElement {
       if (a.kind !== b.kind) return a.kind === "problem" ? -1 : 1;
       return friendlyName(a.state, a.id).localeCompare(friendlyName(b.state, b.id));
     });
-    this._problems = problems;
+    // One row per device gone offline whole: the badge counts what needs looking at, not every entity it took down.
+    const shown = shellGroupOffline(problems, hass);
+    this._problems = shown;
 
     const persons = personIds
       .map((id) => states[id])
@@ -308,8 +311,8 @@ class AtriumHeader extends HTMLElement {
       ? `${batteries.length}·${Math.round(batteries[0].value)}`
       : "";
     const lightLabel = activeLights.map((l) => l.id).join(",");
-    const hasActiveProblem = problems.some((p) => p.kind === "problem");
-    const probLabel = problems.length ? `${problems.length}:${hasActiveProblem ? "a" : "i"}` : "";
+    const hasActiveProblem = shown.some((p) => p.kind === "problem");
+    const probLabel = shown.length ? `${shown.length}:${hasActiveProblem ? "a" : "i"}` : "";
     const personSig = persons.map((p) => `${p.entity_id}=${p.state}`).join(",");
     const sig = `${lightsOn}:${lightLabel}|${battLabel}|${probLabel}|${personSig}`;
     if (sig === this._lastStatsSig) return;
@@ -328,12 +331,12 @@ class AtriumHeader extends HTMLElement {
       statPills.push(this._statPill("mdi:battery", color, label, "batteries"));
     }
 
-    if (problems.length) {
+    if (shown.length) {
       // Red for active problems, orange when the list is only offline
       // devices (still worth surfacing but less urgent than leak/smoke).
       const color = hasActiveProblem ? SHELL_TONE.danger : SHELL_TONE.warn;
       statPills.push(
-        this._statPill("mdi:alert-circle", color, `${problems.length}`, "problems")
+        this._statPill("mdi:alert-circle", color, `${shown.length}`, "problems")
       );
     }
 
@@ -564,7 +567,7 @@ class AtriumHeader extends HTMLElement {
       entityId: problem.id,
       icon: shellProblemIcon(problem.state),
       color,
-      name: friendlyName(problem.state, problem.id),
+      name: problem.device ? `${problem.device} +${problem.count}` : friendlyName(problem.state, problem.id),
       suffixHTML,
       anchor,
     });

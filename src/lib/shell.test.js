@@ -131,3 +131,42 @@ test("shellWeatherSummary returns null without a usable temperature", () => {
 test("shellWeatherSummary returns null when there is no weather entity", () => {
   assert.equal(shellWeatherSummary(makeHass()), null);
 });
+
+const { shellGroupOffline } = await import("./shell.js");
+
+test("shellGroupOffline: a device whose every entity is offline becomes one row named after it, with its count", () => {
+  const st = (id, state) => ({ entity_id: id, state, attributes: { friendly_name: id } });
+  const hass = {
+    states: {
+      "switch.plug": st("switch.plug", "unavailable"),
+      "sensor.plug_power": st("sensor.plug_power", "unavailable"),
+      "sensor.plug_energy": st("sensor.plug_energy", "unavailable"),
+      "light.lamp": st("light.lamp", "unavailable"),
+      "sensor.lamp_rssi": st("sensor.lamp_rssi", "-60"),
+      "light.solo": st("light.solo", "unavailable"),
+    },
+    entities: {
+      "switch.plug": { device_id: "d1" },
+      "sensor.plug_power": { device_id: "d1" },
+      "sensor.plug_energy": { device_id: "d1" },
+      "light.lamp": { device_id: "d2" },
+      "sensor.lamp_rssi": { device_id: "d2" },
+      "light.solo": {},
+    },
+    devices: { d1: { name: "Shelly Plug", name_by_user: "Prise salon" }, d2: { name: "Lamp" } },
+  };
+  const problems = ["switch.plug", "sensor.plug_power", "sensor.plug_energy", "light.lamp", "light.solo"].map((id) => ({ id, kind: "unavailable", state: hass.states[id] }));
+  const out = shellGroupOffline(problems, hass);
+  assert.equal(out.length, 3);
+  const plug = out.find((p) => p.device);
+  assert.deepEqual({ id: plug.id, name: plug.device, count: plug.count }, { id: "switch.plug", name: "Prise salon", count: 3 });
+  // A device with another entity still online keeps its offline ones apart.
+  assert.ok(out.some((p) => p.id === "light.lamp" && !p.device));
+  assert.ok(out.some((p) => p.id === "light.solo" && !p.device));
+});
+
+test("shellGroupOffline: an active problem is never folded into its device", () => {
+  const hass = { states: { "binary_sensor.leak": { state: "on", attributes: {} } }, entities: { "binary_sensor.leak": { device_id: "d1" } }, devices: { d1: { name: "Leak" } } };
+  const problems = [{ id: "binary_sensor.leak", kind: "problem", state: hass.states["binary_sensor.leak"] }];
+  assert.deepEqual(shellGroupOffline(problems, hass), problems);
+});

@@ -75,6 +75,39 @@ export const PROBLEM_UNAVAILABLE_DOMAINS = new Set([
   "camera",
 ]);
 
+// A device that went offline whole (a plug unplugged, a dead bridge) takes
+// every one of its entities with it: one row for the device, not one per
+// entity. A device that still has an entity up keeps its offline ones apart,
+// since that is a different, narrower fault.
+export function shellGroupOffline(problems, hass) {
+  const entReg = hass?.entities || {};
+  const devices = hass?.devices || {};
+  const deviceOf = (p) => (p.kind === "unavailable" ? entReg[p.id]?.device_id : null);
+  const offline = new Map();
+  for (const p of problems) {
+    const dev = deviceOf(p);
+    if (dev) offline.set(dev, [...(offline.get(dev) || []), p]);
+  }
+  const whole = new Set();
+  for (const [dev, list] of offline) {
+    if (list.length < 2) continue;
+    const allDown = Object.entries(entReg).every(([id, ent]) => ent.device_id !== dev || [undefined, "unavailable"].includes(hass.states?.[id]?.state));
+    if (allDown) whole.add(dev);
+  }
+  const out = [];
+  const done = new Set();
+  for (const p of problems) {
+    const dev = deviceOf(p);
+    if (!dev || !whole.has(dev)) out.push(p);
+    else if (!done.has(dev)) {
+      done.add(dev);
+      const d = devices[dev] || {};
+      out.push({ ...p, device: d.name_by_user || d.name || p.id, count: offline.get(dev).length });
+    }
+  }
+  return out;
+}
+
 export function shellProblemIcon(st) {
   if (st?.attributes?.icon) return st.attributes.icon;
   const id = st?.entity_id || "";
