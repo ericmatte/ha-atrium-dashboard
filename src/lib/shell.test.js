@@ -170,3 +170,26 @@ test("shellGroupOffline: an active problem is never folded into its device", () 
   const problems = [{ id: "binary_sensor.leak", kind: "problem", state: hass.states["binary_sensor.leak"] }];
   assert.deepEqual(shellGroupOffline(problems, hass), problems);
 });
+
+test("shellGroupOffline: buttons and selects, which some integrations never mark offline, do not keep a device apart", () => {
+  const hass = {
+    states: {
+      "vacuum.roby": { state: "unavailable", attributes: {} },
+      "sensor.roby_battery": { state: "unavailable", attributes: {} },
+      "button.roby_identify": { state: "2026-04-09T02:52:41+00:00", attributes: {} },
+      "select.roby_mode": { state: "Strong", attributes: {} },
+    },
+    entities: {
+      "vacuum.roby": { device_id: "r" },
+      "sensor.roby_battery": { device_id: "r" },
+      "button.roby_identify": { device_id: "r" },
+      "select.roby_mode": { device_id: "r" },
+    },
+    devices: { r: { name: "Roby" } },
+  };
+  const problems = ["vacuum.roby", "sensor.roby_battery"].map((id) => ({ id, kind: "unavailable", state: hass.states[id] }));
+  const out = shellGroupOffline(problems, hass);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].device, "Roby");
+  assert.equal(out[0].count, 2);
+});

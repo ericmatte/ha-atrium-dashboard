@@ -91,7 +91,10 @@ export function shellGroupOffline(problems, hass) {
   const whole = new Set();
   for (const [dev, list] of offline) {
     if (list.length < 2) continue;
-    const allDown = Object.entries(entReg).every(([id, ent]) => ent.device_id !== dev || [undefined, "unavailable"].includes(hass.states?.[id]?.state));
+    // Only what the list itself would flag counts: a button or a select keeps its last value when its device is gone (xiaomi_miot does).
+    const allDown = Object.entries(entReg).every(
+      ([id, ent]) => ent.device_id !== dev || !PROBLEM_UNAVAILABLE_DOMAINS.has(id.split(".")[0]) || [undefined, "unavailable"].includes(hass.states?.[id]?.state)
+    );
     if (allDown) whole.add(dev);
   }
   const out = [];
